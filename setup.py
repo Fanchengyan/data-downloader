@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="data-downloader-fanchegyan", # Replace with your own username
+    name="data-downloader",
     version="0.0.1",
     author="fanchegyan",
     author_email="fanchy14@lzu.edu.cn",
