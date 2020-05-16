@@ -1,0 +1,8 @@
+README.md
+setup.py
+data_downloader/__init__.py
+data_downloader/downloader.py
+data_downloader.egg-info/PKG-INFO
+data_downloader.egg-info/SOURCES.txt
+data_downloader.egg-info/dependency_links.txt
+data_downloader.egg-info/top_level.txt
