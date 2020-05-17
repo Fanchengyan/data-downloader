@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: data-downloader
-Version: 0.0.5
+Version: 0.0.1
 Summary: Data downloader
 Home-page: https://github.com/Fanchengyan/data-downloader
 Author: fanchegyan
@@ -224,17 +224,20 @@ Description: # data-downloader
         **Example:**
         
         ``` python
-        from data_downloader import downloader
-        import numpy as np
+        In [1]:     from data_downloader import downloader 
+           ...:     import numpy as np 
+           ...:  
+           ...:     urls = np.array(['https://www.baidu.com', 
+           ...:     'https://www.bai.com/wrongurl', 
+           ...:     'https://cn.bing.com/', 
+           ...:     'https://bing.com/wrongurl', 
+           ...:     'https://bing.com/'] ) 
+           ...:  
+           ...:     status_ok = downloader.status_ok(urls) 
+           ...:     urls_accessable = urls[status_ok] 
+           ...:     print(urls_accessable) 
         
-        urls = np.array(['https://www.baidu.com',
-        'https://www.baidu.com/wrongurl',
-        'https://cn.bing.com/',
-        'https://bing.com/',
-        'https://bing.com/wrongurl'] )
-        
-        status_ok = downloader.status_ok(downloader.status_ok(urls))
-        urls_accessable = urls[status_ok]
+        ['https://www.baidu.com' 'https://cn.bing.com/' 'https://bing.com/']
         ```
         
 Platform: UNKNOWN

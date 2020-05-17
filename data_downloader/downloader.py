@@ -175,7 +175,8 @@ def download_data(url, folder=None, file_name=None, session=None):
 
 
 def download_datas(urls, folder=None, file_names=None):
-    '''download datas from a list contains urls 
+    '''download datas from a list like object which containing urls. 
+    This function will download files one by one.
 
     Patameters:
     -----------
@@ -304,7 +305,7 @@ async def _download_data(session, url, folder=None, file_name=None):
 async def creat_tasks(urls, folder, file_names, limit):
     conn = aiohttp.TCPConnector(limit_per_host=limit)
     timeout = aiohttp.ClientTimeout()
-    async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
+    async with aiohttp.ClientSession(connector=conn, timeout=timeout, trust_env=True) as session:
         if file_names:
             tasks = [asyncio.ensure_future(_download_data(session, url, file_names[i]))
                      for i, url in enumerate(urls)]
@@ -321,7 +322,9 @@ async def creat_tasks(urls, folder, file_names, limit):
 
 def async_download_datas(urls, folder=None, file_names=None, limit=30):
     '''Download multiple files simultaneously.
+
     Parameters:
+    -----------
     urls:  iterator
         iterator contains urls
     folder: str 
@@ -332,9 +335,9 @@ def async_download_datas(urls, folder=None, file_names=None, limit=30):
     limit: int
         the number of files downloading simultaneously
 
-    Examples:
+    Example:
     ---------
-    ```python
+
     from data_downloader import downloader
 
     urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_20141211.geo.unw.tif',
@@ -347,10 +350,10 @@ def async_download_datas(urls, folder=None, file_names=None, limit=30):
 
     folder = 'D:\\data'
     downloader.async_download_datas(urls,folder,limit=3)
-    ```
     '''
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(creat_tasks(urls, folder, file_names, limit))
+    # loop = asyncio.get_event_loop()
+    # loop.run_until_complete(creat_tasks(urls, folder, file_names, limit))
+    asyncio.run(creat_tasks(urls, folder, file_names, limit))
 
 
 async def _is_response_staus_ok(session, url, timeout):
@@ -368,7 +371,7 @@ async def _is_response_staus_ok(session, url, timeout):
 async def creat_tasks_status_ok(urls, limit, timeout):
     conn = aiohttp.TCPConnector(limit=limit)
     timeout = aiohttp.ClientTimeout()  # remove timeout
-    async with aiohttp.ClientSession(connector=conn) as session:
+    async with aiohttp.ClientSession(connector=conn, trust_env=True) as session:
         tasks = [asyncio.ensure_future(_is_response_staus_ok(session, url, timeout))
                  for url in urls]
         status_ok = await asyncio.gather(*tasks)
@@ -384,6 +387,8 @@ def status_ok(urls, limit=200, timeout=60):
         iterator contains urls
     limit: int
         the number of urls connecting simultaneously
+    timeout: int
+        Request to stop waiting for a response after a given number of seconds
 
     Return:
     ------

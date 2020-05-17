@@ -1,10 +1,10 @@
 # data-downloader
 
-[toc]
+Make downloading scientific data much easier
 
 ## 1. Installation
 
-It is recommended to use the latest version of pip when using pip-downloader.
+It is recommended to use the latest version of pip to install **data_downloader**.
 
 ``` BASH
 pip install data_downloader
@@ -12,7 +12,7 @@ pip install data_downloader
 
 ## 2. Usage
 
-All download functions are in `data_downloader.downloader`. So import `downloader` at the beginning.
+All downloading functions are in `data_downloader.downloader` . So import `downloader` at the beginning.
 
 ``` Python
 from data_downloader import downloader
@@ -20,7 +20,7 @@ from data_downloader import downloader
 
 ### 2.1 Netrc
 
-if the website need logging,you can add a record to a `.netrc` file in your home
+If the website needs to log in, you can add a record to a `.netrc` file in your home which contains your login information to avoid supplying username and password each time you download data.
 
 To view existing hosts in `.netrc` file:
 
@@ -35,32 +35,46 @@ To add a record
 netrc.add(host, login, password,account=None)
 ```
 
-
 for NASA data user:
+
 ``` Python
 
 netrc.add('urs.earthdata.nasa.gov','your_username','your_password')
 ```
 
+To clean all records
+
+``` Python
+netrc.clean()
+```
+
 **Example:**
 
 ``` Python
-In [2]: netrc = downloader.Netrc()                                                                                                                    
-
-In [3]: netrc.hosts                                                                                                                                   
+In [2]: netrc = downloader.Netrc()
+In [3]: netrc.hosts
 Out[3]: {}
 
-In [4]: netrc.add('urs.earthdata.nasa.gov','username','passwd')                                                                            
+In [4]: netrc.add('urs.earthdata.nasa.gov','username','passwd') 
 
-In [5]: netrc.hosts                                                                                                                                   
+In [5]: netrc.hosts
 Out[5]: {'urs.earthdata.nasa.gov': ('username', None, 'passwd')}
 
+# This command only for linux user
+In [6]: !cat ~/.netrc
+machine urs.earthdata.nasa.gov
+	login username
+	password passwd
+
+In [7]: netrc.clean()
+
+In [8]: netrc.hosts
+Out[8]: {}
 ```
 
+### 2.2 download_data
 
-### 2.1 download_data
-
-Download a single file.
+This function is design for downloading a single file. Try to use `download_datas` or `async_download_datas` function if you have a lot of files to download
 
 ``` Python
 downloader.download_data(url, folder=None, file_name=None, session=None)
@@ -68,7 +82,7 @@ downloader.download_data(url, folder=None, file_name=None, session=None)
 
 **Parameters:**
 
-```
+``` 
 url: str
     url of web file
 folder: str
@@ -91,9 +105,9 @@ In [6]: url = 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_produc
 20141117_20141211.geo.unw.tif:   2%|▌                         | 455k/22.1M [00:52<42:59, 8.38kB/s]
 ```
 
-### 2.2 download_datas
+### 2.3 download_datas
 
-download datas from a list which containing urls 
+download datas from a list like object that contains urls. This function will download files one by one.
 
 ``` Python
 downloader.download_datas(urls, folder=None, file_names=None):
@@ -104,7 +118,7 @@ downloader.download_datas(urls, folder=None, file_names=None):
 ``` 
 urls:  iterator
     iterator contains urls
-folder: str 
+folder: str
     the folder to store output files. Default current folder.
 file_names: iterator
     iterator contains names of files. Leaving it None if you want the program 
@@ -137,7 +151,7 @@ In [12]: from data_downloader import downloader
 20141117_20141211.geo.unw.tif:   6%|█▍                     | 1.37M/22.1M [03:09<2:16:31, 2.53kB/s]
 ```
 
-### 2.3 async_download_datas
+### 2.4 async_download_datas
 
 Download files simultaneously.
 
@@ -159,7 +173,7 @@ limit: int
     the number of files downloading simultaneously
 ```
 
-**Examples:**
+**Example:**
 
 ``` python
 In [3]: from data_downloader import downloader 
@@ -192,12 +206,12 @@ In [3]: from data_downloader import downloader
 20141024_20150128.geo.unw.tif:   0%|                                 | 0.00/23.4M [00:00<?, ?B/s]
 ```
 
-### 2.4 status_ok
+### 2.5 status_ok
 
 Simultaneously detecting whether the given links are accessable. 
 
 ``` Python
-downloader.status_ok(urls, limit=200)
+status_ok(urls, limit=200, timeout=60)
 ```
 
 **Parameters**
@@ -207,6 +221,8 @@ urls: iterator
     iterator contains urls
 limit: int
     the number of urls connecting simultaneously
+timeout: int
+    Request to stop waiting for a response after a given number of seconds
 ```
 
 **Return:**
@@ -216,18 +232,18 @@ a list of results (True or False)
 **Example:**
 
 ``` python
-In [1]:     from data_downloader import downloader 
-   ...:     import numpy as np 
-   ...:  
-   ...:     urls = np.array(['https://www.baidu.com', 
-   ...:     'https://www.bai.com/wrongurl', 
-   ...:     'https://cn.bing.com/', 
-   ...:     'https://bing.com/wrongurl', 
-   ...:     'https://bing.com/'] ) 
-   ...:  
-   ...:     status_ok = downloader.status_ok(urls) 
-   ...:     urls_accessable = urls[status_ok] 
-   ...:     print(urls_accessable) 
+In [1]: from data_downloader import downloader
+   ...: import numpy as np
+   ...: 
+   ...: urls = np.array(['https://www.baidu.com',
+   ...: 'https://www.bai.com/wrongurl',
+   ...: 'https://cn.bing.com/',
+   ...: 'https://bing.com/wrongurl',
+   ...: 'https://bing.com/'] )
+   ...: 
+   ...: status_ok = downloader.status_ok(urls)
+   ...: urls_accessable = urls[status_ok]
+   ...: print(urls_accessable)
 
 ['https://www.baidu.com' 'https://cn.bing.com/' 'https://bing.com/']
 ```

@@ -8,7 +8,7 @@ setuptools.setup(
     version="0.0.1",
     author="fanchegyan",
     author_email="fanchy14@lzu.edu.cn",
-    description="Data downloader",
+    description="Make downloading scientific data much easier",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Fanchengyan/data-downloader",
