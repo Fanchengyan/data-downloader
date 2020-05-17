@@ -351,9 +351,11 @@ def async_download_datas(urls, folder=None, file_names=None, limit=30):
     folder = 'D:\\data'
     downloader.async_download_datas(urls,folder,limit=3)
     '''
-    # loop = asyncio.get_event_loop()
-    # loop.run_until_complete(creat_tasks(urls, folder, file_names, limit))
-    asyncio.run(creat_tasks(urls, folder, file_names, limit))
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(creat_tasks(urls, folder, file_names, limit))
+    # Zero-sleep to allow underlying connections to close
+    loop.run_until_complete(asyncio.sleep(0))
+    loop.close()
 
 
 async def _is_response_staus_ok(session, url, timeout):
@@ -411,6 +413,10 @@ def status_ok(urls, limit=200, timeout=60):
     print(urls_accessable)
     ```
     '''
-
-    status_ok = asyncio.run(creat_tasks_status_ok(urls, limit, timeout))
+    loop = asyncio.get_event_loop()
+    status_ok = loop.run_until_complete(
+        creat_tasks_status_ok(urls, limit, timeout))
+    # Zero-sleep to allow underlying connections to close
+    loop.run_until_complete(asyncio.sleep(0))
+    loop.close()
     return status_ok

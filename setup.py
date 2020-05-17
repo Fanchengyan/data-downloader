@@ -13,6 +13,12 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/Fanchengyan/data-downloader",
     packages=setuptools.find_packages(),
+    install_requires=[
+        'requests',
+        'aiohttp',
+        'tqdm',
+        'setuptools'
+    ],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
