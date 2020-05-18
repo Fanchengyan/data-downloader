@@ -302,7 +302,7 @@ async def _download_data(session, url, folder=None, file_name=None):
             return True
 
 
-async def creat_tasks(urls, folder, file_names, limit):
+async def creat_tasks(urls, folder, file_names, limit, desc):
     conn = aiohttp.TCPConnector(limit_per_host=limit)
     timeout = aiohttp.ClientTimeout()
     async with aiohttp.ClientSession(connector=conn, timeout=timeout, trust_env=True) as session:
@@ -315,12 +315,13 @@ async def creat_tasks(urls, folder, file_names, limit):
 
         # Total process bar
         tasks_iter = asyncio.as_completed(tasks)
-        pbar = tqdm(tasks_iter, total=len(urls), desc='>>> Total')
+        desc = '>>> Total | ' + desc.title()
+        pbar = tqdm(tasks_iter, total=len(urls), desc=desc)
         for coroutine in pbar:
             await coroutine
 
 
-def async_download_datas(urls, folder=None, file_names=None, limit=30):
+def async_download_datas(urls, folder=None, file_names=None, limit=30, desc=''):
     '''Download multiple files simultaneously.
 
     Parameters:
@@ -334,6 +335,8 @@ def async_download_datas(urls, folder=None, file_names=None, limit=30):
         to parse them from website 
     limit: int
         the number of files downloading simultaneously
+    desc: str
+        description of datas downloading
 
     Example:
     ---------
@@ -352,7 +355,7 @@ def async_download_datas(urls, folder=None, file_names=None, limit=30):
     downloader.async_download_datas(urls,folder,limit=3)
     '''
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(creat_tasks(urls, folder, file_names, limit))
+    loop.run_until_complete(creat_tasks(urls, folder, file_names, limit, desc))
     # Zero-sleep to allow underlying connections to close
     loop.run_until_complete(asyncio.sleep(0))
     loop.close()

@@ -156,7 +156,7 @@ In [12]: from data_downloader import downloader
 Download files simultaneously.
 
 ``` Python
-downloader.async_download_datas(urls, folder=None, file_names=None, limit=30)
+downloader.async_download_datas(urls, folder=None, file_names=None, limit=30, desc='')
 ```
 
 **Parameters:**
@@ -171,6 +171,8 @@ file_names: iterator
     to parse them from website 
 limit: int
     the number of files downloading simultaneously
+desc: str
+    description of datas downloading
 ```
 
 **Example:**
@@ -194,9 +196,9 @@ In [3]: from data_downloader import downloader
    ...: 3/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif']  
    ...:  
    ...: folder = 'D:\\data' 
-   ...: downloader.async_download_datas(urls,folder,limit=3) 
+   ...: downloader.async_download_datas(urls,folder,limit=3,desc='interferograms')
 
->>> Total:   0%|                                                           | 0/7 [00:00<?, ?it/s]
+>>> Total | Interferograms :                                               | 0/7 [00:00<?, ?it/s]
 20141024_20150221.geo.unw.tif:   1%|▏                        | 136k/21.2M [00:39<45:24, 7.75kB/s]
 20141024_20150128.geo.cc.tif:   2%|▌                         | 119k/5.42M [01:02<6:47:45, 217B/s]
 20141211_20150128.geo.cc.tif:   3%|▊                         | 159k/5.44M [00:36<13:02, 6.75kB/s]
