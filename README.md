@@ -88,7 +88,8 @@ url: str
 folder: str
     the folder to store output files. Default current folder. 
 file_name: str
-    the file name. If None, will parse from web response or url
+    the file name. If None, will parse from web response or url.
+    file_name can be the absolute path if folder is None.
 session: requests.Session() object
     session maintaining connection. Default None
 ```
@@ -121,8 +122,9 @@ urls:  iterator
 folder: str
     the folder to store output files. Default current folder.
 file_names: iterator
-    iterator contains names of files. Leaving it None if you want the program 
-    to parse them from website
+    iterator contains names of files. Leaving it None if you want the program to parse 
+    them fromwebsite. file_names can cantain the absolute paths if folder is None.
+
 ```
 
 **Examples:**
@@ -168,7 +170,7 @@ folder: str
     the folder to store output files. Default current folder.
 file_names: iterator
     iterator contains names of files. Leaving it None if you want the program 
-    to parse them from website 
+    to parse them from website. file_names can cantain the absolute paths if folder is None.
 limit: int
     the number of files downloading simultaneously
 desc: str
