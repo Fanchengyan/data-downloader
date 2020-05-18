@@ -77,7 +77,8 @@ def download_data(url, folder=None, file_name=None, session=None):
     folder: str
         the folder to store output files. Default current folder. 
     file_name: str
-        the file name. If None, will parse from web response or url
+        the file name. If None, will parse from web response or url.
+        file_name can be the absolute path if folder is None.
     session: requests.Session() object
         session maintaining connection. Default None
     '''
@@ -90,12 +91,13 @@ def download_data(url, folder=None, file_name=None, session=None):
     r = session.get(url, headers=headers, stream=True, verify=False)
     r.close()
 
-    if not folder:
-        folder = os.getcwd()
     if not file_name:
         file_name = parse_file_name(r)
 
-    file_path = os.path.join(folder, file_name)
+    if folder:
+        file_path = os.path.join(folder, file_name)
+    else:
+        file_path = os.path.abspath(file_name)
 
     local_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
 
@@ -185,8 +187,8 @@ def download_datas(urls, folder=None, file_names=None):
     folder: str 
         the folder to store output files. Default current folder.
     file_names: iterator
-        iterator contains names of files. Leaving it None if you want the program 
-        to parse them from website
+        iterator contains names of files. Leaving it None if you want the program to parse 
+        them from website. file_names can cantain the absolute paths if folder is None.
 
     Examples:
     ---------
@@ -218,13 +220,15 @@ async def _download_data(session, url, folder=None, file_name=None):
     headers = {'Range': 'bytes=0-4'}
     support_resume = False
 
-    if not folder:
-        folder = os.getcwd()
-
     async with session.get(url, headers=headers, ssl=False) as r:
         if not file_name:
             file_name = parse_file_name(r)
-        file_path = os.path.join(folder, file_name)
+
+        if folder:
+            file_path = os.path.join(folder, file_name)
+        else:
+            file_path = os.path.abspath(file_name)
+
         local_size = os.path.getsize(
             file_path) if os.path.exists(file_path) else 0
 
@@ -332,7 +336,7 @@ def async_download_datas(urls, folder=None, file_names=None, limit=30, desc=''):
         the folder to store output files. Default current folder.
     file_names: iterator
         iterator contains names of files. Leaving it None if you want the program 
-        to parse them from website 
+        to parse them from website. file_names can cantain the absolute paths if folder is None.
     limit: int
         the number of files downloading simultaneously
     desc: str
@@ -352,7 +356,7 @@ def async_download_datas(urls, folder=None, file_names=None, limit=30, desc=''):
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif'] 
 
     folder = 'D:\\data'
-    downloader.async_download_datas(urls,folder,limit=3,desc='interferograms')
+    downloader.async_download_datas(urls,folder,,desc='interferograms')
     '''
     loop = asyncio.get_event_loop()
     loop.run_until_complete(creat_tasks(urls, folder, file_names, limit, desc))
