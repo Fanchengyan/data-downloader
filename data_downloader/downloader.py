@@ -352,7 +352,7 @@ def async_download_datas(urls, folder=None, file_names=None, limit=30, desc=''):
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif'] 
 
     folder = 'D:\\data'
-    downloader.async_download_datas(urls,folder,limit=3)
+    downloader.async_download_datas(urls,folder,limit=3,desc='interferograms')
     '''
     loop = asyncio.get_event_loop()
     loop.run_until_complete(creat_tasks(urls, folder, file_names, limit, desc))
