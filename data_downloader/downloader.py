@@ -225,6 +225,8 @@ async def _download_data(session, url, folder=None, file_name=None):
             file_name = parse_file_name(r)
 
         if folder:
+            if not os.path.exists(folder):
+                os.makedirs(folder)
             file_path = os.path.join(folder, file_name)
         else:
             file_path = os.path.abspath(file_name)
@@ -311,10 +313,10 @@ async def creat_tasks(urls, folder, file_names, limit, desc):
     timeout = aiohttp.ClientTimeout()
     async with aiohttp.ClientSession(connector=conn, timeout=timeout, trust_env=True) as session:
         if file_names:
-            tasks = [asyncio.ensure_future(_download_data(session, url, file_names[i]))
+            tasks = [asyncio.ensure_future(_download_data(session, url, folder, file_names[i]))
                      for i, url in enumerate(urls)]
         else:
-            tasks = [asyncio.ensure_future(_download_data(session, url))
+            tasks = [asyncio.ensure_future(_download_data(session, url, folder))
                      for url in urls]
 
         # Total process bar
@@ -356,7 +358,7 @@ def async_download_datas(urls, folder=None, file_names=None, limit=30, desc=''):
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif'] 
 
     folder = 'D:\\data'
-    downloader.async_download_datas(urls,folder,,desc='interferograms')
+    downloader.async_download_datas(urls,folder,None,desc='interferograms')
     '''
     loop = asyncio.get_event_loop()
     loop.run_until_complete(creat_tasks(urls, folder, file_names, limit, desc))
@@ -427,3 +429,16 @@ def status_ok(urls, limit=200, timeout=60):
     loop.run_until_complete(asyncio.sleep(0))
     loop.close()
     return status_ok
+
+if __name__ == "__main__":
+
+    urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_20141211.geo.unw.tif',
+    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150221/20141024_20150221.geo.unw.tif',
+    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.cc.tif',
+    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.unw.tif',
+    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141211_20150128/20141211_20150128.geo.cc.tif',
+    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317.geo.cc.tif',
+    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif'] 
+
+    folder = 'E:\\data'
+    async_download_datas(urls,folder,None,desc='interferograms')
