@@ -42,10 +42,10 @@ for NASA data user:
 netrc.add('urs.earthdata.nasa.gov','your_username','your_password')
 ```
 
-To clean all records
+To clear all records
 
 ``` Python
-netrc.clean()
+netrc.clear()
 ```
 
 **Example:**
@@ -66,7 +66,7 @@ machine urs.earthdata.nasa.gov
 	login username
 	password passwd
 
-In [7]: netrc.clean()
+In [7]: netrc.clear()
 
 In [8]: netrc.hosts
 Out[8]: {}

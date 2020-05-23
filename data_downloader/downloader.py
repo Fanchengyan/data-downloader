@@ -12,7 +12,7 @@ requests.packages.urllib3.disable_warnings()
 
 
 class Netrc:
-    '''add or clean records in .netrc file'''
+    '''add or clear records in .netrc file'''
 
     def __init__(self, file=None):
         if file is None:
@@ -38,7 +38,7 @@ class Netrc:
                 f.write(rep)
         self._update_info()
 
-    def clean(self):
+    def clear(self):
         '''remove all records'''
         with open(self.file, 'w') as f:
             f.write('')
