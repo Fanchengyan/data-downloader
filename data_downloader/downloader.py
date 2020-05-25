@@ -178,14 +178,14 @@ def download_data(url, folder=None, file_name=None, session=None):
                 time_span = time_end_realtime - time_start_realtime
                 if time_span > 1:
                     speed_realtime = size_add / time_span
-                    print('Downloading {} [Speed: {} | Size: {}]'.format(
+                    print('Downloading {} [Speed: {:.1f} | Size: {:.1f}]'.format(
                         file_name,
                         unit_formater(speed_realtime, 'B/s'),
                         unit_formater(local_size, 'B')), end='\r')
                     time_start_realtime = time_end_realtime
     if not support_resume:
         speed = local_size / (time.time() - time_start)
-        print('Finish downloading {} [Speed: {} | Total Size: {}]'.format(
+        print('Finish downloading {} [Speed: {:.1f} | Total Size: {:.1f}]'.format(
             file_name,
             unit_formater(speed, 'B/s'),
             unit_formater(local_size, 'B')))
@@ -311,14 +311,14 @@ async def _download_data(session, url, folder=None, file_name=None):
                     time_span = time_end_realtime - time_start_realtime
                     if time_span > 1:
                         speed_realtime = size_add / time_span
-                        print('Downloading {} [Speed: {} | Size: {}]'.format(
+                        print('Downloading {} [Speed: {:.1f} | Size: {:.1f}]'.format(
                             file_name,
                             unit_formater(speed_realtime, 'B/s'),
                             unit_formater(local_size, 'B')), end='\r')
                         time_start_realtime = time_end_realtime
             if not support_resume:
                 speed = local_size / (time.time()-time_start)
-                print('Finish downloading {} [Speed: {} | Total Size: {}]'.format(
+                print('Finish downloading {} [Speed: {:.1f} | Total Size: {:.1f}]'.format(
                     file_name,
                     unit_formater(speed, 'B/s'),
                     unit_formater(local_size, 'B')))
