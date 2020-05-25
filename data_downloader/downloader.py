@@ -11,37 +11,50 @@ from urllib.parse import urlparse
 requests.packages.urllib3.disable_warnings()
 
 
-class Netrc:
+class Netrc(netrc):
     '''add or clear records in .netrc file'''
 
     def __init__(self, file=None):
         if file is None:
             file = os.path.join(os.path.expanduser("~"), ".netrc")
         self.file = file
-        self._update_info()
+        if not os.path.exists(file):
+            open(self.file,'w').close()
+
+        netrc.__init__(self,file)
+
+    def _info_to_file(self):
+        rep = self.__repr__()
+        with open(self.file,'w') as f:
+            f.write(rep)
 
     def _update_info(self):
-        self.netrc = netrc(self.file)
-        self.hosts = self.netrc.hosts
+        with open(self.file) as fp:
+            self._parse(self.file, fp, False)
 
-    def add(self, host, login, password, account=None):
-        '''add a record'''
-        if host in self.hosts:
-            pass
+    def add(self, host, login, password, account=None, overwrite=False):
+        '''add a record
+
+        Will do nothing if host exists in .netrc file unless set overwrite=True
+        '''
+        if host in self.hosts and not overwrite:
+            print(f'>>> Warning: {host} existed, nothing will be done.' + 
+            ' If you want to overwrite the existed record, set overwrite=True')
         else:
-            rep = f"machine {host}\n\tlogin {login}\n"
-            if account:
-                rep += f"\taccount {account}\n"
-            rep += f"\tpassword {password}\n"
+            self.hosts.update({host:(login,account,password)})
+            self._info_to_file()
+            self._update_info()
 
-            with open(self.file, 'a') as f:
-                f.write(rep)
+    def remove(self,host):
+        '''remove a record by host'''
+        self.hosts.pop(host)
+        self._info_to_file()
         self._update_info()
 
     def clear(self):
         '''remove all records'''
-        with open(self.file, 'w') as f:
-            f.write('')
+        self.hosts = {}
+        self._info_to_file()
         self._update_info()
 
 

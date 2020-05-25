@@ -32,14 +32,21 @@ print(netrc.hosts)
 To add a record
 
 ``` Python
-netrc.add(host, login, password,account=None)
+netrc.add(self, host, login, password, account=None, overwrite=False)
 ```
+
+If you want to update a record, set tha parameter  `overwrite=False`
 
 for NASA data user:
 
 ``` Python
-
 netrc.add('urs.earthdata.nasa.gov','your_username','your_password')
+```
+
+To remove a record
+
+``` Python
+netrc.remove(self, host)
 ```
 
 To clear all records
@@ -60,16 +67,65 @@ In [4]: netrc.add('urs.earthdata.nasa.gov','username','passwd')
 In [5]: netrc.hosts
 Out[5]: {'urs.earthdata.nasa.gov': ('username', None, 'passwd')}
 
-# This command only for linux user
-In [6]: !cat ~/.netrc
+In [6]: netrc
+Out[6]:
 machine urs.earthdata.nasa.gov
 	login username
 	password passwd
 
-In [7]: netrc.clear()
+# This command only for linux user
+In [7]: !cat ~/.netrc
+machine urs.earthdata.nasa.gov
+	login username
+	password passwd
 
-In [8]: netrc.hosts
-Out[8]: {}
+In [8]: netrc.add('test_host','username','passwd')
+
+In [9]: netrc
+Out[9]:
+machine urs.earthdata.nasa.gov
+        login username
+        password passwd
+machine test_host
+        login username
+        password passwd
+
+
+In [10]: netrc.add('test_host','username','new_passwd')
+>>> Warning: test_host existed, nothing will be done. If you want to overwrite the existed record, set overwrite=True
+
+In [11]: netrc
+Out[11]:
+machine urs.earthdata.nasa.gov
+        login username
+        password passwd
+machine test_host
+        login username
+        password passwd
+
+In [12]: netrc.add('test_host','username','new_passwd',overwrite=True)
+
+In [13]: netrc
+Out[13]:
+machine urs.earthdata.nasa.gov
+        login username
+        password passwd
+machine test_host
+        login username
+        password new_passwd
+
+In [14]: netrc.remove('test_host')
+
+In [15]: netrc
+Out[15]:
+machine urs.earthdata.nasa.gov
+        login username
+        password passwd
+
+In [16]: netrc.clear()
+
+In [17]: netrc.hosts
+Out[17]: {}
 ```
 
 ### 2.2 download_data
