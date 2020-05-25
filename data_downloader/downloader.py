@@ -76,6 +76,8 @@ def unit_formater(size, suffix):
         return f'{size/1024**2:.3f}M{suffix}'
     elif 1024**3 <= size <= 1024 ** 4:
         return f'{size/1024**3:.3f}G{suffix}'
+    elif 1024**4 <= size <= 1024 ** 5:
+        return f'{size/1024**3:.3f}T{suffix}'
     else:
         return f'{size}{suffix}'
 
@@ -173,13 +175,14 @@ def download_data(url, folder=None, file_name=None, session=None):
                 pbar.update(size_add)
             else:
                 time_end_realtime = time.time()
-                speed_realtime = size_add / \
-                    (time_end_realtime - time_start_realtime)
-                print('Downloading {} [Speed: {} | Size: {}]'.format(
-                    file_name,
-                    unit_formater(speed_realtime, 'B/s'),
-                    unit_formater(local_size, 'B')), end='\r')
-                time_start_realtime = time_end_realtime
+                time_span = time_end_realtime - time_start_realtime
+                if time_span > 1:
+                    speed_realtime = size_add / time_span
+                    print('Downloading {} [Speed: {} | Size: {}]'.format(
+                        file_name,
+                        unit_formater(speed_realtime, 'B/s'),
+                        unit_formater(local_size, 'B')), end='\r')
+                    time_start_realtime = time_end_realtime
     if not support_resume:
         speed = local_size / (time.time() - time_start)
         print('Finish downloading {} [Speed: {} | Total Size: {}]'.format(
@@ -305,13 +308,14 @@ async def _download_data(session, url, folder=None, file_name=None):
                     pbar.update(size_add)
                 else:
                     time_end_realtime = time.time()
-                    speed_realtime = size_add / \
-                        (time_end_realtime - time_start_realtime)
-                    print('Downloading {} [Speed: {} | Size: {}]'.format(
-                        file_name,
-                        unit_formater(speed_realtime, 'B/s'),
-                        unit_formater(local_size, 'B')), end='\r')
-                    time_start_realtime = time_end_realtime
+                    time_span = time_end_realtime - time_start_realtime
+                    if time_span > 1:
+                        speed_realtime = size_add / time_span
+                        print('Downloading {} [Speed: {} | Size: {}]'.format(
+                            file_name,
+                            unit_formater(speed_realtime, 'B/s'),
+                            unit_formater(local_size, 'B')), end='\r')
+                        time_start_realtime = time_end_realtime
             if not support_resume:
                 speed = local_size / (time.time()-time_start)
                 print('Finish downloading {} [Speed: {} | Total Size: {}]'.format(

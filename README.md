@@ -35,7 +35,7 @@ To add a record
 netrc.add(self, host, login, password, account=None, overwrite=False)
 ```
 
-If you want to update a record, set tha parameter  `overwrite=False`
+If you want to update a record, set tha parameter  `overwrite=True`
 
 for NASA data user:
 
