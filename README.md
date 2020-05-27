@@ -43,6 +43,12 @@ for NASA data user:
 netrc.add('urs.earthdata.nasa.gov','your_username','your_password')
 ```
 
+You can use the `downloader.get_url_host(url)` to get the host name when you don't know the host of the website:
+
+```python
+host = downloader.get_url_host(url)
+```
+
 To remove a record
 
 ``` Python
@@ -79,53 +85,58 @@ machine urs.earthdata.nasa.gov
 	login username
 	password passwd
 
-In [8]: netrc.add('test_host','username','passwd')
 
-In [9]: netrc
-Out[9]:
-machine urs.earthdata.nasa.gov
-        login username
-        password passwd
-machine test_host
-        login username
-        password passwd
+In [8]: url = 'https://gpm1.gesdisc.eosdis.nasa.gov/daac-bin/OTF/HTTP_services.cgi?FILENAME=%2Fdata%2FGPM_L3%2FGPM_3IMERGM.06%2F2000%2F3B-MO.MS.MRG.3IMERG.20000601-S000000-E235959.06.V06B.HDF5&FORMAT=bmM0Lw&BBOX=31.904%2C99.492%2C35.771%2C105.908&LABEL=3B-MO.MS.MRG.3IMERG.20000601-S000000-E235959.06.V06B.HDF5.SUB.nc4&SHORTNAME=GPM_3IMERGM&SERVICE=L34RS_GPM&VERSION=1.02&DATASET_VERSION=06&VARIABLES=precipitation'
 
+In [9]: downloader.get_url_host(url)
+Out[9]: 'gpm1.gesdisc.eosdis.nasa.gov'
 
-In [10]: netrc.add('test_host','username','new_passwd')
->>> Warning: test_host existed, nothing will be done. If you want to overwrite the existed record, set overwrite=True
+In [10]: netrc.add(downloader.get_url_host(url),'username','passwd')
 
 In [11]: netrc
 Out[11]:
 machine urs.earthdata.nasa.gov
         login username
         password passwd
-machine test_host
+machine gpm1.gesdisc.eosdis.nasa.gov
         login username
         password passwd
 
-In [12]: netrc.add('test_host','username','new_passwd',overwrite=True)
+In [12]: netrc.add(downloader.get_url_host(url),'username','new_passwd')
+>>> Warning: test_host existed, nothing will be done. If you want to overwrite the existed record, set overwrite=True
 
 In [13]: netrc
 Out[13]:
 machine urs.earthdata.nasa.gov
         login username
         password passwd
-machine test_host
+machine gpm1.gesdisc.eosdis.nasa.gov
         login username
-        password new_passwd
+        password passwd
 
-In [14]: netrc.remove('test_host')
+In [14]: netrc.add(downloader.get_url_host(url),'username','new_passwd',overwrite=True)
 
 In [15]: netrc
 Out[15]:
 machine urs.earthdata.nasa.gov
         login username
         password passwd
+machine gpm1.gesdisc.eosdis.nasa.gov
+        login username
+        password new_passwd
 
-In [16]: netrc.clear()
+In [16]: netrc.remove(downloader.get_url_host(url))
 
-In [17]: netrc.hosts
-Out[17]: {}
+In [17]: netrc
+Out[17]:
+machine urs.earthdata.nasa.gov
+        login username
+        password passwd
+
+In [18]: netrc.clear()
+
+In [19]: netrc.hosts
+Out[19]: {}
 ```
 
 ### 2.2 download_data
@@ -159,7 +170,7 @@ In [6]: url = 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_produc
    ...: folder = 'D:\\data'
    ...: downloader.download_data(url,folder)
 
-20141117_20141211.geo.unw.tif:   2%|▌                         | 455k/22.1M [00:52<42:59, 8.38kB/s]
+20141117_20141211.geo.unw.tif:   2%|▌                   | 455k/22.1M [00:52<42:59, 8.38kB/s]
 ```
 
 ### 2.3 download_datas
@@ -206,7 +217,7 @@ In [12]: from data_downloader import downloader
     ...: folder = 'D:\\data' 
     ...: downloader.download_datas(urls,folder)
 
-20141117_20141211.geo.unw.tif:   6%|█▍                     | 1.37M/22.1M [03:09<2:16:31, 2.53kB/s]
+20141117_20141211.geo.unw.tif:   6%|█           | 1.37M/22.1M [03:09<2:16:31, 2.53kB/s]
 ```
 
 ### 2.4 async_download_datas
@@ -256,14 +267,14 @@ In [3]: from data_downloader import downloader
    ...: folder = 'D:\\data' 
    ...: downloader.async_download_datas(urls,folder,limit=3,desc='interferograms')
 
->>> Total | Interferograms :                                               | 0/7 [00:00<?, ?it/s]
-20141024_20150221.geo.unw.tif:   1%|▏                        | 136k/21.2M [00:39<45:24, 7.75kB/s]
-20141024_20150128.geo.cc.tif:   2%|▌                         | 119k/5.42M [01:02<6:47:45, 217B/s]
-20141211_20150128.geo.cc.tif:   3%|▊                         | 159k/5.44M [00:36<13:02, 6.75kB/s]
-20141117_20141211.geo.unw.tif:   0%|                                 | 0.00/22.1M [00:00<?, ?B/s]
-20141117_20150317.geo.cc.tif:   0%|                                  | 0.00/5.44M [00:00<?, ?B/s]
-20141117_20150221.geo.cc.tif:   0%|                                  | 0.00/5.47M [00:00<?, ?B/s]
-20141024_20150128.geo.unw.tif:   0%|                                 | 0.00/23.4M [00:00<?, ?B/s]
+>>> Total | Interferograms :   0%|                          | 0/7 [00:00<?, ?it/s]
+    20141024_20150221.geo.unw.tif:  11%|▌    | 2.41M/21.2M [00:11<41:44, 7.52kB/s]
+    20141117_20141211.geo.unw.tif:   9%|▍    | 2.06M/22.1M [00:11<25:05, 13.3kB/s]
+    20141024_20150128.geo.cc.tif:  36%|██▏   | 1.98M/5.42M [00:12<04:17, 13.4kB/s] 
+    20141117_20150317.geo.cc.tif:   0%|               | 0.00/5.44M [00:00<?, ?B/s]
+    20141117_20150221.geo.cc.tif:   0%|               | 0.00/5.47M [00:00<?, ?B/s]
+    20141024_20150128.geo.unw.tif:   0%|              | 0.00/23.4M [00:00<?, ?B/s]
+    20141211_20150128.geo.cc.tif:   0%|               | 0.00/5.44M [00:00<?, ?B/s]
 ```
 
 ### 2.5 status_ok

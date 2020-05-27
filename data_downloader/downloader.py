@@ -1,14 +1,12 @@
-#!/usr/bin/env python3
 import os
 import time
-import requests
+import selectors
 import asyncio
-import aiohttp
-from tqdm import tqdm
+import httpx
 from netrc import netrc
 from urllib.parse import urlparse
+from tqdm import tqdm
 
-requests.packages.urllib3.disable_warnings()
 
 
 class Netrc(netrc):
@@ -58,7 +56,7 @@ class Netrc(netrc):
         self._update_info()
 
 
-def parse_file_name(response):
+def _parse_file_name(response):
     '''parse the file_name from the headers of web response or url'''
 
     if 'Content-disposition' in response.headers:
@@ -69,20 +67,45 @@ def parse_file_name(response):
     return file_name
 
 
-def unit_formater(size, suffix):
+def _unit_formater(size, suffix):
     if 1024 <= size < 1024 ** 2:
-        return f'{size/1024:.3f}k{suffix}'
+        return f'{size/1024:.2f}k{suffix}'
     elif 1024**2 <= size < 1024 ** 3:
-        return f'{size/1024**2:.3f}M{suffix}'
+        return f'{size/1024**2:.2f}M{suffix}'
     elif 1024**3 <= size <= 1024 ** 4:
-        return f'{size/1024**3:.3f}G{suffix}'
+        return f'{size/1024**3:.2f}G{suffix}'
     elif 1024**4 <= size <= 1024 ** 5:
-        return f'{size/1024**3:.3f}T{suffix}'
+        return f'{size/1024**3:.2f}T{suffix}'
     else:
-        return f'{size}{suffix}'
+        return f'{size:.2f}{suffix}'
 
 
-def download_data(url, folder=None, file_name=None, session=None):
+def get_url_host(url):
+    """Returns the url host for a given url"""
+    ri = urlparse(url)
+    # Strip port numbers from netloc. This weird `if...encode`` dance is
+    # used for Python 3.2, which doesn't support unicode literals.
+    splitstr = b':'
+    if isinstance(url, str):
+        splitstr = splitstr.decode('ascii')
+    host = ri.netloc.split(splitstr)[0]
+    return host
+
+
+def get_netrc_auth(url):
+    """Returns the Requests tuple auth for a given url from netrc."""
+    ri = urlparse(url)
+
+    host = get_url_host(url)
+    _netrc = Netrc().authenticators(host)
+
+    if _netrc:
+        # Return with login / password
+        login_i = (0 if _netrc[0] else 1)
+        return (_netrc[login_i], _netrc[2])
+
+
+def download_data(url, folder=None, file_name=None, client=None):
     '''Download a single file.
 
     Parameters:
@@ -94,20 +117,19 @@ def download_data(url, folder=None, file_name=None, session=None):
     file_name: str
         the file name. If None, will parse from web response or url.
         file_name can be the absolute path if folder is None.
-    session: requests.Session() object
-        session maintaining connection. Default None
+    client: httpx.Client() object
+        client maintaining connection. Default None
     '''
     # init parameters
     support_resume = False
     headers = {'Range': 'bytes=0-4'}
-    if not session:
-        session = requests.Session()
-
-    r = session.get(url, headers=headers, stream=True, verify=False)
+    if not client:
+        client = httpx
+    r = client.head(url, headers=headers, timeout=120)
     r.close()
 
     if not file_name:
-        file_name = parse_file_name(r)
+        file_name = _parse_file_name(r)
 
     if folder:
         file_path = os.path.join(folder, file_name)
@@ -153,43 +175,43 @@ def download_data(url, folder=None, file_name=None, session=None):
                 return True
 
     else:
+        print(f'Download file from {url} failed, status code is {r.status_code}')
         return False
 
     # begin downloading
     if support_resume:
         headers['Range'] = f'bytes={local_size}-{remote_size}'
-        r = session.get(url, headers=headers, stream=True,
-                        timeout=120, verify=False)
     else:
-        r = session.get(url, stream=True, timeout=120, verify=False)
+        headers = None
 
-    with open(file_path, "ab") as f:
-        time_start_realtime = time_start = time.time()
-        for chunk in r.iter_content(chunk_size=1024):
-            if chunk:
-                size_add = len(chunk)
-                local_size += size_add
-                f.write(chunk)
-                f.flush()
-            if support_resume:
-                pbar.update(size_add)
-            else:
-                time_end_realtime = time.time()
-                time_span = time_end_realtime - time_start_realtime
-                if time_span > 1:
-                    speed_realtime = size_add / time_span
-                    print('Downloading {} [Speed: {:.1f} | Size: {:.1f}]'.format(
-                        file_name,
-                        unit_formater(speed_realtime, 'B/s'),
-                        unit_formater(local_size, 'B')), end='\r')
-                    time_start_realtime = time_end_realtime
-    if not support_resume:
-        speed = local_size / (time.time() - time_start)
-        print('Finish downloading {} [Speed: {:.1f} | Total Size: {:.1f}]'.format(
-            file_name,
-            unit_formater(speed, 'B/s'),
-            unit_formater(local_size, 'B')))
-    return True
+    with client.stream("GET", url, headers=headers, timeout=120) as r:
+        with open(file_path, "ab") as f:
+            time_start_realtime = time_start = time.time()
+            for chunk in r.iter_raw():
+                if chunk:
+                    size_add = len(chunk)
+                    local_size += size_add
+                    f.write(chunk)
+                    f.flush()
+                if support_resume:
+                    pbar.update(size_add)
+                else:
+                    time_end_realtime = time.time()
+                    time_span = time_end_realtime - time_start_realtime
+                    if time_span > 1:
+                        speed_realtime = size_add / time_span
+                        print('Downloading {} [Speed: {} | Size: {}]'.format(
+                            file_name,
+                            _unit_formater(speed_realtime, 'B/s'),
+                            _unit_formater(local_size, 'B')), end='\r')
+                        time_start_realtime = time_end_realtime
+            if not support_resume:
+                speed = local_size / (time.time() - time_start)
+                print('Finish downloading {} [Speed: {} | Total Size: {}]'.format(
+                    file_name,
+                    _unit_formater(speed, 'B/s'),
+                    _unit_formater(local_size, 'B')))
+            return True
 
 
 def download_datas(urls, folder=None, file_names=None):
@@ -223,83 +245,87 @@ def download_datas(urls, folder=None, file_names=None):
     downloader.download_datas(urls,folder)
     ```
     '''
-    session = requests.Session()
+    client = httpx.Client(timeout=None)
     for i, url in enumerate(urls):
         if file_names:
-            download_data(url, folder, file_names[i], session)
+            download_data(url, folder, file_names[i], client)
         else:
-            download_data(url, folder, session=session)
+            download_data(url, folder, client=client)
 
 
-async def _download_data(session, url, folder=None, file_name=None):
-    # parse whether the url supports support_resume resuming
+async def _download_data(client, url, folder=None, file_name=None):
     headers = {'Range': 'bytes=0-4'}
     support_resume = False
+    # auth = get_netrc_auth(url)
 
-    async with session.get(url, headers=headers, ssl=False) as r:
-        if not file_name:
-            file_name = parse_file_name(r)
+    r = await client.head(url, headers=headers, timeout=120)
+    r.close()
+    # r = await client.head(url, headers=headers, auth=auth, timeout=120)
+    if not file_name:
+        file_name = _parse_file_name(r)
 
-        if folder:
-            if not os.path.exists(folder):
-                os.makedirs(folder)
-            file_path = os.path.join(folder, file_name)
+    if folder:
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        file_path = os.path.join(folder, file_name)
+    else:
+        file_path = os.path.abspath(file_name)
+
+    local_size = os.path.getsize(
+        file_path) if os.path.exists(file_path) else 0
+
+    # parse the whether the website supports resuming breakpoint
+    if r.status_code == 206:
+        support_resume = True
+        remote_size = int(r.headers['Content-Range'].rsplit('/')[-1])
+
+        # init process bar
+        if local_size < remote_size:
+            pbar = tqdm(initial=local_size, total=remote_size,
+                        unit='B', unit_scale=True,
+                        desc="    "+file_name)
         else:
-            file_path = os.path.abspath(file_name)
+            print(f'{file_name} was downloaded entirely. skiping download')
+            return True
 
-        local_size = os.path.getsize(
-            file_path) if os.path.exists(file_path) else 0
+    elif r.status_code == 200:
+        # know the total size, then delete the file that wasn't downloaded entirely and redownload it.
+        if 'Content-length' in r.headers:
+            remote_size = int(r.headers['Content-length'])
 
-        # parse the whether the website supports resuming breakpoint
-        if r.status == 206:
-            support_resume = True
-            remote_size = int(r.headers['Content-Range'].rsplit('/')[-1])
-
-            # init process bar
-            if local_size < remote_size:
-                pbar = tqdm(initial=local_size, total=remote_size,
-                            unit='B', unit_scale=True,
-                            desc=file_name)
-            else:
+            if 0 < local_size < remote_size:
+                print(f"Detect {file_name} wasn't downloaded entirely")
+                print(
+                    'The website not supports resuming breakpoint. Prepare to remove and redownload')
+                os.remove(file_path)
+            elif local_size == remote_size:
                 print(f'{file_name} was downloaded entirely. skiping download')
                 return True
-
-        elif r.status == 200:
-            # know the total size, then delete the file that wasn't downloaded entirely and redownload it.
-            if 'Content-length' in r.headers:
-                remote_size = int(r.headers['Content-length'])
-
-                if 0 < local_size < remote_size:
-                    print(f"Detect {file_name} wasn't downloaded entirely")
-                    print(
-                        'The website not supports resuming breakpoint. Prepare to remove and redownload')
-                    os.remove(file_path)
-                elif local_size == remote_size:
-                    print(f'{file_name} was downloaded entirely. skiping download')
-                    return True
-            # don't know the total size, warning user if detect the file was downloaded.
-            else:
-                if os.path.exists(file_path):
-                    print(
-                        f">>> Warning: Detect the {file_name} was downloaded, but can't parse the it's size from website")
-                    print(
-                        f"    If you know it wasn't downloaded entirely, delete it and redownload it again. skiping download...")
-                    return True
-
+        # don't know the total size, warning user if detect the file was downloaded.
         else:
-            return False
+            if os.path.exists(file_path):
+                print(
+                    f">>> Warning: Detect the {file_name} was downloaded, but can't parse the it's size from website")
+                print(
+                    f"    If you know it wasn't downloaded entirely, delete it and redownload it again. skiping download...")
+                return True
+    else:
+        print(f'Download file from {url} failed, status code is {r.status_code}')
+        return False
+
+        
 
     # begin download
-    headers['Range'] = f'bytes={local_size}-{remote_size}'
-
-    async with session.get(url, headers=headers, ssl=False) as r:
+    if support_resume:
+        headers['Range'] = f'bytes={local_size}-{remote_size}'
+    else:
+        headers = None
+    auth = get_netrc_auth(get_url_host(url))
+    async with client.stream('GET', url, headers=headers, auth=auth,timeout=None) as r:
         with open(file_path, "ab") as f:
             time_start_realtime = time_start = time.time()
 
-            while True:
-                chunk = await r.content.read(1024)
-                if not chunk:
-                    break
+            async for chunk in r.aiter_bytes():
                 size_add = len(chunk)
                 local_size += size_add
                 f.write(chunk)
@@ -311,29 +337,30 @@ async def _download_data(session, url, folder=None, file_name=None):
                     time_span = time_end_realtime - time_start_realtime
                     if time_span > 1:
                         speed_realtime = size_add / time_span
-                        print('Downloading {} [Speed: {:.1f} | Size: {:.1f}]'.format(
+                        print('Downloading {} [Speed: {} | Size: {}]'.format(
                             file_name,
-                            unit_formater(speed_realtime, 'B/s'),
-                            unit_formater(local_size, 'B')), end='\r')
+                            _unit_formater(speed_realtime, 'B/s'),
+                            _unit_formater(local_size, 'B')), end='\r')
                         time_start_realtime = time_end_realtime
             if not support_resume:
                 speed = local_size / (time.time()-time_start)
-                print('Finish downloading {} [Speed: {:.1f} | Total Size: {:.1f}]'.format(
+                print('Finish downloading {} [Speed: {} | Total Size: {}]'.format(
                     file_name,
-                    unit_formater(speed, 'B/s'),
-                    unit_formater(local_size, 'B')))
+                    _unit_formater(speed, 'B/s'),
+                    _unit_formater(local_size, 'B')))
+            r.close()
             return True
+        
 
 
 async def creat_tasks(urls, folder, file_names, limit, desc):
-    conn = aiohttp.TCPConnector(limit_per_host=limit)
-    timeout = aiohttp.ClientTimeout()
-    async with aiohttp.ClientSession(connector=conn, timeout=timeout, trust_env=True) as session:
+    limits = httpx.PoolLimits(max_keepalive=limit, max_connections=limit)
+    async with httpx.AsyncClient(pool_limits=limits, timeout=None,verify=False) as client:
         if file_names:
-            tasks = [asyncio.ensure_future(_download_data(session, url, folder, file_names[i]))
+            tasks = [asyncio.ensure_future(_download_data(client, url, folder, file_names[i]))
                      for i, url in enumerate(urls)]
         else:
-            tasks = [asyncio.ensure_future(_download_data(session, url, folder))
+            tasks = [asyncio.ensure_future(_download_data(client, url, folder))
                      for url in urls]
 
         # Total process bar
@@ -377,33 +404,36 @@ def async_download_datas(urls, folder=None, file_names=None, limit=30, desc=''):
     folder = 'D:\\data'
     downloader.async_download_datas(urls,folder,None,desc='interferograms')
     '''
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(creat_tasks(urls, folder, file_names, limit, desc))
-    # Zero-sleep to allow underlying connections to close
-    loop.run_until_complete(asyncio.sleep(0))
-    loop.close()
-
-
-async def _is_response_staus_ok(session, url, timeout):
+    #solve the loop close  Error for python 3.8.x in windows platform
+    selector = selectors.SelectSelector()
+    loop = asyncio.SelectorEventLoop(selector)
     try:
-        async with session.get(url, timeout=timeout, ssl=False) as r:
+        loop.run_until_complete(creat_tasks(urls, folder, file_names, limit, desc))
+    finally:
+        loop.close()
 
-            if r.reason == 'OK':
-                return True
-            else:
-                return False
+
+async def _is_response_staus_ok(client, url, timeout):
+    try:
+        r =  await client.head(url, timeout=timeout)
+        r.close()
+        if r.status_code == httpx.codes.OK:
+            return True
+        else:
+            return False
     except:
         return False
 
 
+
 async def creat_tasks_status_ok(urls, limit, timeout):
-    conn = aiohttp.TCPConnector(limit=limit)
-    timeout = aiohttp.ClientTimeout()  # remove timeout
-    async with aiohttp.ClientSession(connector=conn, trust_env=True) as session:
-        tasks = [asyncio.ensure_future(_is_response_staus_ok(session, url, timeout))
+    limits = httpx.PoolLimits(max_keepalive=limit, max_connections=limit)
+    async with httpx.AsyncClient(pool_limits=limits, timeout=None) as client:
+        tasks = [asyncio.create_task(_is_response_staus_ok(client, url, timeout))
                  for url in urls]
         status_ok = await asyncio.gather(*tasks)
-        return status_ok
+
+    return status_ok
 
 
 def status_ok(urls, limit=200, timeout=60):
@@ -439,23 +469,15 @@ def status_ok(urls, limit=200, timeout=60):
     print(urls_accessable)
     ```
     '''
-    loop = asyncio.get_event_loop()
-    status_ok = loop.run_until_complete(
-        creat_tasks_status_ok(urls, limit, timeout))
+    #solve the loop close  Error for python 3.8.x in windows platform
+    selector = selectors.SelectSelector()
+    loop = asyncio.SelectorEventLoop(selector)
+    try:
+        status_ok = loop.run_until_complete(
+            creat_tasks_status_ok(urls, limit, timeout))
     # Zero-sleep to allow underlying connections to close
-    loop.run_until_complete(asyncio.sleep(0))
-    loop.close()
+    finally:
+        loop.close()
+
     return status_ok
 
-if __name__ == "__main__":
-
-    urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_20141211.geo.unw.tif',
-    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150221/20141024_20150221.geo.unw.tif',
-    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.cc.tif',
-    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.unw.tif',
-    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141211_20150128/20141211_20150128.geo.cc.tif',
-    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317.geo.cc.tif',
-    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif'] 
-
-    folder = 'E:\\data'
-    async_download_datas(urls,folder,None,desc='interferograms')
