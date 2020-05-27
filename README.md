@@ -222,7 +222,7 @@ In [12]: from data_downloader import downloader
 
 ### 2.4 async_download_datas
 
-Download files simultaneously.
+Download files simultaneously. The website that don't support resuming breakpoint and need to log in may have the problem while downloading. You can use `download_datas` instead
 
 ``` Python
 downloader.async_download_datas(urls, folder=None, file_names=None, limit=30, desc='')
