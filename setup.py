@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="data-downloader",
-    version="0.1.0",
+    version="0.1.1",
     author="fanchegyan",
     author_email="fanchy14@lzu.edu.cn",
     description="Make downloading scientific data much easier",
@@ -14,8 +14,7 @@ setuptools.setup(
     url="https://github.com/Fanchengyan/data-downloader",
     packages=setuptools.find_packages(),
     install_requires=[
-        'requests',
-        'aiohttp',
+        'httpx',
         'tqdm',
         'setuptools'
     ],
