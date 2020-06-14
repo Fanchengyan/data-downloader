@@ -222,7 +222,7 @@ In [12]: from data_downloader import downloader
 Download files simultaneously using multiprocessing.
 
 ``` Python
-mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc='')
+downloader.mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc='')
 ```
 
 
