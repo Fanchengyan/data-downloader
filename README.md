@@ -35,7 +35,7 @@ To add a record
 netrc.add(self, host, login, password, account=None, overwrite=False)
 ```
 
-If you want to update a record, set tha parameter  `overwrite=True`
+If you want to update a record, set tha parameter `overwrite=True` 
 
 for NASA data user:
 
@@ -45,7 +45,7 @@ netrc.add('urs.earthdata.nasa.gov','your_username','your_password')
 
 You can use the `downloader.get_url_host(url)` to get the host name when you don't know the host of the website:
 
-```python
+``` python
 host = downloader.get_url_host(url)
 ```
 
@@ -84,7 +84,6 @@ In [7]: !cat ~/.netrc
 machine urs.earthdata.nasa.gov
 	login username
 	password passwd
-
 
 In [8]: url = 'https://gpm1.gesdisc.eosdis.nasa.gov/daac-bin/OTF/HTTP_services.cgi?FILENAME=%2Fdata%2FGPM_L3%2FGPM_3IMERGM.06%2F2000%2F3B-MO.MS.MRG.3IMERG.20000601-S000000-E235959.06.V06B.HDF5&FORMAT=bmM0Lw&BBOX=31.904%2C99.492%2C35.771%2C105.908&LABEL=3B-MO.MS.MRG.3IMERG.20000601-S000000-E235959.06.V06B.HDF5.SUB.nc4&SHORTNAME=GPM_3IMERGM&SERVICE=L34RS_GPM&VERSION=1.02&DATASET_VERSION=06&VARIABLES=precipitation'
 
@@ -141,10 +140,10 @@ Out[19]: {}
 
 ### 2.2 download_data
 
-This function is design for downloading a single file. Try to use `download_datas` or `async_download_datas` function if you have a lot of files to download
+This function is design for downloading a single file. Try to use `download_datas`, `mp_download_datas` or `async_download_datas` function if you have a lot of files to download
 
 ``` Python
-downloader.download_data(url, folder=None, file_name=None, session=None)
+downloader.download_data(url, folder=None, file_name=None, client=None)
 ```
 
 **Parameters:**
@@ -157,8 +156,8 @@ folder: str
 file_name: str
     the file name. If None, will parse from web response or url.
     file_name can be the absolute path if folder is None.
-session: requests.Session() object
-    session maintaining connection. Default None
+client: httpx.Client() object
+    client maintaining connection. Default None
 ```
 
 **Example:**
@@ -191,7 +190,6 @@ folder: str
 file_names: iterator
     iterator contains names of files. Leaving it None if you want the program to parse 
     them fromwebsite. file_names can cantain the absolute paths if folder is None.
-
 ```
 
 **Examples:**
@@ -220,9 +218,60 @@ In [12]: from data_downloader import downloader
 20141117_20141211.geo.unw.tif:   6%|█           | 1.37M/22.1M [03:09<2:16:31, 2.53kB/s]
 ```
 
-### 2.4 async_download_datas
+### 2.4 mp_download_datas
+Download files simultaneously using multiprocessing.
 
-Download files simultaneously. The website that don't support resuming breakpoint and need to log in may have the problem while downloading. You can use `download_datas` instead
+``` Python
+mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc='')
+```
+
+
+**Parameters:**
+
+``` 
+urls:  iterator
+    iterator contains urls
+folder: str
+    the folder to store output files. Default current folder.
+file_names: iterator
+    iterator contains names of files. Leaving it None if you want the program to parse
+    them from website. file_names can cantain the absolute paths if folder is None.
+ncore: int
+    Number of cores for parallel downloading. If ncore is None, then the number returned
+    by os.cpu_count() is used. Defalut None.
+```
+
+**Example:**
+
+```python
+In [12]: from data_downloader import downloader 
+    ...:  
+    ...: urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_20
+    ...: 141211.geo.unw.tif', 
+    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150221/20141024_20150221
+    ...: .geo.unw.tif', 
+    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128
+    ...: .geo.cc.tif', 
+    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128
+    ...: .geo.unw.tif', 
+    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141211_20150128/20141211_20150128
+    ...: .geo.cc.tif', 
+    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317
+    ...: .geo.cc.tif', 
+    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221
+    ...: .geo.cc.tif']  
+    ...:  
+    ...: folder = 'D:\\data' 
+    ...: downloader.mp_download_datas(urls,folder)
+
+ >>> 12 parallel downloading
+ >>> Total | :   0%|                                         | 0/7 [00:00<?, ?it/s]
+20141211_20150128.geo.cc.tif:  15%|██▊                | 803k/5.44M [00:00<?, ?B/s]
+```
+
+### 2.5 async_download_datas
+
+Download files simultaneously with asynchronous mode. The website that don't support resuming breakpoint and need to log in may have the problem while downloading. You can use `download_datas` or `mp_download_datas`instead
 
 ``` Python
 downloader.async_download_datas(urls, folder=None, file_names=None, limit=30, desc='')
@@ -277,7 +326,7 @@ In [3]: from data_downloader import downloader
     20141211_20150128.geo.cc.tif:   0%|               | 0.00/5.44M [00:00<?, ?B/s]
 ```
 
-### 2.5 status_ok
+### 2.6 status_ok
 
 Simultaneously detecting whether the given links are accessable. 
 

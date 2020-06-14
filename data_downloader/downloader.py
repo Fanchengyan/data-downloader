@@ -4,9 +4,12 @@ import selectors
 import asyncio
 import httpx
 from netrc import netrc
+import multiprocessing as mp
 from urllib.parse import urlparse
 from tqdm import tqdm
+import psutil
 
+pro_num = 1
 
 
 class Netrc(netrc):
@@ -17,13 +20,13 @@ class Netrc(netrc):
             file = os.path.join(os.path.expanduser("~"), ".netrc")
         self.file = file
         if not os.path.exists(file):
-            open(self.file,'w').close()
+            open(self.file, 'w').close()
 
-        netrc.__init__(self,file)
+        netrc.__init__(self, file)
 
     def _info_to_file(self):
         rep = self.__repr__()
-        with open(self.file,'w') as f:
+        with open(self.file, 'w') as f:
             f.write(rep)
 
     def _update_info(self):
@@ -36,14 +39,14 @@ class Netrc(netrc):
         Will do nothing if host exists in .netrc file unless set overwrite=True
         '''
         if host in self.hosts and not overwrite:
-            print(f'>>> Warning: {host} existed, nothing will be done.' + 
-            ' If you want to overwrite the existed record, set overwrite=True')
+            print(f'>>> Warning: {host} existed, nothing will be done.' +
+                  ' If you want to overwrite the existed record, set overwrite=True')
         else:
-            self.hosts.update({host:(login,account,password)})
+            self.hosts.update({host: (login, account, password)})
             self._info_to_file()
             self._update_info()
 
-    def remove(self,host):
+    def remove(self, host):
         '''remove a record by host'''
         self.hosts.pop(host)
         self._info_to_file()
@@ -94,8 +97,6 @@ def get_url_host(url):
 
 def get_netrc_auth(url):
     """Returns the Requests tuple auth for a given url from netrc."""
-    ri = urlparse(url)
-
     host = get_url_host(url)
     _netrc = Netrc().authenticators(host)
 
@@ -113,7 +114,7 @@ def download_data(url, folder=None, file_name=None, client=None):
     url: str
         url of web file
     folder: str
-        the folder to store output files. Default current folder. 
+        the folder to store output files. Default current folder.
     file_name: str
         the file name. If None, will parse from web response or url.
         file_name can be the absolute path if folder is None.
@@ -146,7 +147,7 @@ def download_data(url, folder=None, file_name=None, client=None):
         # init process bar
         if local_size < remote_size:
             pbar = tqdm(initial=local_size, total=remote_size,
-                        unit='B', unit_scale=True,
+                        unit='B', unit_scale=True, dynamic_ncols=True,
                         desc=file_name)
         else:
             print(f'{file_name} was downloaded entirely. skiping download')
@@ -175,7 +176,8 @@ def download_data(url, folder=None, file_name=None, client=None):
                 return True
 
     else:
-        print(f'Download file from {url} failed, status code is {r.status_code}')
+        print(
+            f'Download file from {url} failed, status code is {r.status_code}')
         return False
 
     # begin downloading
@@ -215,17 +217,17 @@ def download_data(url, folder=None, file_name=None, client=None):
 
 
 def download_datas(urls, folder=None, file_names=None):
-    '''download datas from a list like object which containing urls. 
+    '''download datas from a list like object which containing urls.
     This function will download files one by one.
 
     Patameters:
     -----------
     urls:  iterator
         iterator contains urls
-    folder: str 
+    folder: str
         the folder to store output files. Default current folder.
     file_names: iterator
-        iterator contains names of files. Leaving it None if you want the program to parse 
+        iterator contains names of files. Leaving it None if you want the program to parse
         them from website. file_names can cantain the absolute paths if folder is None.
 
     Examples:
@@ -239,7 +241,7 @@ def download_datas(urls, folder=None, file_names=None):
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141211_20150128/20141211_20150128.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317.geo.cc.tif',
-    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif'] 
+    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif']
 
     folder = 'D:\\data'
     downloader.download_datas(urls,folder)
@@ -251,6 +253,63 @@ def download_datas(urls, folder=None, file_names=None):
             download_data(url, folder, file_names[i], client)
         else:
             download_data(url, folder, client=client)
+
+
+def _mp_download_data(args):
+    return download_data(*args)
+
+
+def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc=''):
+    '''download datas from a list like object which containing urls.
+    This function will download multiple files simultaneously using multiporocess.
+
+    Patameters:
+    -----------
+    urls:  iterator
+        iterator contains urls
+    folder: str
+        the folder to store output files. Default current folder.
+    file_names: iterator
+        iterator contains names of files. Leaving it None if you want the program to parse
+        them from website. file_names can cantain the absolute paths if folder is None.
+    ncore: int
+        Number of cores for parallel processing. If ncore is None then the number returned
+        by os.cpu_count() is used. Defalut None.
+        
+    Examples:
+    ---------
+    ```python
+    from data_downloader import downloader
+
+    urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_20141211.geo.unw.tif',
+    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150221/20141024_20150221.geo.unw.tif',
+    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.cc.tif',
+    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.unw.tif',
+    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141211_20150128/20141211_20150128.geo.cc.tif',
+    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317.geo.cc.tif',
+    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif']
+
+    folder = 'D:\\data'
+    downloader.mp_download_datas(urls,folder)
+    ```
+    '''
+    if ncore == None:
+        ncore = os.cpu_count()
+    else:
+        ncore = int(ncore)
+    print(f'\n>>> {ncore} parallel downloading')
+
+    desc = '>>> Total | ' + desc.title()
+    pbar = tqdm(total=len(urls), desc=desc, dynamic_ncols=True)
+
+    with mp.Pool(ncore) as pool:
+        if file_names:
+            args = [(urls[i], folder, file_names[i]) for i in range(len(urls))]
+        else:
+            args = [(urls[i], folder) for i in range(len(urls))]
+
+        for i in pool.imap_unordered(_mp_download_data, args):
+            pbar.update()
 
 
 async def _download_data(client, url, folder=None, file_name=None):
@@ -283,7 +342,8 @@ async def _download_data(client, url, folder=None, file_name=None):
         if local_size < remote_size:
             pbar = tqdm(initial=local_size, total=remote_size,
                         unit='B', unit_scale=True,
-                        desc="    "+file_name)
+                        desc="    " + file_name,
+                        dynamic_ncols=True)
         else:
             print(f'{file_name} was downloaded entirely. skiping download')
             return True
@@ -310,10 +370,9 @@ async def _download_data(client, url, folder=None, file_name=None):
                     f"    If you know it wasn't downloaded entirely, delete it and redownload it again. skiping download...")
                 return True
     else:
-        print(f'Download file from {url} failed, status code is {r.status_code}')
+        print(
+            f'Download file from {url} failed, status code is {r.status_code}')
         return False
-
-        
 
     # begin download
     if support_resume:
@@ -321,7 +380,7 @@ async def _download_data(client, url, folder=None, file_name=None):
     else:
         headers = None
     auth = get_netrc_auth(get_url_host(url))
-    async with client.stream('GET', url, headers=headers, auth=auth,timeout=None) as r:
+    async with client.stream('GET', url, headers=headers, auth=auth, timeout=None) as r:
         with open(file_path, "ab") as f:
             time_start_realtime = time_start = time.time()
 
@@ -350,12 +409,11 @@ async def _download_data(client, url, folder=None, file_name=None):
                     _unit_formater(local_size, 'B')))
             r.close()
             return True
-        
 
 
 async def creat_tasks(urls, folder, file_names, limit, desc):
     limits = httpx.PoolLimits(max_keepalive=limit, max_connections=limit)
-    async with httpx.AsyncClient(pool_limits=limits, timeout=None,verify=False) as client:
+    async with httpx.AsyncClient(pool_limits=limits, timeout=None, verify=False) as client:
         if file_names:
             tasks = [asyncio.ensure_future(_download_data(client, url, folder, file_names[i]))
                      for i, url in enumerate(urls)]
@@ -366,7 +424,8 @@ async def creat_tasks(urls, folder, file_names, limit, desc):
         # Total process bar
         tasks_iter = asyncio.as_completed(tasks)
         desc = '>>> Total | ' + desc.title()
-        pbar = tqdm(tasks_iter, total=len(urls), desc=desc)
+        pbar = tqdm(tasks_iter, total=len(urls),
+                    desc=desc, dynamic_ncols=True)
         for coroutine in pbar:
             await coroutine
 
@@ -378,10 +437,10 @@ def async_download_datas(urls, folder=None, file_names=None, limit=30, desc=''):
     -----------
     urls:  iterator
         iterator contains urls
-    folder: str 
+    folder: str
         the folder to store output files. Default current folder.
     file_names: iterator
-        iterator contains names of files. Leaving it None if you want the program 
+        iterator contains names of files. Leaving it None if you want the program
         to parse them from website. file_names can cantain the absolute paths if folder is None.
     limit: int
         the number of files downloading simultaneously
@@ -399,23 +458,24 @@ def async_download_datas(urls, folder=None, file_names=None, limit=30, desc=''):
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141211_20150128/20141211_20150128.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317.geo.cc.tif',
-    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif'] 
+    'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif']
 
     folder = 'D:\\data'
     downloader.async_download_datas(urls,folder,None,desc='interferograms')
     '''
-    #solve the loop close  Error for python 3.8.x in windows platform
+    # solve the loop close  Error for python 3.8.x in windows platform
     selector = selectors.SelectSelector()
     loop = asyncio.SelectorEventLoop(selector)
     try:
-        loop.run_until_complete(creat_tasks(urls, folder, file_names, limit, desc))
+        loop.run_until_complete(creat_tasks(
+            urls, folder, file_names, limit, desc))
     finally:
         loop.close()
 
 
 async def _is_response_staus_ok(client, url, timeout):
     try:
-        r =  await client.head(url, timeout=timeout)
+        r = await client.head(url, timeout=timeout)
         r.close()
         if r.status_code == httpx.codes.OK:
             return True
@@ -423,7 +483,6 @@ async def _is_response_staus_ok(client, url, timeout):
             return False
     except:
         return False
-
 
 
 async def creat_tasks_status_ok(urls, limit, timeout):
@@ -437,7 +496,7 @@ async def creat_tasks_status_ok(urls, limit, timeout):
 
 
 def status_ok(urls, limit=200, timeout=60):
-    '''Simultaneously detecting whether the given links are accessable. 
+    '''Simultaneously detecting whether the given links are accessable.
 
     Parameters
     ----------
@@ -469,7 +528,7 @@ def status_ok(urls, limit=200, timeout=60):
     print(urls_accessable)
     ```
     '''
-    #solve the loop close  Error for python 3.8.x in windows platform
+    # solve the loop close  Error for python 3.8.x in windows platform
     selector = selectors.SelectSelector()
     loop = asyncio.SelectorEventLoop(selector)
     try:
@@ -480,4 +539,5 @@ def status_ok(urls, limit=200, timeout=60):
         loop.close()
 
     return status_ok
+
 
