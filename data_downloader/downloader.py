@@ -7,7 +7,6 @@ from netrc import netrc
 import multiprocessing as mp
 from urllib.parse import urlparse
 from tqdm import tqdm
-import psutil
 
 pro_num = 1
 
@@ -106,7 +105,7 @@ def get_netrc_auth(url):
         return (_netrc[login_i], _netrc[2])
 
 
-def download_data(url, folder=None, file_name=None, client=None):
+def download_data(url, folder=None, file_name=None, client=None, retry=10):
     '''Download a single file.
 
     Parameters:
@@ -120,12 +119,15 @@ def download_data(url, folder=None, file_name=None, client=None):
         file_name can be the absolute path if folder is None.
     client: httpx.Client() object
         client maintaining connection. Default None
+    retry: int 
+        the times of reconnetion when status code is 503
     '''
     # init parameters
     support_resume = False
     headers = {'Range': 'bytes=0-4'}
     if not client:
         client = httpx
+
     r = client.head(url, headers=headers, timeout=120)
     r.close()
 
@@ -152,16 +154,15 @@ def download_data(url, folder=None, file_name=None, client=None):
         else:
             print(f'{file_name} was downloaded entirely. skiping download')
             return True
-
     elif r.status_code == 200:
         # know the total size, then delete the file that wasn't downloaded entirely and redownload it.
         if 'Content-length' in r.headers:
             remote_size = int(r.headers['Content-length'])
 
             if 0 < local_size < remote_size:
-                print(f"Detect {file_name} wasn't downloaded entirely")
-                print(
-                    'The website not supports resuming breakpoint. Prepare to remove and redownload')
+                print(f"  Detect {file_name} wasn't downloaded entirely")
+                print('  The website not supports resuming breakpoint.'
+                      ' Prepare to remove and redownload')
                 os.remove(file_path)
             elif local_size == remote_size:
                 print(f'{file_name} was downloaded entirely. skiping download')
@@ -174,10 +175,17 @@ def download_data(url, folder=None, file_name=None, client=None):
                 print(
                     f"    If you know it wasn't downloaded entirely, delete it and redownload it again. skiping download...")
                 return True
-
+    elif r.status_code == 503:
+        if retry >= 0:
+            download_data(url, folder=folder, file_name=file_name,
+                          client=client, retry=retry-1)
+        else:
+            print(f'  Download file from "{url}" failed,'
+                  f' status code is {r.status_code}')
+            return False
     else:
-        print(
-            f'Download file from {url} failed, status code is {r.status_code}')
+        print(f'  Download file from "{url}" failed,'
+              f' status code is {r.status_code}')
         return False
 
     # begin downloading
@@ -202,14 +210,14 @@ def download_data(url, folder=None, file_name=None, client=None):
                     time_span = time_end_realtime - time_start_realtime
                     if time_span > 1:
                         speed_realtime = size_add / time_span
-                        print('Downloading {} [Speed: {} | Size: {}]'.format(
+                        print('  Downloading {} [Speed: {} | Size: {}]'.format(
                             file_name,
                             _unit_formater(speed_realtime, 'B/s'),
                             _unit_formater(local_size, 'B')), end='\r')
                         time_start_realtime = time_end_realtime
             if not support_resume:
                 speed = local_size / (time.time() - time_start)
-                print('Finish downloading {} [Speed: {} | Total Size: {}]'.format(
+                print('  Finish downloading {} [Speed: {} | Total Size: {}]'.format(
                     file_name,
                     _unit_formater(speed, 'B/s'),
                     _unit_formater(local_size, 'B')))
@@ -275,7 +283,9 @@ def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc=''):
     ncore: int
         Number of cores for parallel processing. If ncore is None then the number returned
         by os.cpu_count() is used. Defalut None.
-        
+    desc: str
+        description of datas downloading
+
     Examples:
     ---------
     ```python
@@ -297,7 +307,7 @@ def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc=''):
         ncore = os.cpu_count()
     else:
         ncore = int(ncore)
-    print(f'\n>>> {ncore} parallel downloading')
+    print(f'>>> {ncore} parallel downloading')
 
     desc = '>>> Total | ' + desc.title()
     pbar = tqdm(total=len(urls), desc=desc, dynamic_ncols=True)
@@ -312,7 +322,7 @@ def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc=''):
             pbar.update()
 
 
-async def _download_data(client, url, folder=None, file_name=None):
+async def _download_data(client, url, folder=None, file_name=None, retry=10):
     headers = {'Range': 'bytes=0-4'}
     support_resume = False
     # auth = get_netrc_auth(url)
@@ -369,9 +379,17 @@ async def _download_data(client, url, folder=None, file_name=None):
                 print(
                     f"    If you know it wasn't downloaded entirely, delete it and redownload it again. skiping download...")
                 return True
+    elif r.status_code == 503:
+        if retry > 0:
+            await _download_data(client, url, folder=folder,
+                                 file_name=file_name, retry=retry-1)
+        else:
+            print(f'  Download file from "{url}" failed,'
+                  f' status code is {r.status_code}')
+            return False
     else:
-        print(
-            f'Download file from {url} failed, status code is {r.status_code}')
+        print(f'  Download file from "{url}" failed,'
+              f' status code is {r.status_code}')
         return False
 
     # begin download
@@ -539,5 +557,3 @@ def status_ok(urls, limit=200, timeout=60):
         loop.close()
 
     return status_ok
-
-

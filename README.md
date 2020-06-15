@@ -219,7 +219,7 @@ In [12]: from data_downloader import downloader
 ```
 
 ### 2.4 mp_download_datas
-Download files simultaneously using multiprocessing.
+Download files simultaneously using multiprocessing. The website that don't support resuming breakpoint may download incompletely. You can use `download_datas` instead
 
 ``` Python
 downloader.mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc='')
@@ -239,6 +239,8 @@ file_names: iterator
 ncore: int
     Number of cores for parallel downloading. If ncore is None, then the number returned
     by os.cpu_count() is used. Defalut None.
+desc: str
+    description of datas downloading
 ```
 
 **Example:**
@@ -271,7 +273,7 @@ In [12]: from data_downloader import downloader
 
 ### 2.5 async_download_datas
 
-Download files simultaneously with asynchronous mode. The website that don't support resuming breakpoint and need to log in may have the problem while downloading. You can use `download_datas` or `mp_download_datas`instead
+Download files simultaneously with asynchronous mode. The website that don't support resuming breakpoint may download incompletely. You can use `download_datas` instead
 
 ``` Python
 downloader.async_download_datas(urls, folder=None, file_names=None, limit=30, desc='')
