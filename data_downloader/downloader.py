@@ -7,8 +7,10 @@ from netrc import netrc
 import multiprocessing as mp
 from urllib.parse import urlparse
 from tqdm import tqdm
+from fake_useragent import UserAgent
 
 pro_num = 1
+ua = UserAgent()
 
 
 class Netrc(netrc):
@@ -124,7 +126,7 @@ def download_data(url, folder=None, file_name=None, client=None, retry=10):
     '''
     # init parameters
     support_resume = False
-    headers = {'Range': 'bytes=0-4'}
+    headers = {"User-Agent": ua.chrome, 'Range': 'bytes=0-4'}
     if not client:
         client = httpx
 
@@ -175,6 +177,9 @@ def download_data(url, folder=None, file_name=None, client=None, retry=10):
                 print(
                     f"    If you know it wasn't downloaded entirely, delete it and redownload it again. skiping download...")
                 return True
+    elif r.status_code == 400:
+        print('>>> Authorization error! Please check your username and password in Netrc')
+        return False
     elif r.status_code == 503:
         if retry >= 0:
             download_data(url, folder=folder, file_name=file_name,
@@ -323,7 +328,7 @@ def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc=''):
 
 
 async def _download_data(client, url, folder=None, file_name=None, retry=10):
-    headers = {'Range': 'bytes=0-4'}
+    headers = {"User-Agent": ua.chrome, 'Range': 'bytes=0-4'}
     support_resume = False
     # auth = get_netrc_auth(url)
 
@@ -379,6 +384,9 @@ async def _download_data(client, url, folder=None, file_name=None, retry=10):
                 print(
                     f"    If you know it wasn't downloaded entirely, delete it and redownload it again. skiping download...")
                 return True
+    elif r.status_code == 400:
+        print('>>> Authorization error! Please check your username and password in Netrc')
+        return False
     elif r.status_code == 503:
         if retry > 0:
             await _download_data(client, url, folder=folder,

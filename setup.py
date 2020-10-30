@@ -16,7 +16,8 @@ setuptools.setup(
     install_requires=[
         'httpx',
         'tqdm',
-        'setuptools'
+        'setuptools',
+        'fake_useragent'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
