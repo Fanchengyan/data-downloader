@@ -1,1 +1,1 @@
-from data_downloader import downloader
+from data_downloader import downloader, parse_urls

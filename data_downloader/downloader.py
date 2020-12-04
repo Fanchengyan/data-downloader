@@ -3,14 +3,41 @@ import time
 import selectors
 import asyncio
 import httpx
+import nest_asyncio
 from netrc import netrc
 import multiprocessing as mp
 from urllib.parse import urlparse
 from tqdm import tqdm
-from fake_useragent import UserAgent
 
+nest_asyncio.apply()
 pro_num = 1
+<<<<<<< HEAD
+
+
+def get_url_host(url):
+    """Returns the url host for a given url"""
+    ri = urlparse(url)
+    # Strip port numbers from netloc. This weird `if...encode`` dance is
+    # used for Python 3.2, which doesn't support unicode literals.
+    splitstr = b':'
+    if isinstance(url, str):
+        splitstr = splitstr.decode('ascii')
+    host = ri.netloc.split(splitstr)[0]
+    return host
+
+
+def get_netrc_auth(url):
+    """Returns the Requests tuple auth for a given url from netrc."""
+    host = get_url_host(url)
+    _netrc = Netrc().authenticators(host)
+
+    if _netrc:
+        # Return with login / password
+        login_i = (0 if _netrc[0] else 1)
+        return (_netrc[login_i], _netrc[2])
+=======
 ua = UserAgent(use_cache_server=False)
+>>>>>>> f3c3243f9bb8a5b6b54710bd2d2224a041e0b249
 
 
 class Netrc(netrc):
@@ -84,66 +111,11 @@ def _unit_formater(size, suffix):
         return f'{size:.2f}{suffix}'
 
 
-def get_url_host(url):
-    """Returns the url host for a given url"""
-    ri = urlparse(url)
-    # Strip port numbers from netloc. This weird `if...encode`` dance is
-    # used for Python 3.2, which doesn't support unicode literals.
-    splitstr = b':'
-    if isinstance(url, str):
-        splitstr = splitstr.decode('ascii')
-    host = ri.netloc.split(splitstr)[0]
-    return host
-
-
-def get_netrc_auth(url):
-    """Returns the Requests tuple auth for a given url from netrc."""
-    host = get_url_host(url)
-    _netrc = Netrc().authenticators(host)
-
-    if _netrc:
-        # Return with login / password
-        login_i = (0 if _netrc[0] else 1)
-        return (_netrc[login_i], _netrc[2])
-
-
-def download_data(url, folder=None, file_name=None, client=None, retry=10):
-    '''Download a single file.
-
-    Parameters:
-    -----------
-    url: str
-        url of web file
-    folder: str
-        the folder to store output files. Default current folder.
-    file_name: str
-        the file name. If None, will parse from web response or url.
-        file_name can be the absolute path if folder is None.
-    client: httpx.Client() object
-        client maintaining connection. Default None
-    retry: int 
-        the times of reconnetion when status code is 503
-    '''
-    # init parameters
-    support_resume = False
-    headers = {"User-Agent": ua.chrome, 'Range': 'bytes=0-4'}
-    if not client:
-        client = httpx
-
-    r = client.head(url, headers=headers, timeout=120)
-    r.close()
-
-    if not file_name:
-        file_name = _parse_file_name(r)
-
-    if folder:
-        file_path = os.path.join(folder, file_name)
-    else:
-        file_path = os.path.abspath(file_name)
-
-    local_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
-
-    # parse the whether the website supports resuming breakpoint
+def _handle_status(r, url, local_size, file_name, file_path):
+    # returns True: downloaded entirely
+    # returns False: error! break download
+    # returns None: continue to download
+    global support_resume, pbar, remote_size
     if r.status_code == 206:
         support_resume = True
         remote_size = int(r.headers['Content-Range'].rsplit('/')[-1])
@@ -164,7 +136,11 @@ def download_data(url, folder=None, file_name=None, client=None, retry=10):
             if 0 < local_size < remote_size:
                 print(f"  Detect {file_name} wasn't downloaded entirely")
                 print('  The website not supports resuming breakpoint.'
-                      ' Prepare to remove and redownload')
+                      ' Prepare to remove the local file and redownload...')
+                os.remove(file_path)
+            elif local_size > remote_size:
+                print('Detected the local file is larger than the server file. '
+                      ' Prepare to remove local the file and redownload...')
                 os.remove(file_path)
             elif local_size == remote_size:
                 print(f'{file_name} was downloaded entirely. skiping download')
@@ -172,26 +148,72 @@ def download_data(url, folder=None, file_name=None, client=None, retry=10):
         # don't know the total size, warning user if detect the file was downloaded.
         else:
             if os.path.exists(file_path):
-                print(
-                    f">>> Warning: Detect the {file_name} was downloaded, but can't parse the it's size from website")
-                print(
-                    f"    If you know it wasn't downloaded entirely, delete it and redownload it again. skiping download...")
+                print(f">>> Warning: Detect the {file_name} was downloaded,"
+                      " but can't parse the it's size from website\n"
+                      f"    If you know it wasn't downloaded entirely, delete "
+                      "it and redownload it again. skiping download...")
                 return True
-    elif r.status_code == 400:
-        print('>>> Authorization error! Please check your username and password in Netrc')
+    elif r.status_code == 401:
+        print(
+            '>>> Authorization failed! Please check your username and password in Netrc')
         return False
-    elif r.status_code == 503:
-        if retry >= 0:
-            download_data(url, folder=folder, file_name=file_name,
-                          client=client, retry=retry-1)
-        else:
-            print(f'  Download file from "{url}" failed,'
-                  f' status code is {r.status_code}')
-            return False
+    elif r.status_code == 403:
+        print(
+            '>>> Forbidden! Access to the requested resource was denied by the server')
+        return False
     else:
         print(f'  Download file from "{url}" failed,'
               f' status code is {r.status_code}')
         return False
+
+
+def download_data(url, folder=None, file_name=None, client=None, retry=0):
+    '''Download a single file.
+
+    Parameters:
+    -----------
+    url: str
+        url of web file
+    folder: str
+        the folder to store output files. Default current folder.
+    file_name: str
+        the file name. If None, will parse from web response or url.
+        file_name can be the absolute path if folder is None.
+    client: httpx.Client() object
+        client maintaining connection. Default None
+    retry: int 
+        the times of reconnetion when status code is 503
+    '''
+    # init parameters
+    global support_resume, pbar, remote_size
+
+    support_resume = False
+    headers = {'Range': 'bytes=0-4'}
+    if not client:
+        client = httpx
+
+    r = client.head(url, headers=headers, timeout=120)
+    r.close()
+
+    if not file_name:
+        file_name = _parse_file_name(r)
+
+    if folder:
+        file_path = os.path.join(folder, file_name)
+    else:
+        file_path = os.path.abspath(file_name)
+
+    local_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
+
+    status = _handle_status(r, url, local_size, file_name, file_path)
+    if status:
+        return True
+    elif status == False:
+        if retry > 0:
+            download_data(url, folder=folder, file_name=file_name,
+                          client=client, retry=retry - 1)
+        else:
+            return False
 
     # begin downloading
     if support_resume:
@@ -327,8 +349,10 @@ def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc=''):
             pbar.update()
 
 
-async def _download_data(client, url, folder=None, file_name=None, retry=10):
-    headers = {"User-Agent": ua.chrome, 'Range': 'bytes=0-4'}
+async def _download_data(client, url, folder=None, file_name=None, retry=0):
+    global support_resume, pbar, remote_size
+
+    headers = {'Range': 'bytes=0-4'}
     support_resume = False
     # auth = get_netrc_auth(url)
 
@@ -348,57 +372,15 @@ async def _download_data(client, url, folder=None, file_name=None, retry=10):
     local_size = os.path.getsize(
         file_path) if os.path.exists(file_path) else 0
 
-    # parse the whether the website supports resuming breakpoint
-    if r.status_code == 206:
-        support_resume = True
-        remote_size = int(r.headers['Content-Range'].rsplit('/')[-1])
-
-        # init process bar
-        if local_size < remote_size:
-            pbar = tqdm(initial=local_size, total=remote_size,
-                        unit='B', unit_scale=True,
-                        desc="    " + file_name,
-                        dynamic_ncols=True)
-        else:
-            print(f'{file_name} was downloaded entirely. skiping download')
-            return True
-
-    elif r.status_code == 200:
-        # know the total size, then delete the file that wasn't downloaded entirely and redownload it.
-        if 'Content-length' in r.headers:
-            remote_size = int(r.headers['Content-length'])
-
-            if 0 < local_size < remote_size:
-                print(f"Detect {file_name} wasn't downloaded entirely")
-                print(
-                    'The website not supports resuming breakpoint. Prepare to remove and redownload')
-                os.remove(file_path)
-            elif local_size == remote_size:
-                print(f'{file_name} was downloaded entirely. skiping download')
-                return True
-        # don't know the total size, warning user if detect the file was downloaded.
-        else:
-            if os.path.exists(file_path):
-                print(
-                    f">>> Warning: Detect the {file_name} was downloaded, but can't parse the it's size from website")
-                print(
-                    f"    If you know it wasn't downloaded entirely, delete it and redownload it again. skiping download...")
-                return True
-    elif r.status_code == 400:
-        print('>>> Authorization error! Please check your username and password in Netrc')
-        return False
-    elif r.status_code == 503:
+    status = _handle_status(r, url, local_size, file_name, file_path)
+    if status:
+        return True
+    elif status == False:
         if retry > 0:
             await _download_data(client, url, folder=folder,
                                  file_name=file_name, retry=retry-1)
         else:
-            print(f'  Download file from "{url}" failed,'
-                  f' status code is {r.status_code}')
             return False
-    else:
-        print(f'  Download file from "{url}" failed,'
-              f' status code is {r.status_code}')
-        return False
 
     # begin download
     if support_resume:
@@ -437,14 +419,14 @@ async def _download_data(client, url, folder=None, file_name=None, retry=10):
             return True
 
 
-async def creat_tasks(urls, folder, file_names, limit, desc):
+async def creat_tasks(urls, folder, file_names, limit, desc, retry):
     limits = httpx.PoolLimits(max_keepalive=limit, max_connections=limit)
     async with httpx.AsyncClient(pool_limits=limits, timeout=None, verify=False) as client:
         if file_names:
-            tasks = [asyncio.ensure_future(_download_data(client, url, folder, file_names[i]))
+            tasks = [asyncio.ensure_future(_download_data(client, url, folder, file_names[i], retry))
                      for i, url in enumerate(urls)]
         else:
-            tasks = [asyncio.ensure_future(_download_data(client, url, folder))
+            tasks = [asyncio.ensure_future(_download_data(client, url, folder, retry))
                      for url in urls]
 
         # Total process bar
@@ -456,7 +438,7 @@ async def creat_tasks(urls, folder, file_names, limit, desc):
             await coroutine
 
 
-def async_download_datas(urls, folder=None, file_names=None, limit=30, desc=''):
+def async_download_datas(urls, folder=None, file_names=None, limit=30, desc='', retry=0):
     '''Download multiple files simultaneously.
 
     Parameters:
@@ -494,7 +476,7 @@ def async_download_datas(urls, folder=None, file_names=None, limit=30, desc=''):
     loop = asyncio.SelectorEventLoop(selector)
     try:
         loop.run_until_complete(creat_tasks(
-            urls, folder, file_names, limit, desc))
+            urls, folder, file_names, limit, desc, retry))
     finally:
         loop.close()
 
