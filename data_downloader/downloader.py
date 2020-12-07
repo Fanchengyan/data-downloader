@@ -437,8 +437,8 @@ async def _download_data(client, url, folder=None, file_name=None, retry=0):
 
 
 async def creat_tasks(urls, folder, file_names, limit, desc, retry):
-    limits = httpx.PoolLimits(max_keepalive=limit, max_connections=limit)
-    async with httpx.AsyncClient(pool_limits=limits, timeout=None, verify=False) as client:
+    limits = httpx.Limits(max_keepalive_connections=limit, max_connections=limit)
+    async with httpx.AsyncClient(limits=limits, timeout=None, verify=False) as client:
         if file_names:
             tasks = [asyncio.ensure_future(_download_data(client, url, folder, file_names[i], retry))
                      for i, url in enumerate(urls)]
@@ -511,8 +511,9 @@ async def _is_response_staus_ok(client, url, timeout):
 
 
 async def creat_tasks_status_ok(urls, limit, timeout):
-    limits = httpx.PoolLimits(max_keepalive=limit, max_connections=limit)
-    async with httpx.AsyncClient(pool_limits=limits, timeout=None) as client:
+    limits = httpx.Limits(max_keepalive_connections=limit,
+                          max_connections=limit)
+    async with httpx.AsyncClient(limits=limits, timeout=None) as client:
         tasks = [asyncio.create_task(_is_response_staus_ok(client, url, timeout))
                  for url in urls]
         status_ok = await asyncio.gather(*tasks)

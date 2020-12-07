@@ -5,7 +5,7 @@ with open("README.md", "r", encoding='UTF-8') as fh:
 
 setuptools.setup(
     name="data-downloader",
-    version="0.2.1",
+    version="0.2.2",
     author="fanchegyan",
     author_email="fanchy14@lzu.edu.cn",
     description="Make downloading scientific data much easier",
@@ -14,7 +14,7 @@ setuptools.setup(
     url="https://github.com/Fanchengyan/data-downloader",
     packages=setuptools.find_packages(),
     install_requires=[
-        'httpx',
+        'httpx >= 0.14.0',
         'tqdm',
         'setuptools',
         'beautifulsoup4',
