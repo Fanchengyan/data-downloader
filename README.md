@@ -373,9 +373,18 @@ In [1]: from data_downloader import downloader
 
 Provides a very simple way to get URLs from various medias
 
+to import:
+```python
+from data_downloader import parse_urls
+```
+
 ### 3.1 from_urls_file
 
 parse urls from a file which only contains urls 
+
+```python
+parse_urls.from_urls_file(url_file)
+```
 
 **Parameters:**
 
@@ -391,6 +400,10 @@ a list contains urls
 
 parse urls from sentinel `products.meta4` file downloaded from  <https://scihub.copernicus.eu/dhus>
 
+```python
+parse_urls.from_sentinel_meta4(url_file)
+```
+
 **Parameters:**
 
     url_file: str
@@ -404,6 +417,10 @@ a list contains urls
 
 
 parse urls from html website
+
+```python
+parse_urls.from_html(url, suffix=None, suffix_depth=0, url_depth=0)
+```
 
 **Parameters:**
 
@@ -444,6 +461,12 @@ print(len(urls_all)-len(urls))
 parse urls from orders in earthexplorer.
 
 Reference: [bulk-downloader](https://code.usgs.gov/espa/bulk-downloader)
+
+
+```python
+parse_urls.from_EarthExplorer_order(username=None, passwd=None, email=None,
+                                    order=None, url_host=None)
+```
 
 **Parameters:**
 
