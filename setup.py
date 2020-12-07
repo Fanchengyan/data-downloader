@@ -5,7 +5,7 @@ with open("README.md", "r", encoding='UTF-8') as fh:
 
 setuptools.setup(
     name="data-downloader",
-    version="0.2.0",
+    version="0.2.1",
     author="fanchegyan",
     author_email="fanchy14@lzu.edu.cn",
     description="Make downloading scientific data much easier",
@@ -18,7 +18,8 @@ setuptools.setup(
         'tqdm',
         'setuptools',
         'beautifulsoup4',
-        'nest_asyncio'
+        'nest_asyncio',
+        'python-dateutil'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

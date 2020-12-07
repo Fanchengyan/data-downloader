@@ -1,9 +1,11 @@
 import os
 import time
+import datetime as dt
 import selectors
 import asyncio
 import httpx
 import nest_asyncio
+from dateutil.parser import parse
 from netrc import netrc
 import multiprocessing as mp
 from urllib.parse import urlparse
@@ -11,7 +13,6 @@ from tqdm import tqdm
 
 nest_asyncio.apply()
 pro_num = 1
-<<<<<<< HEAD
 
 
 def get_url_host(url):
@@ -35,9 +36,6 @@ def get_netrc_auth(url):
         # Return with login / password
         login_i = (0 if _netrc[0] else 1)
         return (_netrc[login_i], _netrc[2])
-=======
-ua = UserAgent(use_cache_server=False)
->>>>>>> f3c3243f9bb8a5b6b54710bd2d2224a041e0b249
 
 
 class Netrc(netrc):
@@ -111,6 +109,17 @@ def _unit_formater(size, suffix):
         return f'{size:.2f}{suffix}'
 
 
+def _new_file_from_web(r, file_path):
+    '''whether have new file from the website'''
+    try:
+        time_remote = parse(r.headers.get("Last-Modified"))
+        time_local = dt.datetime.fromtimestamp(
+            os.path.getmtime(file_local), dt.timezone.utc)
+        return time_remote > time_local
+    except:
+        return False
+
+
 def _handle_status(r, url, local_size, file_name, file_path):
     # returns True: downloaded entirely
     # returns False: error! break download
@@ -121,7 +130,11 @@ def _handle_status(r, url, local_size, file_name, file_path):
         remote_size = int(r.headers['Content-Range'].rsplit('/')[-1])
 
         # init process bar
-        if local_size < remote_size:
+        if _new_file_from_web(r, file_path):
+            print(f'There is a new file from {url}'
+                  f'{file_name} is ready to be downloaded again')
+            os.remove(file_path)
+        elif local_size < remote_size:
             pbar = tqdm(initial=local_size, total=remote_size,
                         unit='B', unit_scale=True, dynamic_ncols=True,
                         desc=file_name)
@@ -133,7 +146,11 @@ def _handle_status(r, url, local_size, file_name, file_path):
         if 'Content-length' in r.headers:
             remote_size = int(r.headers['Content-length'])
 
-            if 0 < local_size < remote_size:
+            if _new_file_from_web(r, file_path):
+                print(f'There is a new file from {url}'
+                      f'{file_name} is ready to be downloaded again')
+                os.remove(file_path)
+            elif 0 < local_size < remote_size:
                 print(f"  Detect {file_name} wasn't downloaded entirely")
                 print('  The website not supports resuming breakpoint.'
                       ' Prepare to remove the local file and redownload...')

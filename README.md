@@ -10,7 +10,7 @@ It is recommended to use the latest version of pip to install **data_downloader*
 pip install data_downloader
 ```
 
-## 2. Usage
+## 2. downloader Usage
 
 All downloading functions are in `data_downloader.downloader` . So import `downloader` at the beginning.
 
@@ -368,4 +368,112 @@ In [1]: from data_downloader import downloader
    ...: print(urls_accessable)
 
 ['https://www.baidu.com' 'https://cn.bing.com/' 'https://bing.com/']
+```
+## 3. parse_url Usage
+
+Provides a very simple way to get URLs from various medias
+
+### 3.1 from_urls_file
+
+parse urls from a file which only contains urls 
+
+**Parameters:**
+
+    url_file: str
+        path to file which only contains urls 
+
+**Return:**
+
+a list contains urls
+
+
+### 3.2 from_sentinel_meta4
+
+parse urls from sentinel `products.meta4` file downloaded from  <https://scihub.copernicus.eu/dhus>
+
+**Parameters:**
+
+    url_file: str
+        path to products.meta4
+
+**Return:**
+
+a list contains urls
+
+### 3.3 from_html
+
+
+parse urls from html website
+
+**Parameters:**
+
+    url: str
+        the website contatins datas
+    suffix: list, optional
+        data format. suffix should be a list contains multipart. 
+        if suffix_depth is 0, all '.' will parsed. 
+        Examples: 
+            when set 'suffix_depth=0':
+                suffix of 'xxx8.1_GLOBAL.nc' should be ['.1_GLOBAL', '.nc']
+                suffix of 'xxx.tar.gz' should be ['.tar', '.gz']
+            when set 'suffix_depth=1':
+                suffix of 'xxx8.1_GLOBAL.nc' should be ['.nc']
+                suffix of 'xxx.tar.gz' should be ['.gz']
+    suffix_depth: interger
+        Number of suffixes
+    url_depth: interger
+        depth of url in website will parsed
+
+**Return:**
+
+a list contains urls
+
+**Example:**
+
+```python
+from downloader import parse_urls
+
+url = 'https://cds-espri.ipsl.upmc.fr/espri/pubipsl/iasib_CH4_2014_uk.jsp'
+urls = parse_urls.from_html(url, suffix=['.nc'], suffix_depth=1)
+urls_all = parse_urls.from_html(url, suffix=['.nc'], suffix_depth=1, url_depth=1)
+print(len(urls_all)-len(urls))
+```
+
+### 3.4 from_EarthExplorer_order
+
+parse urls from orders in earthexplorer.
+
+Reference: [bulk-downloader](https://code.usgs.gov/espa/bulk-downloader)
+
+**Parameters:**
+
+    username, passwd: str, optional
+        your username and passwd to login in EarthExplorer. Chould be
+        None when you have save them in .netrc
+    email: str, optioanl
+        email address for the user that submitted the order
+    order: str or dict
+        which order to download. If None, all orders retrieved from 
+        EarthExplorer will be used.
+    url_host: str
+        if host is not USGS ESPA
+
+**Return:**
+
+a dict in format of {orderid: urls}
+
+**Example:**
+
+```python
+from pathlib import Path
+from data_downloader import downloader, parse_urls
+folder_out = Path('D:\\data')
+urls_info = parse_urls.from_EarthExplorer_order(
+            'your username', 'your passwd')
+for odr in urls_info.keys():
+    folder = folder_out.joinpath(odr)
+    if not folder.exists():
+        folder.mkdir()
+    urls = urls_info[odr]
+    downloader.download_datas(urls, folder)
 ```

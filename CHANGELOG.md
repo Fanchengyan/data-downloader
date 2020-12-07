@@ -1,3 +1,11 @@
+[0.2.1] - 2020-12-07
+
+### Changed
+
+- add redownlaod data when website update the data
+- update the document of parse_urls
+
+
 [0.2.0] - 2020-12-04
 
 ### Added
