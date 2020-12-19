@@ -65,8 +65,8 @@ class Netrc(netrc):
         Will do nothing if host exists in .netrc file unless set overwrite=True
         '''
         if host in self.hosts and not overwrite:
-            print(f'>>> Warning: {host} existed, nothing will be done.' +
-                  ' If you want to overwrite the existed record, set overwrite=True')
+            tqdm.write(f'>>> Warning: {host} existed, nothing will be done.' +
+                       ' If you want to overwrite the existed record, set overwrite=True')
         else:
             self.hosts.update({host: (login, account, password)})
             self._info_to_file()
@@ -114,74 +114,88 @@ def _new_file_from_web(r, file_path):
     try:
         time_remote = parse(r.headers.get("Last-Modified"))
         time_local = dt.datetime.fromtimestamp(
-            os.path.getmtime(file_path), dt.timezone.utc)
+            os.path.getmtime(file_local), dt.timezone.utc)
         return time_remote > time_local
     except:
         return False
 
 
 def _handle_status(r, url, local_size, file_name, file_path):
-    # returns True: downloaded entirely
-    # returns False: error! break download
+    # returns True, '': downloaded entirely
+    # returns False,'': error! break download
+    # returns None, url: 301
     # returns None: continue to download
+    # todo add other status code like 202
+
     global support_resume, pbar, remote_size
+
     if r.status_code == 206:
         support_resume = True
         remote_size = int(r.headers['Content-Range'].rsplit('/')[-1])
 
         # init process bar
         if _new_file_from_web(r, file_path):
-            print(f'There is a new file from {url}'
-                  f'{file_name} is ready to be downloaded again')
+            tqdm.write(f'There is a new file from {url}'
+                       f'{file_name} is ready to be downloaded again')
             os.remove(file_path)
         elif local_size < remote_size:
             pbar = tqdm(initial=local_size, total=remote_size,
                         unit='B', unit_scale=True, dynamic_ncols=True,
                         desc=file_name)
         else:
-            print(f'{file_name} was downloaded entirely. skiping download')
-            return True
+            tqdm.write(
+                f'{file_name} was downloaded entirely. skiping download')
+            return True, ''
     elif r.status_code == 200:
         # know the total size, then delete the file that wasn't downloaded entirely and redownload it.
         if 'Content-length' in r.headers:
             remote_size = int(r.headers['Content-length'])
 
             if _new_file_from_web(r, file_path):
-                print(f'There is a new file from {url}'
-                      f'{file_name} is ready to be downloaded again')
+                tqdm.write(f'There is a new file from {url}'
+                           f'{file_name} is ready to be downloaded again')
                 os.remove(file_path)
             elif 0 < local_size < remote_size:
-                print(f"  Detect {file_name} wasn't downloaded entirely")
-                print('  The website not supports resuming breakpoint.'
-                      ' Prepare to remove the local file and redownload...')
+                tqdm.write(f"  Detect {file_name} wasn't downloaded entirely")
+                tqdm.write('  The website not supports resuming breakpoint.'
+                           ' Prepare to remove the local file and redownload...')
                 os.remove(file_path)
             elif local_size > remote_size:
-                print('Detected the local file is larger than the server file. '
-                      ' Prepare to remove local the file and redownload...')
+                tqdm.write('Detected the local file is larger than the server file. '
+                           ' Prepare to remove local the file and redownload...')
                 os.remove(file_path)
             elif local_size == remote_size:
-                print(f'{file_name} was downloaded entirely. skiping download')
-                return True
+                tqdm.write(
+                    f'{file_name} was downloaded entirely. skiping download')
+                return True, ''
         # don't know the total size, warning user if detect the file was downloaded.
         else:
             if os.path.exists(file_path):
-                print(f">>> Warning: Detect the {file_name} was downloaded,"
-                      " but can't parse the it's size from website\n"
-                      f"    If you know it wasn't downloaded entirely, delete "
-                      "it and redownload it again. skiping download...")
-                return True
+                tqdm.write(f">>> Warning: Detect the {file_name} was downloaded,"
+                           " but can't parse the it's size from website\n"
+                           f"    If you know it wasn't downloaded entirely, delete "
+                           "it and redownload it again. skiping download...")
+                return True, ''
+    elif r.status_code == 202:
+        tqdm.write('>>> The server has accepted your request but has not yet processed it. '
+                'Please redownload it later')
+        return False, ''
+    elif r.status_code == 301:
+        url_new = r.headers['Location']
+        tqdm.write(f'>>> Waring: the website has redirected to {url_new}')
+        return None, url_new
     elif r.status_code == 401:
-        print(
+        tqdm.write(
             '>>> Authorization failed! Please check your username and password in Netrc')
-        return False
+        return False, ''
     elif r.status_code == 403:
-        print(
+        tqdm.write(
             '>>> Forbidden! Access to the requested resource was denied by the server')
-        return False
+        return False, ''
     else:
-        print(f'  Download file from "{url}" failed,'
-              f' status code is {r.status_code}')
-        return False
+        tqdm.write(f'  Download file from "{url}" failed,'
+                   f' status code is {r.status_code}')
+        return False, ''
 
 
 def download_data(url, folder=None, file_name=None, client=None, retry=0):
@@ -222,15 +236,20 @@ def download_data(url, folder=None, file_name=None, client=None, retry=0):
 
     local_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
 
-    status = _handle_status(r, url, local_size, file_name, file_path)
-    if status:
-        return True
-    elif status == False:
-        if retry > 0:
-            download_data(url, folder=folder, file_name=file_name,
-                          client=client, retry=retry - 1)
-        else:
-            return False
+    result = _handle_status(r, url, local_size, file_name, file_path)
+    if result:
+        status, url_new = result
+        if status:
+            return True
+        elif status == False:
+            if url_new:
+                return download_data(url_new, folder=folder, file_name=file_name,
+                                     client=client, retry=retry - 1)
+            elif retry > 0:
+                return download_data(url, folder=folder, file_name=file_name,
+                                     client=client, retry=retry - 1)
+            else:
+                return False
 
     # begin downloading
     if support_resume:
@@ -254,14 +273,14 @@ def download_data(url, folder=None, file_name=None, client=None, retry=0):
                     time_span = time_end_realtime - time_start_realtime
                     if time_span > 1:
                         speed_realtime = size_add / time_span
-                        print('  Downloading {} [Speed: {} | Size: {}]'.format(
+                        tqdm.write('  Downloading {} [Speed: {} | Size: {}]'.format(
                             file_name,
                             _unit_formater(speed_realtime, 'B/s'),
                             _unit_formater(local_size, 'B')), end='\r')
                         time_start_realtime = time_end_realtime
             if not support_resume:
                 speed = local_size / (time.time() - time_start)
-                print('  Finish downloading {} [Speed: {} | Total Size: {}]'.format(
+                tqdm.write('  Finish downloading {} [Speed: {} | Total Size: {}]'.format(
                     file_name,
                     _unit_formater(speed, 'B/s'),
                     _unit_formater(local_size, 'B')))
@@ -351,7 +370,7 @@ def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc=''):
         ncore = os.cpu_count()
     else:
         ncore = int(ncore)
-    print(f'>>> {ncore} parallel downloading')
+    tqdm.write(f'>>> {ncore} parallel downloading')
 
     desc = '>>> Total | ' + desc.title()
     pbar = tqdm(total=len(urls), desc=desc, dynamic_ncols=True)
@@ -389,15 +408,20 @@ async def _download_data(client, url, folder=None, file_name=None, retry=0):
     local_size = os.path.getsize(
         file_path) if os.path.exists(file_path) else 0
 
-    status = _handle_status(r, url, local_size, file_name, file_path)
-    if status:
-        return True
-    elif status == False:
-        if retry > 0:
-            await _download_data(client, url, folder=folder,
-                                 file_name=file_name, retry=retry-1)
-        else:
-            return False
+    result = _handle_status(r, url, local_size, file_name, file_path)
+    if result:
+        status, url_new = result
+        if status:
+            return True
+        elif status == False:
+            if url_new:  # 301
+                return await _download_data(client, url_new, folder=folder,
+                                            file_name=file_name, retry=retry - 1)
+            elif retry > 0:
+                return await _download_data(client, url, folder=folder,
+                                            file_name=file_name, retry=retry - 1)
+            else:
+                return False
 
     # begin download
     if support_resume:
@@ -421,14 +445,14 @@ async def _download_data(client, url, folder=None, file_name=None, retry=0):
                     time_span = time_end_realtime - time_start_realtime
                     if time_span > 1:
                         speed_realtime = size_add / time_span
-                        print('Downloading {} [Speed: {} | Size: {}]'.format(
+                        tqdm.write('Downloading {} [Speed: {} | Size: {}]'.format(
                             file_name,
                             _unit_formater(speed_realtime, 'B/s'),
                             _unit_formater(local_size, 'B')), end='\r')
                         time_start_realtime = time_end_realtime
             if not support_resume:
                 speed = local_size / (time.time()-time_start)
-                print('Finish downloading {} [Speed: {} | Total Size: {}]'.format(
+                tqdm.write('Finish downloading {} [Speed: {} | Total Size: {}]'.format(
                     file_name,
                     _unit_formater(speed, 'B/s'),
                     _unit_formater(local_size, 'B')))
@@ -437,7 +461,8 @@ async def _download_data(client, url, folder=None, file_name=None, retry=0):
 
 
 async def creat_tasks(urls, folder, file_names, limit, desc, retry):
-    limits = httpx.Limits(max_keepalive_connections=limit, max_connections=limit)
+    limits = httpx.Limits(max_keepalive_connections=limit,
+                          max_connections=limit)
     async with httpx.AsyncClient(limits=limits, timeout=None, verify=False) as client:
         if file_names:
             tasks = [asyncio.ensure_future(_download_data(client, url, folder, file_names[i], retry))
@@ -551,7 +576,7 @@ def status_ok(urls, limit=200, timeout=60):
 
     status_ok = downloader.status_ok(urls)
     urls_accessable = urls[status_ok]
-    print(urls_accessable)
+    tqdm.write(urls_accessable)
     ```
     '''
     # solve the loop close  Error for python 3.8.x in windows platform
