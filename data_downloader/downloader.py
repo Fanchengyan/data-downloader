@@ -125,7 +125,6 @@ def _handle_status(r, url, local_size, file_name, file_path):
     # returns False,'': error! break download
     # returns None, url: 301
     # returns None: continue to download
-    # todo add other status code like 202
 
     global support_resume, pbar, remote_size
 
@@ -194,7 +193,7 @@ def _handle_status(r, url, local_size, file_name, file_path):
         return False, ''
     else:
         tqdm.write(f'  Download file from "{url}" failed,'
-                   f' status code is {r.status_code}')
+                   f' The service returns the HTTP Status Code: {r.status_code}')
         return False, ''
 
 
