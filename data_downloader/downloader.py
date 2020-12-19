@@ -114,7 +114,7 @@ def _new_file_from_web(r, file_path):
     try:
         time_remote = parse(r.headers.get("Last-Modified"))
         time_local = dt.datetime.fromtimestamp(
-            os.path.getmtime(file_local), dt.timezone.utc)
+            os.path.getmtime(file_path), dt.timezone.utc)
         return time_remote > time_local
     except:
         return False
