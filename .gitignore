@@ -1,5 +1,5 @@
-dist
-build
-data_downloader.egg-info
-data_downloader/__pycache__
-.vscode
+dist/*
+build/*
+data_downloader.egg-info/*
+data_downloader/__pycache__/*
+.vscode/*
