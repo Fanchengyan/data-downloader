@@ -177,7 +177,7 @@ def _handle_status(r, url, local_size, file_name, file_path):
                 return True, ''
     elif r.status_code == 202:
         tqdm.write('>>> The server has accepted your request but has not yet processed it. '
-                'Please redownload it later')
+                   'Please redownload it later')
         return False, ''
     elif r.status_code == 301:
         url_new = r.headers['Location']
@@ -278,7 +278,9 @@ def download_data(url, folder=None, file_name=None, client=None, retry=0):
                             _unit_formater(local_size, 'B')), end='\r')
                         time_start_realtime = time_end_realtime
             if not support_resume:
-                speed = local_size / (time.time() - time_start)
+                time_cost = time.time() - time_start
+
+                speed = local_size / time_cost if time_cost > 0 else 0
                 tqdm.write('  Finish downloading {} [Speed: {} | Total Size: {}]'.format(
                     file_name,
                     _unit_formater(speed, 'B/s'),
