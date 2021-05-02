@@ -2,6 +2,24 @@
 
 Make downloading scientific data much easier
 
+## Introduction
+
+data-downloader is a very convenient and powerful data download package for retrieving files using HTTP, HTTPS. It current includes download model `downloader` and url parsing model `parse_urls`. As `httpx` was used which provided a method to access website with synchronous and asynchronous way, you can download multiple files at the same time.
+
+data-downloader has many features to make retrieving files easy, including:
+
+- Can resume aborted downloads automatically when you re-execute the code if website support resuming (status code is 216 or 416 when send a HEAD request to the server supplying a Range header)
+- Can download multiple files at the same time when download a single file very slow. There are two methods provided to achieve this function：
+  - `async_download_datas` (recommend) function could download mare than 100 files at the same time as using asynchronous requests of `httpx`
+  - `mp_download_datas` function depends on your CPU of computer as using `multiprocessing` package
+- Provide a convenient way to manage your username and password in `.netrc` file. When the website requires the username and password, there is no need to provide it every time you download
+- Provide a convenient way to parse urls. 
+  - `from_urls_file` : parse urls of data from a file which only contains urls 
+  - `from_sentinel_meta4` : parse urls from sentinel `products.meta4` file downloaded from <https://scihub.copernicus.eu/dhus>
+  - `from_EarthExplorer_order` : parse urls from orders in EarthExplorer (same as `bulk-downloader`)
+  - `from_html` : parse urls from html website
+
+
 ## 1. Installation
 
 It is recommended to use the latest version of pip to install **data_downloader**.

@@ -128,7 +128,7 @@ def _handle_status(r, url, local_size, file_name, file_path):
 
     global support_resume, pbar, remote_size
 
-    if r.status_code == 206:
+    if r.status_code in [206,416]:
         support_resume = True
         remote_size = int(r.headers['Content-Range'].rsplit('/')[-1])
 
@@ -279,7 +279,6 @@ def download_data(url, folder=None, file_name=None, client=None, retry=0):
                         time_start_realtime = time_end_realtime
             if not support_resume:
                 time_cost = time.time() - time_start
-
                 speed = local_size / time_cost if time_cost > 0 else 0
                 tqdm.write('  Finish downloading {} [Speed: {} | Total Size: {}]'.format(
                     file_name,

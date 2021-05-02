@@ -48,7 +48,7 @@ def from_html(url, suffix=None, suffix_depth=0, url_depth=0):
     Parameters:
     -----------
     url: str
-        the website contatins datas
+        the website contatins data
     suffix: list, optional
         data format. suffix should be a list contains multipart. 
         if suffix_depth is 0, all '.' will parsed. 
