@@ -144,9 +144,9 @@ def from_EarthExplorer_order(username=None, passwd=None, email=None,
     Parameters:
     -----------
     username, passwd: str, optional
-        your username and passwd to login in EarthExplorer. Chould be
+        your username and passwd to login in EarthExplorer. Could be
         None when you have save them in .netrc
-    email: str, optioanl
+    email: str, optional
         email address for the user that submitted the order
     order: str or dict
         which order to download. If None, all orders retrieved from 
@@ -203,6 +203,6 @@ def from_EarthExplorer_order(username=None, passwd=None, email=None,
         if urls:
             urls_info.update({odr: urls})
         else:
-            print(f'>>> Warning: Datas for order id {odr} have expired.'
+            print(f'>>> Warning: Data for order id {odr} have expired.'
                   ' Please reorder it again if you want to use it anymore')
     return urls_info

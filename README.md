@@ -198,7 +198,7 @@ download datas from a list like object that contains urls. This function will do
 downloader.download_datas(urls, folder=None, file_names=None):
 ```
 
-**Patameters:**
+**Parameters:**
 
 ``` 
 urls:  iterator
@@ -207,7 +207,7 @@ folder: str
     the folder to store output files. Default current folder.
 file_names: iterator
     iterator contains names of files. Leaving it None if you want the program to parse 
-    them fromwebsite. file_names can cantain the absolute paths if folder is None.
+    them from website. file_names can contain the absolute paths if folder is None.
 ```
 
 **Examples:**
@@ -237,7 +237,7 @@ In [12]: from data_downloader import downloader
 ```
 
 ### 2.4 mp_download_datas
-Download files simultaneously using multiprocessing. The website that don't support resuming breakpoint may download incompletely. You can use `download_datas` instead
+Download files simultaneously using multiprocessing. The website that don't support resuming may download incompletely. You can use `download_datas` instead
 
 ``` Python
 downloader.mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc='')
@@ -256,7 +256,7 @@ file_names: iterator
     them from website. file_names can cantain the absolute paths if folder is None.
 ncore: int
     Number of cores for parallel downloading. If ncore is None, then the number returned
-    by os.cpu_count() is used. Defalut None.
+    by os.cpu_count() is used. Default None.
 desc: str
     description of datas downloading
 ```
@@ -291,7 +291,7 @@ In [12]: from data_downloader import downloader
 
 ### 2.5 async_download_datas
 
-Download files simultaneously with asynchronous mode. The website that don't support resuming breakpoint may download incompletely. You can use `download_datas` instead
+Download files simultaneously with asynchronous mode. The website that don't support resuming may lead to download incompletely. You can use `download_datas` instead
 
 ``` Python
 downloader.async_download_datas(urls, folder=None, file_names=None, limit=30, desc='')
@@ -306,7 +306,7 @@ folder: str
     the folder to store output files. Default current folder.
 file_names: iterator
     iterator contains names of files. Leaving it None if you want the program 
-    to parse them from website. file_names can cantain the absolute paths if folder is None.
+    to parse them from website. file_names can contain the absolute paths if folder is None.
 limit: int
     the number of files downloading simultaneously
 desc: str
@@ -348,7 +348,7 @@ In [3]: from data_downloader import downloader
 
 ### 2.6 status_ok
 
-Simultaneously detecting whether the given links are accessable. 
+Simultaneously detecting whether the given links are accessible. 
 
 ``` Python
 status_ok(urls, limit=200, timeout=60)
@@ -443,7 +443,7 @@ parse_urls.from_html(url, suffix=None, suffix_depth=0, url_depth=0)
 **Parameters:**
 
     url: str
-        the website contatins datas
+        the website contains datas
     suffix: list, optional
         data format. suffix should be a list contains multipart. 
         if suffix_depth is 0, all '.' will parsed. 
@@ -454,9 +454,9 @@ parse_urls.from_html(url, suffix=None, suffix_depth=0, url_depth=0)
             when set 'suffix_depth=1':
                 suffix of 'xxx8.1_GLOBAL.nc' should be ['.nc']
                 suffix of 'xxx.tar.gz' should be ['.gz']
-    suffix_depth: interger
+    suffix_depth: integer
         Number of suffixes
-    url_depth: interger
+    url_depth: integer
         depth of url in website will parsed
 
 **Return:**
@@ -491,7 +491,7 @@ parse_urls.from_EarthExplorer_order(username=None, passwd=None, email=None,
     username, passwd: str, optional
         your username and passwd to login in EarthExplorer. Chould be
         None when you have save them in .netrc
-    email: str, optioanl
+    email: str, optional
         email address for the user that submitted the order
     order: str or dict
         which order to download. If None, all orders retrieved from 

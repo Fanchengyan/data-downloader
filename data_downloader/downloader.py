@@ -28,7 +28,7 @@ def get_url_host(url):
 
 
 def get_netrc_auth(url):
-    """Returns the Requests tuple auth for a given url from netrc."""
+    """Returns the Requests tuple auth for a given url from .netrc"""
     host = get_url_host(url)
     _netrc = Netrc().authenticators(host)
 
@@ -288,10 +288,10 @@ def download_data(url, folder=None, file_name=None, client=None, retry=0):
 
 
 def download_datas(urls, folder=None, file_names=None):
-    '''download datas from a list like object which containing urls.
+    '''download data from a list like object which containing urls.
     This function will download files one by one.
 
-    Patameters:
+    Parameters:
     -----------
     urls:  iterator
         iterator contains urls
@@ -331,10 +331,10 @@ def _mp_download_data(args):
 
 
 def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc=''):
-    '''download datas from a list like object which containing urls.
+    '''download data from a list like object which containing urls.
     This function will download multiple files simultaneously using multiporocess.
 
-    Patameters:
+    Parameters:
     -----------
     urls:  iterator
         iterator contains urls
@@ -345,9 +345,9 @@ def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc=''):
         them from website. file_names can cantain the absolute paths if folder is None.
     ncore: int
         Number of cores for parallel processing. If ncore is None then the number returned
-        by os.cpu_count() is used. Defalut None.
+        by os.cpu_count() is used. Default None.
     desc: str
-        description of datas downloading
+        description of data downloading
 
     Examples:
     ---------
