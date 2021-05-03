@@ -392,7 +392,7 @@ async def _download_data(client, url, folder=None, file_name=None, retry=0):
     support_resume = False
     # auth = get_netrc_auth(url)
 
-    r = await client.head(url, headers=headers, timeout=120)
+    r = await client.get(url, headers=headers, timeout=120, allow_redirects=False)
     r.close()
     # r = await client.head(url, headers=headers, auth=auth, timeout=120)
     if not file_name:
@@ -411,16 +411,16 @@ async def _download_data(client, url, folder=None, file_name=None, retry=0):
     result = _handle_status(r, url, local_size, file_name, file_path)
     if result:
         status, url_new = result
-        if status:
+        if status:  # downloaded entirely
             return True
         elif status == False:
-            if url_new:  # 301
+            if url_new:  # 301,302
                 return await _download_data(client, url_new, folder=folder,
                                             file_name=file_name, retry=retry - 1)
             elif retry > 0:
                 return await _download_data(client, url, folder=folder,
                                             file_name=file_name, retry=retry - 1)
-            else:
+            else:  # error! break download
                 return False
 
     # begin download
