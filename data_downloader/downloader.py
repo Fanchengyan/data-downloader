@@ -121,14 +121,14 @@ def _new_file_from_web(r, file_path):
 
 
 def _handle_status(r, url, local_size, file_name, file_path):
-    # returns True, '': downloaded entirely
-    # returns False,'': error! break download
-    # returns None, url: 301
+    # returns (True, '') : downloaded entirely
+    # returns (False,'') : error! break download
+    # returns (False, url) : 301,302
     # returns None: continue to download
 
     global support_resume, pbar, remote_size
 
-    if r.status_code in [206,416]:
+    if r.status_code in [206, 416]:
         support_resume = True
         remote_size = int(r.headers['Content-Range'].rsplit('/')[-1])
 
@@ -179,10 +179,10 @@ def _handle_status(r, url, local_size, file_name, file_path):
         tqdm.write('>>> The server has accepted your request but has not yet processed it. '
                    'Please redownload it later')
         return False, ''
-    elif r.status_code == 301:
+    elif r.status_code in [301, 302]:
         url_new = r.headers['Location']
         tqdm.write(f'>>> Waring: the website has redirected to {url_new}')
-        return None, url_new
+        return False, url_new
     elif r.status_code == 401:
         tqdm.write(
             '>>> Authorization failed! Please check your username and password in Netrc')
@@ -222,7 +222,7 @@ def download_data(url, folder=None, file_name=None, client=None, retry=0):
     if not client:
         client = httpx
 
-    r = client.head(url, headers=headers, timeout=120)
+    r = client.get(url, headers=headers, timeout=120, allow_redirects=False)
     r.close()
 
     if not file_name:
@@ -238,16 +238,16 @@ def download_data(url, folder=None, file_name=None, client=None, retry=0):
     result = _handle_status(r, url, local_size, file_name, file_path)
     if result:
         status, url_new = result
-        if status:
+        if status:  # downloaded entirely
             return True
         elif status == False:
-            if url_new:
+            if url_new:  # 301,302
                 return download_data(url_new, folder=folder, file_name=file_name,
                                      client=client, retry=retry - 1)
             elif retry > 0:
                 return download_data(url, folder=folder, file_name=file_name,
                                      client=client, retry=retry - 1)
-            else:
+            else:  # error! break download
                 return False
 
     # begin downloading
