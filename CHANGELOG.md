@@ -1,3 +1,9 @@
+[0.2.5] - 2021-05-03
+
+### Fixed
+
+fix redirects feature
+
 [0.2.1] - 2020-12-07
 
 ### Changed
