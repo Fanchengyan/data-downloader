@@ -5,14 +5,15 @@ import selectors
 import asyncio
 import httpx
 import nest_asyncio
+import browser_cookie3 as bc
 from dateutil.parser import parse
 from netrc import netrc
 import multiprocessing as mp
 from urllib.parse import urlparse
 from tqdm import tqdm
 
+
 nest_asyncio.apply()
-pro_num = 1
 
 
 def get_url_host(url):
@@ -97,16 +98,15 @@ def _parse_file_name(response):
 
 
 def _unit_formater(size, suffix):
-    if 1024 <= size < 1024 ** 2:
-        return f'{size/1024:.2f}k{suffix}'
-    elif 1024**2 <= size < 1024 ** 3:
-        return f'{size/1024**2:.2f}M{suffix}'
-    elif 1024**3 <= size <= 1024 ** 4:
-        return f'{size/1024**3:.2f}G{suffix}'
-    elif 1024**4 <= size <= 1024 ** 5:
-        return f'{size/1024**3:.2f}T{suffix}'
-    else:
-        return f'{size:.2f}{suffix}'
+    prefixs = ['', 'k', 'M', 'G', 'T']
+    idx = 0
+    while size / 1024 >= 1:
+        size = size / 1024
+        idx += 1
+        if idx == 4:
+            break
+
+    return f'{size:.2f}{prefixs[idx]}{suffix}'
 
 
 def _new_file_from_web(r, file_path):
@@ -197,7 +197,8 @@ def _handle_status(r, url, local_size, file_name, file_path):
         return False, ''
 
 
-def download_data(url, folder=None, file_name=None, client=None, retry=0):
+def download_data(url, folder=None, authorize_from_browser=False, file_name=None,
+                  client=None, retry=0):
     '''Download a single file.
 
     Parameters:
@@ -221,8 +222,18 @@ def download_data(url, folder=None, file_name=None, client=None, retry=0):
     headers = {'Range': 'bytes=0-4'}
     if not client:
         client = httpx
+    cj = None
+    if authorize_from_browser:
+        try:
+            cj = bc.load()
+        except:
+            raise EnvironmentError("Could not load cookie from browser. "
+                                   "Please login in website via browser before run this code"
+                                   "\n  So far the following browsers are supported: "
+                                   "Chrome，Firefox, Opera, Edge, Chromium")
 
-    r = client.get(url, headers=headers, timeout=120, allow_redirects=False)
+    r = client.get(url, headers=headers, timeout=120,
+                   allow_redirects=False, cookies=cj)
     r.close()
 
     if not file_name:
@@ -243,9 +254,11 @@ def download_data(url, folder=None, file_name=None, client=None, retry=0):
         elif status == False:
             if url_new:  # 301,302
                 return download_data(url_new, folder=folder, file_name=file_name,
+                                     authorize_from_browser=authorize_from_browser,
                                      client=client, retry=retry - 1)
             elif retry > 0:
                 return download_data(url, folder=folder, file_name=file_name,
+                                     authorize_from_browser=authorize_from_browser,
                                      client=client, retry=retry - 1)
             else:  # error! break download
                 return False
@@ -256,7 +269,7 @@ def download_data(url, folder=None, file_name=None, client=None, retry=0):
     else:
         headers = None
 
-    with client.stream("GET", url, headers=headers, timeout=120) as r:
+    with client.stream("GET", url, headers=headers, timeout=120, cookies=cj) as r:
         with open(file_path, "ab") as f:
             time_start_realtime = time_start = time.time()
             for chunk in r.iter_raw():
@@ -287,7 +300,7 @@ def download_data(url, folder=None, file_name=None, client=None, retry=0):
             return True
 
 
-def download_datas(urls, folder=None, file_names=None):
+def download_datas(urls, folder=None, authorize_from_browser=False, file_names=None):
     '''download data from a list like object which containing urls.
     This function will download files one by one.
 
@@ -321,18 +334,21 @@ def download_datas(urls, folder=None, file_names=None):
     client = httpx.Client(timeout=None)
     for i, url in enumerate(urls):
         if file_names:
-            download_data(url, folder, file_names[i], client)
+            download_data(url, folder, file_names[i], client,
+                          authorize_from_browser=authorize_from_browser)
         else:
-            download_data(url, folder, client=client)
+            download_data(url, folder, client=client,
+                          authorize_from_browser=authorize_from_browser)
 
 
 def _mp_download_data(args):
     return download_data(*args)
 
 
-def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc=''):
+def mp_download_datas(urls, folder=None,  authorize_from_browser=False, file_names=None,
+                      ncore=None, desc=''):
     '''download data from a list like object which containing urls.
-    This function will download multiple files simultaneously using multiporocess.
+    This function will download multiple files simultaneously using multiprocess.
 
     Parameters:
     -----------
@@ -377,22 +393,34 @@ def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc=''):
 
     with mp.Pool(ncore) as pool:
         if file_names:
-            args = [(urls[i], folder, file_names[i]) for i in range(len(urls))]
+            args = [(urls[i], folder, authorize_from_browser, file_names[i])
+                    for i in range(len(urls))]
         else:
-            args = [(urls[i], folder) for i in range(len(urls))]
+            args = [(urls[i], folder, authorize_from_browser)
+                    for i in range(len(urls))]
 
         for i in pool.imap_unordered(_mp_download_data, args):
             pbar.update()
 
 
-async def _download_data(client, url, folder=None, file_name=None, retry=0):
+async def _download_data(client, url, folder=None, file_name=None,
+                         authorize_from_browser=False, retry=0):
     global support_resume, pbar, remote_size
 
     headers = {'Range': 'bytes=0-4'}
     support_resume = False
+    cj = None
+    if authorize_from_browser:
+        try:
+            cj = bc.load()
+        except:
+            raise EnvironmentError("Could not load cookie from browser. "
+                                   "Please login in website via browser before run this code"
+                                   "\n  So far the following browsers are supported: "
+                                   "Chrome，Firefox, Opera, Edge, Chromium")
     # auth = get_netrc_auth(url)
 
-    r = await client.get(url, headers=headers, timeout=120, allow_redirects=False)
+    r = await client.get(url, headers=headers, timeout=120, allow_redirects=False, cookies=cj)
     r.close()
     # r = await client.head(url, headers=headers, auth=auth, timeout=120)
     if not file_name:
@@ -416,9 +444,11 @@ async def _download_data(client, url, folder=None, file_name=None, retry=0):
         elif status == False:
             if url_new:  # 301,302
                 return await _download_data(client, url_new, folder=folder,
+                                            authorize_from_browser=authorize_from_browser,
                                             file_name=file_name, retry=retry - 1)
             elif retry > 0:
                 return await _download_data(client, url, folder=folder,
+                                            authorize_from_browser=authorize_from_browser,
                                             file_name=file_name, retry=retry - 1)
             else:  # error! break download
                 return False
@@ -429,7 +459,7 @@ async def _download_data(client, url, folder=None, file_name=None, retry=0):
     else:
         headers = None
     auth = get_netrc_auth(get_url_host(url))
-    async with client.stream('GET', url, headers=headers, auth=auth, timeout=None) as r:
+    async with client.stream('GET', url, headers=headers, auth=auth, timeout=None, cookies=cj) as r:
         with open(file_path, "ab") as f:
             time_start_realtime = time_start = time.time()
 
@@ -460,15 +490,19 @@ async def _download_data(client, url, folder=None, file_name=None, retry=0):
             return True
 
 
-async def creat_tasks(urls, folder, file_names, limit, desc, retry):
+async def creat_tasks(urls, folder, authorize_from_browser, file_names, limit, desc, retry):
     limits = httpx.Limits(max_keepalive_connections=limit,
                           max_connections=limit)
     async with httpx.AsyncClient(limits=limits, timeout=None, verify=False) as client:
         if file_names:
-            tasks = [asyncio.ensure_future(_download_data(client, url, folder, file_names[i], retry))
+            tasks = [asyncio.ensure_future(_download_data(client, url, folder,
+                                                          authorize_from_browser=authorize_from_browser,
+                                                          file_name=file_names[i], retry=retry))
                      for i, url in enumerate(urls)]
         else:
-            tasks = [asyncio.ensure_future(_download_data(client, url, folder, retry))
+            tasks = [asyncio.ensure_future(_download_data(client, url, folder, 
+                                                          authorize_from_browser=authorize_from_browser, 
+                                                          retry=retry))
                      for url in urls]
 
         # Total process bar
@@ -480,7 +514,8 @@ async def creat_tasks(urls, folder, file_names, limit, desc, retry):
             await coroutine
 
 
-def async_download_datas(urls, folder=None, file_names=None, limit=30, desc='', retry=0):
+def async_download_datas(urls, folder=None, authorize_from_browser=False,
+                         file_names=None, limit=30, desc='', retry=0):
     '''Download multiple files simultaneously.
 
     Parameters:
@@ -518,7 +553,7 @@ def async_download_datas(urls, folder=None, file_names=None, limit=30, desc='', 
     loop = asyncio.SelectorEventLoop(selector)
     try:
         loop.run_until_complete(creat_tasks(
-            urls, folder, file_names, limit, desc, retry))
+            urls, folder, authorize_from_browser, file_names, limit, desc, retry))
     finally:
         loop.close()
 
