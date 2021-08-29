@@ -120,6 +120,19 @@ def _new_file_from_web(r, file_path):
         return False
 
 
+def _get_cookiejar(authorize_from_browser):
+    cj = None
+    if authorize_from_browser:
+        try:
+            cj = bc.load()
+        except:
+            raise EnvironmentError("Could not load cookie from browser. "
+                                   "Please login in website via browser before run this code"
+                                   "\n  So far the following browsers are supported: "
+                                   "Chrome，Firefox, Opera, Edge, Chromium")
+    return cj
+
+
 def _handle_status(r, url, local_size, file_name, file_path):
     # returns (True, '') : downloaded entirely
     # returns (False,'') : error! break download
@@ -222,15 +235,8 @@ def download_data(url, folder=None, authorize_from_browser=False, file_name=None
     headers = {'Range': 'bytes=0-4'}
     if not client:
         client = httpx
-    cj = None
-    if authorize_from_browser:
-        try:
-            cj = bc.load()
-        except:
-            raise EnvironmentError("Could not load cookie from browser. "
-                                   "Please login in website via browser before run this code"
-                                   "\n  So far the following browsers are supported: "
-                                   "Chrome，Firefox, Opera, Edge, Chromium")
+
+    cj = _get_cookiejar(authorize_from_browser)
 
     r = client.get(url, headers=headers, timeout=120,
                    allow_redirects=False, cookies=cj)
@@ -334,7 +340,7 @@ def download_datas(urls, folder=None, authorize_from_browser=False, file_names=N
     client = httpx.Client(timeout=None)
     for i, url in enumerate(urls):
         if file_names:
-            download_data(url, folder, file_names[i], client,
+            download_data(url, folder, file_name=file_names[i], client=client,
                           authorize_from_browser=authorize_from_browser)
         else:
             download_data(url, folder, client=client,
@@ -409,15 +415,8 @@ async def _download_data(client, url, folder=None, file_name=None,
 
     headers = {'Range': 'bytes=0-4'}
     support_resume = False
-    cj = None
-    if authorize_from_browser:
-        try:
-            cj = bc.load()
-        except:
-            raise EnvironmentError("Could not load cookie from browser. "
-                                   "Please login in website via browser before run this code"
-                                   "\n  So far the following browsers are supported: "
-                                   "Chrome，Firefox, Opera, Edge, Chromium")
+
+    cj = _get_cookiejar(authorize_from_browser)
     # auth = get_netrc_auth(url)
 
     r = await client.get(url, headers=headers, timeout=120, allow_redirects=False, cookies=cj)
@@ -500,8 +499,8 @@ async def creat_tasks(urls, folder, authorize_from_browser, file_names, limit, d
                                                           file_name=file_names[i], retry=retry))
                      for i, url in enumerate(urls)]
         else:
-            tasks = [asyncio.ensure_future(_download_data(client, url, folder, 
-                                                          authorize_from_browser=authorize_from_browser, 
+            tasks = [asyncio.ensure_future(_download_data(client, url, folder,
+                                                          authorize_from_browser=authorize_from_browser,
                                                           retry=retry))
                      for url in urls]
 
@@ -558,9 +557,10 @@ def async_download_datas(urls, folder=None, authorize_from_browser=False,
         loop.close()
 
 
-async def _is_response_staus_ok(client, url, timeout):
+async def _is_response_staus_ok(client, url, authorize_from_browser, timeout):
+    cj = _get_cookiejar(authorize_from_browser)
     try:
-        r = await client.head(url, timeout=timeout)
+        r = await client.head(url, timeout=timeout, cookies=cj)
         r.close()
         if r.status_code == httpx.codes.OK:
             return True
@@ -570,18 +570,18 @@ async def _is_response_staus_ok(client, url, timeout):
         return False
 
 
-async def creat_tasks_status_ok(urls, limit, timeout):
+async def creat_tasks_status_ok(urls, limit, authorize_from_browser, timeout):
     limits = httpx.Limits(max_keepalive_connections=limit,
                           max_connections=limit)
     async with httpx.AsyncClient(limits=limits, timeout=None) as client:
-        tasks = [asyncio.create_task(_is_response_staus_ok(client, url, timeout))
+        tasks = [asyncio.create_task(_is_response_staus_ok(client, url, authorize_from_browser, timeout))
                  for url in urls]
         status_ok = await asyncio.gather(*tasks)
 
     return status_ok
 
 
-def status_ok(urls, limit=200, timeout=60):
+def status_ok(urls, limit=200, authorize_from_browser=False, timeout=60):
     '''Simultaneously detecting whether the given links are accessable.
 
     Parameters
@@ -619,7 +619,7 @@ def status_ok(urls, limit=200, timeout=60):
     loop = asyncio.SelectorEventLoop(selector)
     try:
         status_ok = loop.run_until_complete(
-            creat_tasks_status_ok(urls, limit, timeout))
+            creat_tasks_status_ok(urls, limit, authorize_from_browser, timeout))
     # Zero-sleep to allow underlying connections to close
     finally:
         loop.close()
