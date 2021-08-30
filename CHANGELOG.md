@@ -1,29 +1,39 @@
-[0.2.5] - 2021-05-03
+## [0.2.5] - 2021-08-31
 
-### Fixed
+### Added:
 
-fix redirects feature
+- add a way to load cookies used by web browser for authorization
 
-[0.2.1] - 2020-12-07
+### Fixed:
 
-### Changed
+- fix redirects feature
+
+## [0.2.5] - 2021-05-03
+
+### Fixed:
+
+- fix redirects feature
+
+## [0.2.1] - 2020-12-07
+
+### Changed:
 
 - add redownlaod data when website update the data
 - update the document of parse_urls
 
 
-[0.2.0] - 2020-12-04
+## [0.2.0] - 2020-12-04
 
-### Added
+### Added:
 
 - parse_urls.py file
 - CHANGELOG.md file
 
-### Removed
+### Removed:
 
 - fake_useragent package
 
-### Changed
+### Changed:
 
 - status_code adds 401, 403 Warning
 - refine print information
