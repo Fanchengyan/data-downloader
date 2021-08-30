@@ -220,13 +220,19 @@ def download_data(url, folder=None, authorize_from_browser=False, file_name=None
         url of web file
     folder: str
         the folder to store output files. Default current folder.
+    authorize_from_browser: bool
+        Whether to load cookies used by your web browser for authorization.
+        This means you can use python to download data by logining in to website 
+        via browser (So far the following browsers are supported: Chrome，Firefox, 
+        Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+        "HTTP Basic Auth". Default is False.
     file_name: str
         the file name. If None, will parse from web response or url.
         file_name can be the absolute path if folder is None.
     client: httpx.Client() object
         client maintaining connection. Default None
     retry: int 
-        the times of reconnetion when status code is 503
+        number of reconnections when status code is 503
     '''
     # init parameters
     global support_resume, pbar, remote_size
@@ -316,6 +322,12 @@ def download_datas(urls, folder=None, authorize_from_browser=False, file_names=N
         iterator contains urls
     folder: str
         the folder to store output files. Default current folder.
+    authorize_from_browser: bool
+        Whether to load cookies used by your web browser for authorization.
+        This means you can use python to download data by logining in to website 
+        via browser (So far the following browsers are supported: Chrome，Firefox, 
+        Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+        "HTTP Basic Auth". Default is False.
     file_names: iterator
         iterator contains names of files. Leaving it None if you want the program to parse
         them from website. file_names can cantain the absolute paths if folder is None.
@@ -362,6 +374,12 @@ def mp_download_datas(urls, folder=None,  authorize_from_browser=False, file_nam
         iterator contains urls
     folder: str
         the folder to store output files. Default current folder.
+    authorize_from_browser: bool
+        Whether to load cookies used by your web browser for authorization.
+        This means you can use python to download data by logining in to website 
+        via browser (So far the following browsers are supported: Chrome，Firefox, 
+        Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+        "HTTP Basic Auth". Default is False.
     file_names: iterator
         iterator contains names of files. Leaving it None if you want the program to parse
         them from website. file_names can cantain the absolute paths if folder is None.
@@ -523,6 +541,12 @@ def async_download_datas(urls, folder=None, authorize_from_browser=False,
         iterator contains urls
     folder: str
         the folder to store output files. Default current folder.
+    authorize_from_browser: bool
+        Whether to load cookies used by your web browser for authorization.
+        This means you can use python to download data by logining in to website 
+        via browser (So far the following browsers are supported: Chrome，Firefox, 
+        Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+        "HTTP Basic Auth". Default is False.
     file_names: iterator
         iterator contains names of files. Leaving it None if you want the program
         to parse them from website. file_names can cantain the absolute paths if folder is None.
@@ -530,6 +554,8 @@ def async_download_datas(urls, folder=None, authorize_from_browser=False,
         the number of files downloading simultaneously
     desc: str
         description of datas downloading
+    retry: int
+        number of reconnections when status code is 503
 
     Example:
     ---------
@@ -590,6 +616,12 @@ def status_ok(urls, limit=200, authorize_from_browser=False, timeout=60):
         iterator contains urls
     limit: int
         the number of urls connecting simultaneously
+    authorize_from_browser: bool
+        Whether to load cookies used by your web browser for authorization.
+        This means you can use python to download data by logining in to website 
+        via browser (So far the following browsers are supported: Chrome，Firefox, 
+        Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+        "HTTP Basic Auth". Default is False.
     timeout: int
         Request to stop waiting for a response after a given number of seconds
 

@@ -161,7 +161,7 @@ Out[19]: {}
 This function is design for downloading a single file. Try to use `download_datas`, `mp_download_datas` or `async_download_datas` function if you have a lot of files to download
 
 ``` Python
-downloader.download_data(url, folder=None, file_name=None, client=None)
+downloader.download_data(url, folder=None, authorize_from_browser=False, file_name=None,client=None, retry=0)
 ```
 
 **Parameters:**
@@ -170,12 +170,20 @@ downloader.download_data(url, folder=None, file_name=None, client=None)
 url: str
     url of web file
 folder: str
-    the folder to store output files. Default current folder. 
+    the folder to store output files. Default is current folder.
+authorize_from_browser: bool
+    whether to load cookies used by your web browser for authorization.
+    This means you can use python to download data by logining in to website 
+    via browser (So far the following browsers are supported: Chrome，Firefox, 
+    Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+    "HTTP Basic Auth". Default is False.
 file_name: str
     the file name. If None, will parse from web response or url.
     file_name can be the absolute path if folder is None.
 client: httpx.Client() object
-    client maintaining connection. Default None
+    client maintaining connection. Default is None
+retry: int 
+    number of reconnects when status code is 503
 ```
 
 **Example:**
@@ -195,7 +203,7 @@ In [6]: url = 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_produc
 download datas from a list like object that contains urls. This function will download files one by one.
 
 ``` Python
-downloader.download_datas(urls, folder=None, file_names=None):
+downloader.download_datas(urls, folder=None, authorize_from_browser=False, file_names=None):
 ```
 
 **Parameters:**
@@ -204,10 +212,16 @@ downloader.download_datas(urls, folder=None, file_names=None):
 urls:  iterator
     iterator contains urls
 folder: str
-    the folder to store output files. Default current folder.
+    the folder to store output files. Default is current folder.
+authorize_from_browser: bool
+    whether to load cookies used by your web browser for authorization.
+    This means you can use python to download data by logining in to website 
+    via browser (So far the following browsers are supported: Chrome，Firefox, 
+    Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+    "HTTP Basic Auth". Default is False.
 file_names: iterator
-    iterator contains names of files. Leaving it None if you want the program to parse 
-    them from website. file_names can contain the absolute paths if folder is None.
+    iterator contains names of files. Leaving it None if you want the program to parse
+    them from website. file_names can cantain the absolute paths if folder is None.
 ```
 
 **Examples:**
@@ -240,7 +254,7 @@ In [12]: from data_downloader import downloader
 Download files simultaneously using multiprocessing. The website that don't support resuming may download incompletely. You can use `download_datas` instead
 
 ``` Python
-downloader.mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc='')
+downloader.mp_download_datas(urls, folder=None,  authorize_from_browser=False, file_names=None,ncore=None, desc='')
 ```
 
 
@@ -250,15 +264,21 @@ downloader.mp_download_datas(urls, folder=None, file_names=None, ncore=None, des
 urls:  iterator
     iterator contains urls
 folder: str
-    the folder to store output files. Default current folder.
+    the folder to store output files. Default is current folder.
+authorize_from_browser: bool
+    whether to load cookies used by your web browser for authorization.
+    This means you can use python to download data by logining in to website 
+    via browser (So far the following browsers are supported: Chrome，Firefox, 
+    Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+    "HTTP Basic Auth". Default is False.
 file_names: iterator
     iterator contains names of files. Leaving it None if you want the program to parse
     them from website. file_names can cantain the absolute paths if folder is None.
 ncore: int
-    Number of cores for parallel downloading. If ncore is None, then the number returned
-    by os.cpu_count() is used. Default None.
+    Number of cores for parallel processing. If ncore is None then the number returned
+    by os.cpu_count() is used. Default is None.
 desc: str
-    description of datas downloading
+    description of data downloading
 ```
 
 **Example:**
@@ -294,7 +314,7 @@ In [12]: from data_downloader import downloader
 Download files simultaneously with asynchronous mode. The website that don't support resuming may lead to download incompletely. You can use `download_datas` instead
 
 ``` Python
-downloader.async_download_datas(urls, folder=None, file_names=None, limit=30, desc='')
+downloader.async_download_datas(urls, folder=None, authorize_from_browser=False,file_names=None, limit=30, desc='', retry=0)
 ```
 
 **Parameters:**
@@ -302,15 +322,23 @@ downloader.async_download_datas(urls, folder=None, file_names=None, limit=30, de
 ``` 
 urls:  iterator
     iterator contains urls
-folder: str 
-    the folder to store output files. Default current folder.
+folder: str
+    the folder to store output files. Default is current folder.
+authorize_from_browser: bool
+    whether to load cookies used by your web browser for authorization.
+    This means you can use python to download data by logining in to website 
+    via browser (So far the following browsers are supported: Chrome，Firefox, 
+    Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+    "HTTP Basic Auth". Default is False.
 file_names: iterator
-    iterator contains names of files. Leaving it None if you want the program 
-    to parse them from website. file_names can contain the absolute paths if folder is None.
+    iterator contains names of files. Leaving it None if you want the program
+    to parse them from website. file_names can cantain the absolute paths if folder is None.
 limit: int
     the number of files downloading simultaneously
 desc: str
     description of datas downloading
+retry: int
+    number of reconnections when status code is 503
 ```
 
 **Example:**
@@ -351,7 +379,7 @@ In [3]: from data_downloader import downloader
 Simultaneously detecting whether the given links are accessible. 
 
 ``` Python
-status_ok(urls, limit=200, timeout=60)
+downloader.status_ok(urls, limit=200, authorize_from_browser=False, timeout=60)
 ```
 
 **Parameters**
@@ -361,6 +389,12 @@ urls: iterator
     iterator contains urls
 limit: int
     the number of urls connecting simultaneously
+authorize_from_browser: bool
+    whether to load cookies used by your web browser for authorization.
+    This means you can use python to download data by logining in to website 
+    via browser (So far the following browsers are supported: Chrome，Firefox, 
+    Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+    "HTTP Basic Auth". Default is False.
 timeout: int
     Request to stop waiting for a response after a given number of seconds
 ```
