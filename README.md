@@ -161,7 +161,7 @@ Out[19]: {}
 This function is design for downloading a single file. Try to use `download_datas`, `mp_download_datas` or `async_download_datas` function if you have a lot of files to download
 
 ``` Python
-downloader.download_data(url, folder=None, authorize_from_browser=False, file_name=None,client=None, retry=0)
+downloader.download_data(url, folder=None, authorize_from_browser=False, file_name=None, client=None, allow_redirects=False, retry=0)
 ```
 
 **Parameters:**
@@ -182,6 +182,8 @@ file_name: str
     file_name can be the absolute path if folder is None.
 client: httpx.Client() object
     client maintaining connection. Default is None
+allow_redirects: bool
+    Enables or disables HTTP redirects
 retry: int 
     number of reconnects when status code is 503
 ```
@@ -314,7 +316,7 @@ In [12]: from data_downloader import downloader
 Download files simultaneously with asynchronous mode. The website that don't support resuming may lead to download incompletely. You can use `download_datas` instead
 
 ``` Python
-downloader.async_download_datas(urls, folder=None, authorize_from_browser=False,file_names=None, limit=30, desc='', retry=0)
+downloader.async_download_datas(urls, folder=None, authorize_from_browser=False, file_names=None, limit=30, desc='', allow_redirects=False,  retry=0)
 ```
 
 **Parameters:**
@@ -337,6 +339,8 @@ limit: int
     the number of files downloading simultaneously
 desc: str
     description of datas downloading
+allow_redirects: bool
+    Enables or disables HTTP redirects
 retry: int
     number of reconnections when status code is 503
 ```

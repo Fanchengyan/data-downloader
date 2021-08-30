@@ -198,7 +198,8 @@ def _handle_status(r, url, local_size, file_name, file_path):
         return False, url_new
     elif r.status_code == 401:
         tqdm.write(
-            '>>> Authorization failed! Please check your username and password in Netrc')
+            '>>> Authorization failed! Please check your username and password in Netrc '
+            'Or authorizing by browser and set the parameter `authorize_from_browser` to `True`')
         return False, ''
     elif r.status_code == 403:
         tqdm.write(
@@ -211,7 +212,7 @@ def _handle_status(r, url, local_size, file_name, file_path):
 
 
 def download_data(url, folder=None, authorize_from_browser=False, file_name=None,
-                  client=None, retry=0):
+                  client=None, allow_redirects=False, retry=0):
     '''Download a single file.
 
     Parameters:
@@ -231,6 +232,8 @@ def download_data(url, folder=None, authorize_from_browser=False, file_name=None
         file_name can be the absolute path if folder is None.
     client: httpx.Client() object
         client maintaining connection. Default None
+    allow_redirects: bool
+        Enables or disables HTTP redirects
     retry: int 
         number of reconnections when status code is 503
     '''
@@ -245,7 +248,7 @@ def download_data(url, folder=None, authorize_from_browser=False, file_name=None
     cj = _get_cookiejar(authorize_from_browser)
 
     r = client.get(url, headers=headers, timeout=120,
-                   allow_redirects=False, cookies=cj)
+                   allow_redirects=allow_redirects, cookies=cj)
     r.close()
 
     if not file_name:
@@ -267,7 +270,7 @@ def download_data(url, folder=None, authorize_from_browser=False, file_name=None
             if url_new:  # 301,302
                 return download_data(url_new, folder=folder, file_name=file_name,
                                      authorize_from_browser=authorize_from_browser,
-                                     client=client, retry=retry - 1)
+                                     allow_redirects=True, client=client)
             elif retry > 0:
                 return download_data(url, folder=folder, file_name=file_name,
                                      authorize_from_browser=authorize_from_browser,
@@ -428,7 +431,7 @@ def mp_download_datas(urls, folder=None,  authorize_from_browser=False, file_nam
 
 
 async def _download_data(client, url, folder=None, file_name=None,
-                         authorize_from_browser=False, retry=0):
+                         authorize_from_browser=False, allow_redirects=False, retry=0):
     global support_resume, pbar, remote_size
 
     headers = {'Range': 'bytes=0-4'}
@@ -437,7 +440,7 @@ async def _download_data(client, url, folder=None, file_name=None,
     cj = _get_cookiejar(authorize_from_browser)
     # auth = get_netrc_auth(url)
 
-    r = await client.get(url, headers=headers, timeout=120, allow_redirects=False, cookies=cj)
+    r = await client.get(url, headers=headers, timeout=120, allow_redirects=allow_redirects, cookies=cj)
     r.close()
     # r = await client.head(url, headers=headers, auth=auth, timeout=120)
     if not file_name:
@@ -462,7 +465,7 @@ async def _download_data(client, url, folder=None, file_name=None,
             if url_new:  # 301,302
                 return await _download_data(client, url_new, folder=folder,
                                             authorize_from_browser=authorize_from_browser,
-                                            file_name=file_name, retry=retry - 1)
+                                            file_name=file_name, allow_redirects=True)
             elif retry > 0:
                 return await _download_data(client, url, folder=folder,
                                             authorize_from_browser=authorize_from_browser,
@@ -507,18 +510,21 @@ async def _download_data(client, url, folder=None, file_name=None,
             return True
 
 
-async def creat_tasks(urls, folder, authorize_from_browser, file_names, limit, desc, retry):
+async def creat_tasks(urls, folder, authorize_from_browser, file_names, limit, desc, allow_redirects, retry):
     limits = httpx.Limits(max_keepalive_connections=limit,
                           max_connections=limit)
     async with httpx.AsyncClient(limits=limits, timeout=None, verify=False) as client:
         if file_names:
             tasks = [asyncio.ensure_future(_download_data(client, url, folder,
                                                           authorize_from_browser=authorize_from_browser,
-                                                          file_name=file_names[i], retry=retry))
+                                                          file_name=file_names[i],
+                                                          allow_redirects=allow_redirects,
+                                                          retry=retry))
                      for i, url in enumerate(urls)]
         else:
             tasks = [asyncio.ensure_future(_download_data(client, url, folder,
                                                           authorize_from_browser=authorize_from_browser,
+                                                          allow_redirects=allow_redirects,
                                                           retry=retry))
                      for url in urls]
 
@@ -532,7 +538,7 @@ async def creat_tasks(urls, folder, authorize_from_browser, file_names, limit, d
 
 
 def async_download_datas(urls, folder=None, authorize_from_browser=False,
-                         file_names=None, limit=30, desc='', retry=0):
+                         file_names=None, limit=30, desc='', allow_redirects=False, retry=0):
     '''Download multiple files simultaneously.
 
     Parameters:
@@ -554,6 +560,8 @@ def async_download_datas(urls, folder=None, authorize_from_browser=False,
         the number of files downloading simultaneously
     desc: str
         description of datas downloading
+    allow_redirects: bool
+        Enables or disables HTTP redirects
     retry: int
         number of reconnections when status code is 503
 
@@ -578,7 +586,7 @@ def async_download_datas(urls, folder=None, authorize_from_browser=False,
     loop = asyncio.SelectorEventLoop(selector)
     try:
         loop.run_until_complete(creat_tasks(
-            urls, folder, authorize_from_browser, file_names, limit, desc, retry))
+            urls, folder, authorize_from_browser, file_names, limit, desc, allow_redirects, retry))
     finally:
         loop.close()
 
