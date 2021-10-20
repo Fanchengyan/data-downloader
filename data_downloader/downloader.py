@@ -211,8 +211,9 @@ def _handle_status(r, url, local_size, file_name, file_path):
         return False, ''
 
 
-def download_data(url, folder=None, authorize_from_browser=False, file_name=None,
-                  client=None, follow_redirects=False, retry=0):
+def download_data(url, folder=None, file_name=None,
+                  client=None, follow_redirects=False, retry=0,
+                  authorize_from_browser=False, ):
     '''Download a single file.
 
     Parameters:
@@ -315,7 +316,7 @@ def download_data(url, folder=None, authorize_from_browser=False, file_name=None
             return True
 
 
-def download_datas(urls, folder=None, authorize_from_browser=False, file_names=None):
+def download_datas(urls, folder=None, file_names=None, authorize_from_browser=False):
     '''download data from a list like object which containing urls.
     This function will download files one by one.
 
@@ -366,8 +367,8 @@ def _mp_download_data(args):
     return download_data(*args)
 
 
-def mp_download_datas(urls, folder=None,  authorize_from_browser=False, file_names=None,
-                      ncore=None, desc=''):
+def mp_download_datas(urls, folder=None, file_names=None,
+                      ncore=None, desc='', authorize_from_browser=False):
     '''download data from a list like object which containing urls.
     This function will download multiple files simultaneously using multiprocess.
 
@@ -431,7 +432,7 @@ def mp_download_datas(urls, folder=None,  authorize_from_browser=False, file_nam
 
 
 async def _download_data(client, url, folder=None, file_name=None,
-                         authorize_from_browser=False, follow_redirects=False, retry=0):
+                         follow_redirects=False, retry=0, authorize_from_browser=False):
     global support_resume, pbar, remote_size
 
     headers = {'Range': 'bytes=0-4'}
@@ -537,8 +538,8 @@ async def creat_tasks(urls, folder, authorize_from_browser, file_names, limit, d
             await coroutine
 
 
-def async_download_datas(urls, folder=None, authorize_from_browser=False,
-                         file_names=None, limit=30, desc='', follow_redirects=False, retry=0):
+def async_download_datas(urls, folder=None, file_names=None, limit=30, desc='',
+                         follow_redirects=False, retry=0, authorize_from_browser=False):
     '''Download multiple files simultaneously.
 
     Parameters:
