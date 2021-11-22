@@ -355,7 +355,7 @@ def download_datas(urls, folder=None, file_names=None, authorize_from_browser=Fa
     '''
     client = httpx.Client(timeout=None)
     for i, url in enumerate(urls):
-        if file_names:
+        if file_names is not None:
             download_data(url, folder, file_name=file_names[i], client=client,
                           authorize_from_browser=authorize_from_browser)
         else:
@@ -420,11 +420,11 @@ def mp_download_datas(urls, folder=None, file_names=None,
     pbar = tqdm(total=len(urls), desc=desc, dynamic_ncols=True)
 
     with mp.Pool(ncore) as pool:
-        if file_names:
-            args = [(urls[i], folder, authorize_from_browser, file_names[i])
-                    for i in range(len(urls))]
+        if file_names is not None:
+            args = [(urls[i], folder, file_names[i])
+                    for i in range(len(urls))]  # Need to put other parameters in right places
         else:
-            args = [(urls[i], folder, authorize_from_browser)
+            args = [(urls[i], folder)
                     for i in range(len(urls))]
 
         for i in pool.imap_unordered(_mp_download_data, args):
@@ -515,7 +515,7 @@ async def creat_tasks(urls, folder, authorize_from_browser, file_names, limit, d
     limits = httpx.Limits(max_keepalive_connections=limit,
                           max_connections=limit)
     async with httpx.AsyncClient(limits=limits, timeout=None, verify=False) as client:
-        if file_names:
+        if file_names is not None:
             tasks = [asyncio.ensure_future(_download_data(client, url, folder,
                                                           authorize_from_browser=authorize_from_browser,
                                                           file_name=file_names[i],
