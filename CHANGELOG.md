@@ -1,3 +1,8 @@
+## [0.4.0] - 2022-11-12
+
+### Added:
+- support requests engine
+
 ## [0.3.1] - 2022-11-11
 
 ### Added:

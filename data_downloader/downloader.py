@@ -4,6 +4,7 @@ import datetime as dt
 import selectors
 import asyncio
 import httpx
+import requests
 import nest_asyncio
 import browser_cookie3 as bc
 from dateutil.parser import parse
@@ -136,7 +137,7 @@ def _get_cookiejar(authorize_from_browser):
 def _handle_status(r, url, local_size, file_name, file_path):
     # returns (True, '') : downloaded entirely
     # returns (False,'') : error! break download
-    # returns (False, url) : 301,302,303
+    # returns (False, url) : 301,302
     # returns None: continue to download
 
     global support_resume, pbar, remote_size
@@ -192,7 +193,7 @@ def _handle_status(r, url, local_size, file_name, file_path):
         tqdm.write('>>> The server has accepted your request but has not yet processed it. '
                    'Please redownload it later')
         return False, ''
-    elif r.status_code in [301, 302, 303]:
+    elif r.status_code in [301, 302]:
         url_new = r.headers['Location']
         tqdm.write(f'>>> Waring: the website has redirected to {url_new}')
         return False, url_new
@@ -211,9 +212,9 @@ def _handle_status(r, url, local_size, file_name, file_path):
         return False, ''
 
 
-def download_data(url, folder=None, file_name=None,
-                  client=None, follow_redirects=False, retry=0,
-                  authorize_from_browser=False):
+def _download_data_httpx(url, folder=None, file_name=None,
+                         client=None, follow_redirects=False, retry=0,
+                         authorize_from_browser=False):
     '''Download a single file.
 
     Parameters:
@@ -268,14 +269,14 @@ def download_data(url, folder=None, file_name=None,
         if status:  # downloaded entirely
             return True
         elif status == False:
-            if url_new:  # 301,302, 303
-                return download_data(url_new, folder=folder, file_name=file_name,
-                                     authorize_from_browser=authorize_from_browser,
-                                     follow_redirects=True, client=client)
+            if url_new:  # 301,302
+                return _download_data_httpx(url_new, folder=folder, file_name=file_name,
+                                            authorize_from_browser=authorize_from_browser,
+                                            follow_redirects=True, client=client)
             elif retry > 0:
-                return download_data(url, folder=folder, file_name=file_name,
-                                     authorize_from_browser=authorize_from_browser,
-                                     client=client, retry=retry - 1)
+                return _download_data_httpx(url, folder=folder, file_name=file_name,
+                                            authorize_from_browser=authorize_from_browser,
+                                            client=client, retry=retry - 1)
             else:  # error! break download
                 return False
 
@@ -313,10 +314,158 @@ def download_data(url, folder=None, file_name=None,
                     file_name,
                     _unit_formater(speed, 'B/s'),
                     _unit_formater(local_size, 'B')))
+    return True
+
+
+def _download_data_requests(url, folder=None, file_name=None,
+                            client=None, follow_redirects=True, retry=0,
+                            authorize_from_browser=False):
+    '''Download a single file.
+
+    Parameters:
+    -----------
+    url: str
+        url of web file
+    folder: str
+        the folder to store output files. Default current folder.
+    authorize_from_browser: bool
+        Whether to load cookies used by your web browser for authorization.
+        This means you can use python to download data by logining in to website 
+        via browser (So far the following browsers are supported: Chrome,Firefox, 
+        Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+        "HTTP Basic Auth". Default is False.
+    file_name: str
+        the file name. If None, will parse from web response or url.
+        file_name can be the absolute path if folder is None.
+    client: requests.Session() object
+        client maintaining connection. Default None
+    follow_redirects: bool
+        Enables or disables HTTP redirects
+    retry: int 
+        number of reconnections when status code is 503
+    '''
+    # init parameters
+    global support_resume, pbar, remote_size
+
+    support_resume = False
+    headers = {'Range': 'bytes=0-4'}
+    if not client:
+        client = requests
+
+    cj = _get_cookiejar(authorize_from_browser)
+
+    r = client.get(url, headers=headers, timeout=120,
+                   allow_redirects=follow_redirects, cookies=cj)
+    r.close()
+
+    if file_name is None:
+        file_name = _parse_file_name(r)
+
+    if folder is not None:
+        file_path = os.path.join(folder, file_name)
+    else:
+        file_path = os.path.abspath(file_name)
+
+    local_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
+
+    result = _handle_status(r, url, local_size, file_name, file_path)
+    if result:
+        status, url_new = result
+        if status:  # downloaded entirely
             return True
+        elif status == False:
+            if url_new:  # 301,302
+                return _download_data_requests(url_new, folder=folder, file_name=file_name,
+                                               authorize_from_browser=authorize_from_browser,
+                                               follow_redirects=True, client=client)
+            elif retry > 0:
+                return _download_data_requests(url, folder=folder, file_name=file_name,
+                                               authorize_from_browser=authorize_from_browser,
+                                               client=client, retry=retry - 1)
+            else:  # error! break download
+                return False
+
+    # begin downloading
+    if support_resume:
+        headers['Range'] = f'bytes={local_size}-{remote_size}'
+    else:
+        headers = None
+
+    r = client.get(url, headers=headers, stream=True, timeout=120, cookies=cj)
+    with open(file_path, "ab") as f:
+        time_start_realtime = time_start = time.time()
+        for chunk in r.iter_content(chunk_size=1024):
+            if chunk:
+                size_add = len(chunk)
+                local_size += size_add
+                f.write(chunk)
+                f.flush()
+            if support_resume:
+                pbar.update(size_add)
+            else:
+                time_end_realtime = time.time()
+                time_span = time_end_realtime - time_start_realtime
+                if time_span > 1:
+                    speed_realtime = size_add / time_span
+                    tqdm.write('  Downloading {} [Speed: {} | Size: {}]'.format(
+                        file_name,
+                        _unit_formater(speed_realtime, 'B/s'),
+                        _unit_formater(local_size, 'B')), end='\r')
+                    time_start_realtime = time_end_realtime
+        if not support_resume:
+            time_cost = time.time() - time_start
+            speed = local_size / time_cost if time_cost > 0 else 0
+            tqdm.write('  Finish downloading {} [Speed: {} | Total Size: {}]'.format(
+                file_name,
+                _unit_formater(speed, 'B/s'),
+                _unit_formater(local_size, 'B')))
+
+    r.close()
+    return True
 
 
-def download_datas(urls, folder=None, file_names=None, authorize_from_browser=False):
+def download_data(url, folder=None, file_name=None,
+                  client=None, engine='requests',
+                  follow_redirects=True, retry=0,
+                  authorize_from_browser=False):
+    '''Download a single file.
+
+    Parameters:
+    -----------
+    url: str
+        url of web file
+    folder: str
+        the folder to store output files. Default current folder.
+    file_name: str
+        the file name. If None, will parse from web response or url.
+        file_name can be the absolute path if folder is None.
+    client: requests.Session() for `requests` engine or httpx.Client() for `httpx` engine
+        client maintaining connection. Default None
+    follow_redirects: bool
+        Enables or disables HTTP redirects
+    retry: int 
+        number of reconnections when status code is 503
+    authorize_from_browser: bool
+        Whether to load cookies used by your web browser for authorization.
+        This means you can use python to download data by logining in to website 
+        via browser (So far the following browsers are supported: Chrome,Firefox, 
+        Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+        "HTTP Basic Auth". Default is False.
+    '''
+
+    if engine == 'requests':
+        _download_data_requests(url, folder, file_name,
+                                client, follow_redirects, retry,
+                                authorize_from_browser)
+    elif engine == 'httpx':
+        _download_data_httpx(url, folder, file_name,
+                             client, follow_redirects, retry,
+                             authorize_from_browser)
+    else:
+        raise ValueError('engine must be one of ["requests","httpx"]')
+
+
+def download_datas(urls, folder=None, file_names=None, engine='requests', authorize_from_browser=False):
     '''download data from a list like object which containing urls.
     This function will download files one by one.
 
@@ -353,14 +502,22 @@ def download_datas(urls, folder=None, file_names=None, authorize_from_browser=Fa
     downloader.download_datas(urls,folder)
     ```
     '''
-    client = httpx.Client(timeout=None)
+    if engine == 'requests':
+        client = requests.Session()
+    elif engine == 'httpx':
+        client = httpx.Client(timeout=None)
+    else:
+        raise ValueError('engine must be one of ["requests","httpx"]')
+
     for i, url in enumerate(urls):
         if file_names is not None:
-            download_data(url, folder, file_name=file_names[i], client=client,
-                          authorize_from_browser=authorize_from_browser)
+            download_data(
+                url, folder, file_name=file_names[i], client=client,
+                engine=engine, authorize_from_browser=authorize_from_browser)
         else:
-            download_data(url, folder, client=client,
-                          authorize_from_browser=authorize_from_browser)
+            download_data(
+                url, folder, client=client, engine=engine,
+                authorize_from_browser=authorize_from_browser)
 
 
 def _mp_download_data(args):
@@ -368,7 +525,7 @@ def _mp_download_data(args):
 
 
 def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc='',
-                       follow_redirects=False, retry=0, authorize_from_browser=False):
+                      follow_redirects=False, retry=0, engine='requests', authorize_from_browser=False):
     '''download data from a list like object which containing urls.
     This function will download multiple files simultaneously using multiprocess.
 
@@ -421,12 +578,12 @@ def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc='',
 
     with mp.Pool(ncore) as pool:
         if file_names is not None:
-            args = [(urls[i], folder, file_names[i], None, 
-                     follow_redirects, retry, authorize_from_browser)
+            args = [(urls[i], folder, file_names[i], None,
+                     follow_redirects, retry, engine, authorize_from_browser)
                     for i in range(len(urls))]  # Need to put other parameters in right places
         else:
-            args = [(urls[i], folder, file_names, None, 
-                     follow_redirects, retry, authorize_from_browser)
+            args = [(urls[i], folder, file_names, None,
+                     follow_redirects, retry, engine, authorize_from_browser)
                     for i in range(len(urls))]
 
         for i in pool.imap_unordered(_mp_download_data, args):
@@ -465,7 +622,7 @@ async def _download_data(client, url, folder=None, file_name=None,
         if status:  # downloaded entirely
             return True
         elif status == False:
-            if url_new:  # 301,302, 303
+            if url_new:  # 301,302
                 return await _download_data(client, url_new, folder=folder,
                                             authorize_from_browser=authorize_from_browser,
                                             file_name=file_name, follow_redirects=True)
