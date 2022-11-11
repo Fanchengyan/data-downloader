@@ -14,8 +14,8 @@ setuptools.setup(
     url="https://github.com/Fanchengyan/data-downloader",
     packages=setuptools.find_packages(),
     install_requires=[
-        'httpx >= 0.14.0',
-        'requests'
+        'httpx >= 0.4.0',
+        'requests',
         'tqdm',
         'setuptools',
         'beautifulsoup4',

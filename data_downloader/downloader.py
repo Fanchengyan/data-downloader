@@ -441,6 +441,8 @@ def download_data(url, folder=None, file_name=None,
         file_name can be the absolute path if folder is None.
     client: requests.Session() for `requests` engine or httpx.Client() for `httpx` engine
         client maintaining connection. Default None
+    engine: one of ["requests","httpx"]
+        engine for downloading
     follow_redirects: bool
         Enables or disables HTTP redirects
     retry: int 
@@ -475,16 +477,18 @@ def download_datas(urls, folder=None, file_names=None, engine='requests', author
         iterator contains urls
     folder: str
         the folder to store output files. Default current folder.
+    engine: one of ["requests","httpx"]
+        engine for downloading
+    file_names: iterator
+        iterator contains names of files. Leaving it None if you want the program to parse
+        them from website. file_names can cantain the absolute paths if folder is None.
     authorize_from_browser: bool
         Whether to load cookies used by your web browser for authorization.
         This means you can use python to download data by logining in to website 
         via browser (So far the following browsers are supported: Chrome,Firefox, 
         Opera, Edge, Chromium"). It will be very usefull when website doesn't support
         "HTTP Basic Auth". Default is False.
-    file_names: iterator
-        iterator contains names of files. Leaving it None if you want the program to parse
-        them from website. file_names can cantain the absolute paths if folder is None.
-
+        
     Examples:
     ---------
     ```python
@@ -535,12 +539,8 @@ def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc='',
         iterator contains urls
     folder: str
         the folder to store output files. Default current folder.
-    authorize_from_browser: bool
-        Whether to load cookies used by your web browser for authorization.
-        This means you can use python to download data by logining in to website 
-        via browser (So far the following browsers are supported: Chrome,Firefox, 
-        Opera, Edge, Chromium"). It will be very useful when website doesn't support
-        "HTTP Basic Auth". Default is False.
+    engine: one of ["requests","httpx"]
+        engine for downloading
     file_names: iterator
         iterator contains names of files. Leaving it None if you want the program to parse
         them from website. file_names can contain the absolute paths if folder is None.
@@ -549,7 +549,13 @@ def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc='',
         by os.cpu_count() is used. Default None.
     desc: str
         description of data downloading
-
+    authorize_from_browser: bool
+        Whether to load cookies used by your web browser for authorization.
+        This means you can use python to download data by logining in to website 
+        via browser (So far the following browsers are supported: Chrome,Firefox, 
+        Opera, Edge, Chromium"). It will be very useful when website doesn't support
+        "HTTP Basic Auth". Default is False.
+        
     Examples:
     ---------
     ```python
