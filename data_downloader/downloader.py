@@ -136,7 +136,7 @@ def _get_cookiejar(authorize_from_browser):
 def _handle_status(r, url, local_size, file_name, file_path):
     # returns (True, '') : downloaded entirely
     # returns (False,'') : error! break download
-    # returns (False, url) : 301,302
+    # returns (False, url) : 301,302,303
     # returns None: continue to download
 
     global support_resume, pbar, remote_size
@@ -192,7 +192,7 @@ def _handle_status(r, url, local_size, file_name, file_path):
         tqdm.write('>>> The server has accepted your request but has not yet processed it. '
                    'Please redownload it later')
         return False, ''
-    elif r.status_code in [301, 302]:
+    elif r.status_code in [301, 302, 303]:
         url_new = r.headers['Location']
         tqdm.write(f'>>> Waring: the website has redirected to {url_new}')
         return False, url_new
@@ -268,7 +268,7 @@ def download_data(url, folder=None, file_name=None,
         if status:  # downloaded entirely
             return True
         elif status == False:
-            if url_new:  # 301,302
+            if url_new:  # 301,302, 303
                 return download_data(url_new, folder=folder, file_name=file_name,
                                      authorize_from_browser=authorize_from_browser,
                                      follow_redirects=True, client=client)
@@ -463,7 +463,7 @@ async def _download_data(client, url, folder=None, file_name=None,
         if status:  # downloaded entirely
             return True
         elif status == False:
-            if url_new:  # 301,302
+            if url_new:  # 301,302, 303
                 return await _download_data(client, url_new, folder=folder,
                                             authorize_from_browser=authorize_from_browser,
                                             file_name=file_name, follow_redirects=True)
