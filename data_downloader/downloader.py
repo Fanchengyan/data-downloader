@@ -129,7 +129,7 @@ def _get_cookiejar(authorize_from_browser):
             raise EnvironmentError("Could not load cookie from browser. "
                                    "Please login in website via browser before run this code"
                                    "\n  So far the following browsers are supported: "
-                                   "Chrome，Firefox, Opera, Edge, Chromium")
+                                   "Chrome,Firefox, Opera, Edge, Chromium")
     return cj
 
 
@@ -213,7 +213,7 @@ def _handle_status(r, url, local_size, file_name, file_path):
 
 def download_data(url, folder=None, file_name=None,
                   client=None, follow_redirects=False, retry=0,
-                  authorize_from_browser=False, ):
+                  authorize_from_browser=False):
     '''Download a single file.
 
     Parameters:
@@ -225,7 +225,7 @@ def download_data(url, folder=None, file_name=None,
     authorize_from_browser: bool
         Whether to load cookies used by your web browser for authorization.
         This means you can use python to download data by logining in to website 
-        via browser (So far the following browsers are supported: Chrome，Firefox, 
+        via browser (So far the following browsers are supported: Chrome,Firefox, 
         Opera, Edge, Chromium"). It will be very usefull when website doesn't support
         "HTTP Basic Auth". Default is False.
     file_name: str
@@ -252,10 +252,10 @@ def download_data(url, folder=None, file_name=None,
                    follow_redirects=follow_redirects, cookies=cj)
     r.close()
 
-    if not file_name:
+    if file_name is None:
         file_name = _parse_file_name(r)
 
-    if folder:
+    if folder is not None:
         file_path = os.path.join(folder, file_name)
     else:
         file_path = os.path.abspath(file_name)
@@ -329,7 +329,7 @@ def download_datas(urls, folder=None, file_names=None, authorize_from_browser=Fa
     authorize_from_browser: bool
         Whether to load cookies used by your web browser for authorization.
         This means you can use python to download data by logining in to website 
-        via browser (So far the following browsers are supported: Chrome，Firefox, 
+        via browser (So far the following browsers are supported: Chrome,Firefox, 
         Opera, Edge, Chromium"). It will be very usefull when website doesn't support
         "HTTP Basic Auth". Default is False.
     file_names: iterator
@@ -367,8 +367,8 @@ def _mp_download_data(args):
     return download_data(*args)
 
 
-def mp_download_datas(urls, folder=None, file_names=None,
-                      ncore=None, desc='', authorize_from_browser=False):
+def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc='',
+                       follow_redirects=False, retry=0, authorize_from_browser=False):
     '''download data from a list like object which containing urls.
     This function will download multiple files simultaneously using multiprocess.
 
@@ -381,12 +381,12 @@ def mp_download_datas(urls, folder=None, file_names=None,
     authorize_from_browser: bool
         Whether to load cookies used by your web browser for authorization.
         This means you can use python to download data by logining in to website 
-        via browser (So far the following browsers are supported: Chrome，Firefox, 
-        Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+        via browser (So far the following browsers are supported: Chrome,Firefox, 
+        Opera, Edge, Chromium"). It will be very useful when website doesn't support
         "HTTP Basic Auth". Default is False.
     file_names: iterator
         iterator contains names of files. Leaving it None if you want the program to parse
-        them from website. file_names can cantain the absolute paths if folder is None.
+        them from website. file_names can contain the absolute paths if folder is None.
     ncore: int
         Number of cores for parallel processing. If ncore is None then the number returned
         by os.cpu_count() is used. Default None.
@@ -421,10 +421,12 @@ def mp_download_datas(urls, folder=None, file_names=None,
 
     with mp.Pool(ncore) as pool:
         if file_names is not None:
-            args = [(urls[i], folder, file_names[i])
+            args = [(urls[i], folder, file_names[i], None, 
+                     follow_redirects, retry, authorize_from_browser)
                     for i in range(len(urls))]  # Need to put other parameters in right places
         else:
-            args = [(urls[i], folder)
+            args = [(urls[i], folder, file_names, None, 
+                     follow_redirects, retry, authorize_from_browser)
                     for i in range(len(urls))]
 
         for i in pool.imap_unordered(_mp_download_data, args):
@@ -444,10 +446,10 @@ async def _download_data(client, url, folder=None, file_name=None,
     r = await client.get(url, headers=headers, timeout=120, follow_redirects=follow_redirects, cookies=cj)
     # r.close()
     # r = await client.head(url, headers=headers, auth=auth, timeout=120)
-    if not file_name:
+    if file_name is None:
         file_name = _parse_file_name(r)
 
-    if folder:
+    if folder is not None:
         if not os.path.exists(folder):
             os.makedirs(folder)
         file_path = os.path.join(folder, file_name)
@@ -551,7 +553,7 @@ def async_download_datas(urls, folder=None, file_names=None, limit=30, desc='',
     authorize_from_browser: bool
         Whether to load cookies used by your web browser for authorization.
         This means you can use python to download data by logining in to website 
-        via browser (So far the following browsers are supported: Chrome，Firefox, 
+        via browser (So far the following browsers are supported: Chrome,Firefox, 
         Opera, Edge, Chromium"). It will be very usefull when website doesn't support
         "HTTP Basic Auth". Default is False.
     file_names: iterator
@@ -628,7 +630,7 @@ def status_ok(urls, limit=200, authorize_from_browser=False, timeout=60):
     authorize_from_browser: bool
         Whether to load cookies used by your web browser for authorization.
         This means you can use python to download data by logining in to website 
-        via browser (So far the following browsers are supported: Chrome，Firefox, 
+        via browser (So far the following browsers are supported: Chrome,Firefox, 
         Opera, Edge, Chromium"). It will be very usefull when website doesn't support
         "HTTP Basic Auth". Default is False.
     timeout: int
