@@ -213,7 +213,7 @@ def _handle_status(r, url, local_size, file_name, file_path):
 
 
 def _download_data_httpx(url, folder=None, file_name=None,
-                         client=None, follow_redirects=False, retry=0,
+                         client=None, follow_redirects=True, retry=0,
                          authorize_from_browser=False):
     '''Download a single file.
 
@@ -488,7 +488,7 @@ def download_datas(urls, folder=None, file_names=None, engine='requests', author
         via browser (So far the following browsers are supported: Chrome,Firefox, 
         Opera, Edge, Chromium"). It will be very usefull when website doesn't support
         "HTTP Basic Auth". Default is False.
-        
+
     Examples:
     ---------
     ```python
@@ -529,7 +529,7 @@ def _mp_download_data(args):
 
 
 def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc='',
-                      follow_redirects=False, retry=0, engine='requests', authorize_from_browser=False):
+                      follow_redirects=True, retry=0, engine='requests', authorize_from_browser=False):
     '''download data from a list like object which containing urls.
     This function will download multiple files simultaneously using multiprocess.
 
@@ -555,7 +555,7 @@ def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc='',
         via browser (So far the following browsers are supported: Chrome,Firefox, 
         Opera, Edge, Chromium"). It will be very useful when website doesn't support
         "HTTP Basic Auth". Default is False.
-        
+
     Examples:
     ---------
     ```python
@@ -584,12 +584,12 @@ def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc='',
 
     with mp.Pool(ncore) as pool:
         if file_names is not None:
-            args = [(urls[i], folder, file_names[i], None,
-                     follow_redirects, retry, engine, authorize_from_browser)
+            args = [(urls[i], folder, file_names[i], None, engine,
+                     follow_redirects, retry,  authorize_from_browser)
                     for i in range(len(urls))]  # Need to put other parameters in right places
         else:
-            args = [(urls[i], folder, file_names, None,
-                     follow_redirects, retry, engine, authorize_from_browser)
+            args = [(urls[i], folder, file_names, None, engine,
+                     follow_redirects, retry, authorize_from_browser)
                     for i in range(len(urls))]
 
         for i in pool.imap_unordered(_mp_download_data, args):
@@ -597,7 +597,7 @@ def mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc='',
 
 
 async def _download_data(client, url, folder=None, file_name=None,
-                         follow_redirects=False, retry=0, authorize_from_browser=False):
+                         follow_redirects=True, retry=0, authorize_from_browser=False):
     global support_resume, pbar, remote_size
 
     headers = {'Range': 'bytes=0-4'}
@@ -704,7 +704,7 @@ async def creat_tasks(urls, folder, authorize_from_browser, file_names, limit, d
 
 
 def async_download_datas(urls, folder=None, file_names=None, limit=30, desc='',
-                         follow_redirects=False, retry=0, authorize_from_browser=False):
+                         follow_redirects=True, retry=0, authorize_from_browser=False):
     '''Download multiple files simultaneously.
 
     Parameters:
