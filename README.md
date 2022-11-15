@@ -161,7 +161,10 @@ Out[19]: {}
 This function is design for downloading a single file. Try to use `download_datas`, `mp_download_datas` or `async_download_datas` function if you have a lot of files to download
 
 ``` Python
-downloader.download_data(url, folder=None, authorize_from_browser=False, file_name=None, client=None, allow_redirects=False, retry=0)
+download_data(url, folder=None, file_name=None,
+                  client=None, engine='requests',
+                  follow_redirects=True, retry=0,
+                  authorize_from_browser=False)
 ```
 
 **Parameters:**
@@ -207,7 +210,7 @@ In [6]: url = 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_produc
 download datas from a list like object that contains urls. This function will download files one by one.
 
 ``` Python
-downloader.download_datas(urls, folder=None, authorize_from_browser=False, file_names=None):
+download_datas(urls, folder=None, file_names=None, engine='requests', authorize_from_browser=False)
 ```
 
 **Parameters:**
@@ -250,7 +253,7 @@ In [12]: from data_downloader import downloader
     ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221
     ...: .geo.cc.tif']  
     ...:  
-    ...: folder = 'D:\\data' 
+    ...: folder = 'D:\\data'         G, param_names = GC.ftc_model1(t1s, t2s, t3s, t4s, years, ftc)
     ...: downloader.download_datas(urls,folder)
 
 20141117_20141211.geo.unw.tif:   6%|█           | 1.37M/22.1M [03:09<2:16:31, 2.53kB/s]
@@ -260,7 +263,8 @@ In [12]: from data_downloader import downloader
 Download files simultaneously using multiprocessing. The website that don't support resuming may download incompletely. You can use `download_datas` instead
 
 ``` Python
-downloader.mp_download_datas(urls, folder=None,  authorize_from_browser=False, file_names=None,ncore=None, desc='')
+mp_download_datas(urls, folder=None, file_names=None, ncore=None, desc='',
+                      follow_redirects=True, retry=0, engine='requests', authorize_from_browser=False)
 ```
 
 
