@@ -1,5 +1,8 @@
 # data-downloader
 
+[![](https://img.shields.io/pypi/v/data_downloader)](https://pypi.org/project/data_downloader/) [![Downloads](https://static.pepy.tech/badge/data_downloader)](https://pepy.tech/project/data_downloader)
+
+
 Make downloading scientific data much easier
 
 ## Introduction
