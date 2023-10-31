@@ -11,7 +11,7 @@ from dateutil.parser import parse
 from netrc import netrc
 import multiprocessing as mp
 from urllib.parse import urlparse
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 nest_asyncio.apply()
