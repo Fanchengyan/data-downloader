@@ -1,19 +1,19 @@
-import os
-import time
-import datetime as dt
-import selectors
 import asyncio
-import httpx
-import requests
-import nest_asyncio
-import browser_cookie3 as bc
-from dateutil.parser import parse
-from netrc import netrc
+import datetime as dt
 import multiprocessing as mp
-from urllib.parse import urlparse
-from tqdm.auto import tqdm
+import os
+import selectors
+import time
+from netrc import netrc
 from pathlib import Path
+from urllib.parse import urlparse
 
+import browser_cookie3 as bc
+import httpx
+import nest_asyncio
+import requests
+from dateutil.parser import parse
+from tqdm.auto import tqdm
 
 nest_asyncio.apply()
 

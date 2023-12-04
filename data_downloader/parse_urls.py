@@ -1,30 +1,32 @@
-from data_downloader.downloader import get_netrc_auth, get_url_host
-from xml.dom.minidom import parse
-from urllib.parse import urljoin
 from pathlib import Path
+from urllib.parse import urljoin
+from xml.dom.minidom import parse
+
 import httpx
 from bs4 import BeautifulSoup
 
+from data_downloader.downloader import get_netrc_auth, get_url_host
+
 
 def from_urls_file(url_file):
-    '''parse urls from a file which only contains urls 
+    """parse urls from a file which only contains urls
 
     Parameters:
     -----------
     url_file: str
-        path to file which only contains urls 
+        path to file which only contains urls
 
     Return:
     -------
     a list contains urls
-    '''
+    """
     with open(url_file) as f:
         urls = [i.strip() for i in f.readlines()]
     return urls
 
 
 def from_sentinel_meta4(url_file):
-    '''parse urls from sentinel `products.meta4` file downloaded from 
+    """parse urls from sentinel `products.meta4` file downloaded from
     https://scihub.copernicus.eu/dhus
 
     Parameters:
@@ -35,24 +37,23 @@ def from_sentinel_meta4(url_file):
     Return:
     -------
     a list contains urls
-    '''
+    """
     data = parse(url_file).documentElement
-    urls = [i.childNodes[0].nodeValue for i in
-            data.getElementsByTagName('url')]
+    urls = [i.childNodes[0].nodeValue for i in data.getElementsByTagName("url")]
     return urls
 
 
 def from_html(url, suffix=None, suffix_depth=0, url_depth=0):
-    '''parse urls from html website
+    """parse urls from html website
 
     Parameters:
     -----------
     url: str
         the website contatins data
     suffix: list, optional
-        data format. suffix should be a list contains multipart. 
-        if suffix_depth is 0, all '.' will parsed. 
-        Examples: 
+        data format. suffix should be a list contains multipart.
+        if suffix_depth is 0, all '.' will parsed.
+        Examples:
             when set 'suffix_depth=0':
                 suffix of 'xxx8.1_GLOBAL.nc' should be ['.1_GLOBAL', '.nc']
                 suffix of 'xxx.tar.gz' should be ['.tar', '.gz']
@@ -76,7 +77,8 @@ def from_html(url, suffix=None, suffix_depth=0, url_depth=0):
     >>> urls = parse_urls.from_html(url, suffix=['.nc'], suffix_depth=1)
     >>> urls_all = parse_urls.from_html(url, suffix=['.nc'], suffix_depth=1, url_depth=1)
     >>> print(len(urls_all)-len(urls))
-    '''
+    """
+
     def match_suffix(href, suffix):
         if suffix:
             sf = Path(href).suffixes[-suffix_depth:]
@@ -85,17 +87,19 @@ def from_html(url, suffix=None, suffix_depth=0, url_depth=0):
             return True
 
     r_h = httpx.head(url)
-    if 'text/html' in r_h.headers['Content-Type']:
+    if "text/html" in r_h.headers["Content-Type"]:
         r = httpx.get(url)
-        soup = BeautifulSoup(r.text, 'html.parser')
+        soup = BeautifulSoup(r.text, "html.parser")
 
-        a = soup.find_all('a')
-        urls_all = [urljoin(url, i['href']) for i in a if i.has_key('href')]
+        a = soup.find_all("a")
+        urls_all = [urljoin(url, i["href"]) for i in a if i.has_key("href")]
         urls = [i for i in urls_all if match_suffix(i, suffix)]
         if url_depth > 0:
-            urls_notdata = sorted(set(urls_all)-set(urls))
-            urls_depth = [from_html(_url, suffix, suffix_depth, url_depth - 1)
-                          for _url in urls_notdata]
+            urls_notdata = sorted(set(urls_all) - set(urls))
+            urls_depth = [
+                from_html(_url, suffix, suffix_depth, url_depth - 1)
+                for _url in urls_notdata
+            ]
 
             for u in urls_depth:
                 if isinstance(u, list):
@@ -105,8 +109,8 @@ def from_html(url, suffix=None, suffix_depth=0, url_depth=0):
 
 
 def _retrieve_all_orders(url_host, email, auth):
-    filters = {'status': 'complete'}
-    url = urljoin(url_host, f'/api/v1/list-orders/{email}')
+    filters = {"status": "complete"}
+    url = urljoin(url_host, f"/api/v1/list-orders/{email}")
     r = httpx.get(url, params=filters, auth=auth)
     r.raise_for_status()
     all_orders = r.json()
@@ -115,29 +119,33 @@ def _retrieve_all_orders(url_host, email, auth):
 
 
 def _retrieve_urls_from_order(url_host, orderid, auth):
-    filters = {'status': 'complete'}
-    url = urljoin(url_host, f'/api/v1/item-status/{orderid}')
+    filters = {"status": "complete"}
+    url = urljoin(url_host, f"/api/v1/item-status/{orderid}")
     r = httpx.get(url, params=filters, auth=auth)
     r.raise_for_status()
     urls_info = r.json()
     if isinstance(urls_info, dict):
-        messages = urls_info.pop('messages', dict())
-        if messages.get('errors'):
-            raise Exception('{}'.format(messages.get('errors')))
-        if messages.get('warnings'):
-            print('>>> Warning: {}'.format(messages.get('warnings')))
+        messages = urls_info.pop("messages", dict())
+        if messages.get("errors"):
+            raise Exception("{}".format(messages.get("errors")))
+        if messages.get("warnings"):
+            print(">>> Warning: {}".format(messages.get("warnings")))
 
     if orderid not in urls_info:
-        raise ValueError(f'Order ID{orderid} not found')
-    urls = [i.get('product_dload_url') for i in urls_info[orderid]
-            if i.get('product_dload_url') != '']
+        raise ValueError(f"Order ID{orderid} not found")
+    urls = [
+        i.get("product_dload_url")
+        for i in urls_info[orderid]
+        if i.get("product_dload_url") != ""
+    ]
 
     return urls
 
 
-def from_EarthExplorer_order(username=None, passwd=None, email=None,
-                             order=None, url_host=None):
-    '''parse urls from orders in earthexplorer.
+def from_EarthExplorer_order(
+    username=None, passwd=None, email=None, order=None, url_host=None
+):
+    """parse urls from orders in earthexplorer.
 
     Reference: [bulk-downloader](https://code.usgs.gov/espa/bulk-downloader)
 
@@ -149,7 +157,7 @@ def from_EarthExplorer_order(username=None, passwd=None, email=None,
     email: str, optional
         email address for the user that submitted the order
     order: str or dict
-        which order to download. If None, all orders retrieved from 
+        which order to download. If None, all orders retrieved from
         EarthExplorer will be used.
     url_host: str
         if host is not USGS ESPA
@@ -171,17 +179,19 @@ def from_EarthExplorer_order(username=None, passwd=None, email=None,
     >>>         folder.mkdir()
     >>>     urls = urls_info[odr]
     >>>     downloader.download_datas(urls, folder)
-    '''
+    """
     # init parameters
-    email = email if email else ''
+    email = email if email else ""
     if url_host is None:
-        url_host = 'https://espa.cr.usgs.gov'
+        url_host = "https://espa.cr.usgs.gov"
     host = get_url_host(url_host)
 
     auth = get_netrc_auth(host)
     if (auth == username) or (auth == passwd):
-        raise ValueError('username and passwd neither be found in netrc or'
-                         ' be assigned in parameter')
+        raise ValueError(
+            "username and passwd neither be found in netrc or"
+            " be assigned in parameter"
+        )
     elif not auth:
         auth = (username, passwd)
 
@@ -195,7 +205,7 @@ def from_EarthExplorer_order(username=None, passwd=None, email=None,
             try:
                 orders = list(order)
             except:
-                raise ValueError('order must be str or list of str')
+                raise ValueError("order must be str or list of str")
 
     urls_info = {}
     for odr in orders:
@@ -203,6 +213,8 @@ def from_EarthExplorer_order(username=None, passwd=None, email=None,
         if urls:
             urls_info.update({odr: urls})
         else:
-            print(f'>>> Warning: Data for order id {odr} have expired.'
-                  ' Please reorder it again if you want to use it anymore')
+            print(
+                f">>> Warning: Data for order id {odr} have expired."
+                " Please reorder it again if you want to use it anymore"
+            )
     return urls_info
