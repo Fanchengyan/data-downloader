@@ -610,7 +610,7 @@ def download_datas(
     else:
         raise ValueError('engine must be one of ["requests","httpx"]')
 
-    for i, url in enumerate(urls):
+    for i, url in enumerate(tqdm(urls, unit="files", dynamic_ncols=True)):
         if file_names is not None:
             download_data(
                 url,

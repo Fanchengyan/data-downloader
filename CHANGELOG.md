@@ -1,3 +1,9 @@
+
+## [0.5.0] - 2023-12-04
+
+### Added:
+- Add SentinelOrbit class to support Sentinel-1 orbit download 
+
 ## [0.4.0] - 2022-11-12
 
 ### Added:
