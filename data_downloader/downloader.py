@@ -563,7 +563,12 @@ def download_data(
 
 
 def download_datas(
-    urls, folder=None, file_names=None, engine="requests", authorize_from_browser=False
+    urls,
+    folder=None,
+    file_names=None,
+    engine="requests",
+    authorize_from_browser=False,
+    desc="",
 ):
     """download data from a list like object which containing urls.
     This function will download files one by one.
@@ -585,6 +590,8 @@ def download_datas(
         via browser (So far the following browsers are supported: Chrome,Firefox,
         Opera, Edge, Chromium"). It will be very usefull when website doesn't support
         "HTTP Basic Auth". Default is False.
+    desc: str
+        description of data downloading
 
     Examples:
     ---------
@@ -609,8 +616,9 @@ def download_datas(
         client = httpx.Client(timeout=None)
     else:
         raise ValueError('engine must be one of ["requests","httpx"]')
-
-    for i, url in enumerate(tqdm(urls, unit="files", dynamic_ncols=True)):
+    
+    desc = ">>> Total | " + desc.title()
+    for i, url in enumerate(tqdm(urls, unit="files", dynamic_ncols=True, desc=desc)):
         if file_names is not None:
             download_data(
                 url,

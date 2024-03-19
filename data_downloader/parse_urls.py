@@ -1,8 +1,7 @@
 from pathlib import Path
 from urllib.parse import urljoin
 from xml.dom.minidom import parse
-
-import httpx
+import requests
 from bs4 import BeautifulSoup
 
 from data_downloader.downloader import get_netrc_auth, get_url_host
@@ -86,13 +85,13 @@ def from_html(url, suffix=None, suffix_depth=0, url_depth=0):
         else:
             return True
 
-    r_h = httpx.head(url)
+    r_h = requests.head(url)
     if "text/html" in r_h.headers["Content-Type"]:
-        r = httpx.get(url)
+        r = requests.get(url)
         soup = BeautifulSoup(r.text, "html.parser")
 
         a = soup.find_all("a")
-        urls_all = [urljoin(url, i["href"]) for i in a if i.has_key("href")]
+        urls_all = [urljoin(url, i["href"]) for i in a if i.has_attr("href")]
         urls = [i for i in urls_all if match_suffix(i, suffix)]
         if url_depth > 0:
             urls_notdata = sorted(set(urls_all) - set(urls))
@@ -111,7 +110,7 @@ def from_html(url, suffix=None, suffix_depth=0, url_depth=0):
 def _retrieve_all_orders(url_host, email, auth):
     filters = {"status": "complete"}
     url = urljoin(url_host, f"/api/v1/list-orders/{email}")
-    r = httpx.get(url, params=filters, auth=auth)
+    r = requests.get(url, params=filters, auth=auth)
     r.raise_for_status()
     all_orders = r.json()
 
@@ -121,7 +120,7 @@ def _retrieve_all_orders(url_host, email, auth):
 def _retrieve_urls_from_order(url_host, orderid, auth):
     filters = {"status": "complete"}
     url = urljoin(url_host, f"/api/v1/item-status/{orderid}")
-    r = httpx.get(url, params=filters, auth=auth)
+    r = requests.get(url, params=filters, auth=auth)
     r.raise_for_status()
     urls_info = r.json()
     if isinstance(urls_info, dict):
