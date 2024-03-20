@@ -4,3 +4,4 @@ myst-nb
 sphinx_rtd_theme
 Jinja2
 data_downloader
+pandas
