@@ -10,8 +10,8 @@ Welcome to data_downloader's documentation!
     :target: https://pypi.org/project/data_downloader/
     :alt: PyPI
 
-.. image:: https://readthedocs.org/projects/data_downloader/badge/?version=latest
-    :target: https://data_downloader.readthedocs.io/en/latest/?badge=latest
+.. image:: https://readthedocs.org/projects/data-downloader/badge/?version=latest
+    :target: https://data-downloader.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
 Make downloading scientific data much easier

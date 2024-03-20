@@ -1,6 +1,6 @@
 # data_downloader
 
-[![Downloads](https://static.pepy.tech/badge/data_downloader)](https://pepy.tech/project/data_downloader) [![PyPI](https://img.shields.io/pypi/v/data_downloader)](https://pypi.org/project/data_downloader/) [![Documentation Status](https://readthedocs.org/projects/data_downloader/badge/?version=latest)](https://data_downloader.readthedocs.io/en/latest/?badge=latest)
+[![Downloads](https://static.pepy.tech/badge/data_downloader)](https://pepy.tech/project/data_downloader) [![PyPI](https://img.shields.io/pypi/v/data_downloader)](https://pypi.org/project/data_downloader/) [![Documentation Status](https://readthedocs.org/projects/data-downloader/badge/?version=latest)](https://data-downloader.readthedocs.io/en/latest/?badge=latest)
 
 Make downloading scientific data much easier
 
