@@ -1,3 +1,11 @@
+## [1.0] - 2024-03-20
+
+### Added:
+- Add SentinelOrbit class to support Sentinel-1 orbit download
+- Add LiCSAR class to support LiCSAR download
+- restructuring the package
+- add documentation
+
 
 ## [0.5.0] - 2023-12-04
 

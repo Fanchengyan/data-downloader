@@ -4,14 +4,14 @@ with open("README.md", "r", encoding="UTF-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="data-downloader",
-    version="0.5.2",
+    name="data_downloader",
+    version="0.1.0",
     author="fanchegyan",
     author_email="fanchy14@lzu.edu.cn",
     description="Make downloading scientific data much easier",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Fanchengyan/data-downloader",
+    url="https://github.com/Fanchengyan/data_downloader",
     packages=setuptools.find_packages(),
     install_requires=[
         "httpx >= 0.4.0",
