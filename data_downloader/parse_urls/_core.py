@@ -1,13 +1,15 @@
 from pathlib import Path
+from typing import Optional, Union
 from urllib.parse import urljoin
 from xml.dom.minidom import parse
+
 import requests
 from bs4 import BeautifulSoup
 
 from data_downloader.downloader import get_netrc_auth, get_url_host
 
 
-def from_urls_file(url_file):
+def from_urls_file(url_file: str) -> list:
     """parse urls from a file which only contains urls
 
     Parameters:
@@ -24,7 +26,7 @@ def from_urls_file(url_file):
     return urls
 
 
-def from_sentinel_meta4(url_file):
+def from_sentinel_meta4(url_file: str) -> list:
     """parse urls from sentinel `products.meta4` file downloaded from
     https://scihub.copernicus.eu/dhus
 
@@ -42,26 +44,32 @@ def from_sentinel_meta4(url_file):
     return urls
 
 
-def from_html(url, suffix=None, suffix_depth=0, url_depth=0):
+def from_html(
+    url: str,
+    suffix: Optional[str] = None,
+    suffix_depth: int = 0,
+    url_depth: int = 0,
+) -> list:
     """parse urls from html website
 
     Parameters:
     -----------
     url: str
-        the website contatins data
+        the website contains data
     suffix: list, optional
         data format. suffix should be a list contains multipart.
         if suffix_depth is 0, all '.' will parsed.
         Examples:
-            when set 'suffix_depth=0':
-                suffix of 'xxx8.1_GLOBAL.nc' should be ['.1_GLOBAL', '.nc']
-                suffix of 'xxx.tar.gz' should be ['.tar', '.gz']
-            when set 'suffix_depth=1':
-                suffix of 'xxx8.1_GLOBAL.nc' should be ['.nc']
-                suffix of 'xxx.tar.gz' should be ['.gz']
-    suffix_depth: interger
+
+        - when set 'suffix_depth=0':
+            - suffix of 'xxx8.1_GLOBAL.nc' should be ['.1_GLOBAL', '.nc']
+            - suffix of 'xxx.tar.gz' should be ['.tar', '.gz']
+        - when set 'suffix_depth=1':
+            - suffix of 'xxx8.1_GLOBAL.nc' should be ['.nc']
+            - suffix of 'xxx.tar.gz' should be ['.gz']
+    suffix_depth: int
         Number of suffixes
-    url_depth: interger
+    url_depth: int
         depth of url in website will parsed
 
     Return:
@@ -142,8 +150,12 @@ def _retrieve_urls_from_order(url_host, orderid, auth):
 
 
 def from_EarthExplorer_order(
-    username=None, passwd=None, email=None, order=None, url_host=None
-):
+    username: Optional[str] = None,
+    passwd: Optional[str] = None,
+    email: Optional[str] = None,
+    order: Optional[Union[str, dict]] = None,
+    url_host: Optional[str] = None,
+)->dict:
     """parse urls from orders in earthexplorer.
 
     Reference: [bulk-downloader](https://code.usgs.gov/espa/bulk-downloader)
@@ -170,8 +182,7 @@ def from_EarthExplorer_order(
     >>> from pathlib import Path
     >>> from data_downloader import downloader, parse_urls
     >>> folder_out = Path('D:\\data')
-    >>> urls_info = parse_urls.from_EarthExplorer_order(
-                    'your username', 'your passwd')
+    >>> urls_info = parse_urls.from_EarthExplorer_order('your username', 'your passwd')
     >>> for odr in urls_info.keys():
     >>>     folder = folder_out.joinpath(odr)
     >>>     if not folder.exists():

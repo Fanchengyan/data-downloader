@@ -6,6 +6,7 @@ import selectors
 import time
 from netrc import netrc
 from pathlib import Path
+from typing import Optional, Union
 from urllib.parse import urlparse
 
 import browser_cookie3 as bc
@@ -42,13 +43,15 @@ def get_netrc_auth(url):
 
 
 class Netrc(netrc):
-    """add or clear records in .netrc file"""
+    """a class managing records in .netrc file"""
 
-    def __init__(self, file=None):
+    def __init__(self, file: Optional[Union[str, Path]] = None):
         if file is None:
-            file = os.path.join(os.path.expanduser("~"), ".netrc")
+            file = Path("~/.netrc").expanduser()
+        else:
+            file = Path(file)
         self.file = file
-        if not os.path.exists(file):
+        if not file.exists():
             open(self.file, "w").close()
 
         netrc.__init__(self, file)
@@ -260,9 +263,9 @@ def _download_data_httpx(
         the folder to store output files. Default current folder.
     authorize_from_browser: bool
         Whether to load cookies used by your web browser for authorization.
-        This means you can use python to download data by logining in to website
+        This means you can use python to download data by logging in to website
         via browser (So far the following browsers are supported: Chrome,Firefox,
-        Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+        Opera, Edge, Chromium"). It will be very useful when website doesn't support
         "HTTP Basic Auth". Default is False.
     file_name: str
         the file name. If None, will parse from web response or url.
@@ -272,7 +275,7 @@ def _download_data_httpx(
     follow_redirects: bool
         Enables or disables HTTP redirects
     retry: int
-        number of reconnections when status code is 503
+        number of reconnection when status code is 503
     """
     # init parameters
     global support_resume, pbar, remote_size
@@ -389,9 +392,9 @@ def _download_data_requests(
         the folder to store output files. Default current folder.
     authorize_from_browser: bool
         Whether to load cookies used by your web browser for authorization.
-        This means you can use python to download data by logining in to website
+        This means you can use python to download data by logging in to website
         via browser (So far the following browsers are supported: Chrome,Firefox,
-        Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+        Opera, Edge, Chromium"). It will be very useful when website doesn't support
         "HTTP Basic Auth". Default is False.
     file_name: str
         the file name. If None, will parse from web response or url.
@@ -401,7 +404,7 @@ def _download_data_requests(
     follow_redirects: bool
         Enables or disables HTTP redirects
     retry: int
-        number of reconnections when status code is 503
+        number of reconnection when status code is 503
     """
     # init parameters
     global support_resume, pbar, remote_size
@@ -529,12 +532,12 @@ def download_data(
     follow_redirects: bool
         Enables or disables HTTP redirects
     retry: int
-        number of reconnections when status code is 503
+        number of reconnection when status code is 503
     authorize_from_browser: bool
         Whether to load cookies used by your web browser for authorization.
-        This means you can use python to download data by logining in to website
+        This means you can use python to download data by logging in to website
         via browser (So far the following browsers are supported: Chrome,Firefox,
-        Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+        Opera, Edge, Chromium"). It will be very useful when website doesn't support
         "HTTP Basic Auth". Default is False.
     """
 
@@ -583,32 +586,35 @@ def download_datas(
         engine for downloading
     file_names: iterator
         iterator contains names of files. Leaving it None if you want the program to parse
-        them from website. file_names can cantain the absolute paths if folder is None.
+        them from website. file_names can contain the absolute paths if folder is None.
     authorize_from_browser: bool
         Whether to load cookies used by your web browser for authorization.
-        This means you can use python to download data by logining in to website
+        This means you can use python to download data by logging in to website
         via browser (So far the following browsers are supported: Chrome,Firefox,
-        Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+        Opera, Edge, Chromium"). It will be very useful when website doesn't support
         "HTTP Basic Auth". Default is False.
     desc: str
         description of data downloading
 
     Examples:
     ---------
-    ```python
-    from data_downloader import downloader
 
-    urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_20141211.geo.unw.tif',
+    >>> from data_downloader import downloader
+    
+    specify the urls and folder
+    
+    >>> urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_20141211.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150221/20141024_20150221.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141211_20150128/20141211_20150128.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif']
-
-    folder = 'D:\\data'
-    downloader.download_datas(urls,folder)
-    ```
+    >>> folder = 'D:\\data'
+    
+    download data from urls and store them in folder
+    
+    >>> downloader.download_datas(urls,folder)
     """
     if engine == "requests":
         client = requests.Session()
@@ -616,7 +622,7 @@ def download_datas(
         client = httpx.Client(timeout=None)
     else:
         raise ValueError('engine must be one of ["requests","httpx"]')
-    
+
     desc = ">>> Total | " + desc.title()
     for i, url in enumerate(tqdm(urls, unit="files", dynamic_ncols=True, desc=desc)):
         if file_names is not None:
@@ -674,27 +680,30 @@ def mp_download_datas(
         description of data downloading
     authorize_from_browser: bool
         Whether to load cookies used by your web browser for authorization.
-        This means you can use python to download data by logining in to website
+        This means you can use python to download data by logging in to website
         via browser (So far the following browsers are supported: Chrome,Firefox,
         Opera, Edge, Chromium"). It will be very useful when website doesn't support
         "HTTP Basic Auth". Default is False.
 
     Examples:
     ---------
-    ```python
-    from data_downloader import downloader
 
-    urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_20141211.geo.unw.tif',
+    >>> from data_downloader import downloader
+
+    specify the urls and folder
+    
+    >>> urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_20141211.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150221/20141024_20150221.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141211_20150128/20141211_20150128.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif']
-
-    folder = 'D:\\data'
-    downloader.mp_download_datas(urls,folder)
-    ```
+    >>> folder = 'D:\\data'
+    
+    download data from urls and store them in folder
+    
+    >>> downloader.mp_download_datas(urls,folder)
     """
     if ncore == None:
         ncore = os.cpu_count()
@@ -916,13 +925,13 @@ def async_download_datas(
         the folder to store output files. Default current folder.
     authorize_from_browser: bool
         Whether to load cookies used by your web browser for authorization.
-        This means you can use python to download data by logining in to website
+        This means you can use python to download data by logging in to website
         via browser (So far the following browsers are supported: Chrome,Firefox,
-        Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+        Opera, Edge, Chromium"). It will be very useful when website doesn't support
         "HTTP Basic Auth". Default is False.
     file_names: iterator
         iterator contains names of files. Leaving it None if you want the program
-        to parse them from website. file_names can cantain the absolute paths if folder is None.
+        to parse them from website. file_names can contain the absolute paths if folder is None.
     limit: int
         the number of files downloading simultaneously
     desc: str
@@ -930,23 +939,27 @@ def async_download_datas(
     follow_redirects: bool
         Enables or disables HTTP redirects
     retry: int
-        number of reconnections when status code is 503
+        number of reconnection when status code is 503
 
     Example:
     ---------
 
-    from data_downloader import downloader
-
-    urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_20141211.geo.unw.tif',
+    >>> from data_downloader import downloader
+    
+    specify the urls and folder
+    
+    >>> urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_20141211.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150221/20141024_20150221.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141211_20150128/20141211_20150128.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif']
-
-    folder = 'D:\\data'
-    downloader.async_download_datas(urls,folder,None,desc='interferograms')
+    >>> folder = 'D:\\data'
+    
+    download data from urls and store them in folder
+    
+    >>> downloader.async_download_datas(urls,folder,None,desc='interferograms')
     """
     # solve the loop close  Error for python 3.8.x in windows platform
     selector = selectors.SelectSelector()
@@ -996,7 +1009,7 @@ async def creat_tasks_status_ok(urls, limit, authorize_from_browser, timeout):
 
 
 def status_ok(urls, limit=200, authorize_from_browser=False, timeout=60):
-    """Simultaneously detecting whether the given links are accessable.
+    """Simultaneously detecting whether the given links are accessible.
 
     Parameters
     ----------
@@ -1006,9 +1019,9 @@ def status_ok(urls, limit=200, authorize_from_browser=False, timeout=60):
         the number of urls connecting simultaneously
     authorize_from_browser: bool
         Whether to load cookies used by your web browser for authorization.
-        This means you can use python to download data by logining in to website
+        This means you can use python to download data by logging in to website
         via browser (So far the following browsers are supported: Chrome,Firefox,
-        Opera, Edge, Chromium"). It will be very usefull when website doesn't support
+        Opera, Edge, Chromium"). It will be very useful when website doesn't support
         "HTTP Basic Auth". Default is False.
     timeout: int
         Request to stop waiting for a response after a given number of seconds
@@ -1030,8 +1043,8 @@ def status_ok(urls, limit=200, authorize_from_browser=False, timeout=60):
     'https://bing.com/'] )
 
     status_ok = downloader.status_ok(urls)
-    urls_accessable = urls[status_ok]
-    tqdm.write(urls_accessable)
+    urls_accessible = urls[status_ok]
+    tqdm.write(urls_accessible)
     ```
     """
     # solve the loop close  Error for python 3.8.x in windows platform

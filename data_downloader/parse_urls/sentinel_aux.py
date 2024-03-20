@@ -3,7 +3,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from data_downloader import downloader, parse_urls
+from data_downloader import downloader
+from data_downloader.parse_urls import _core
 
 
 class SentinelOrbit:
@@ -29,8 +30,8 @@ class SentinelOrbit:
     Get all precise orbit data links of S1A during 20210101-20220301 and download them:
 
     >>> urls_preorb = s1_orbit.poeorb_urls(
-            date_start="20210101", date_end="20220301", platform="S1A"
-        )
+    >>>    date_start="20210101", date_end="20220301", platform="S1A"
+    >>> )
     >>> downloader.download_datas(urls_preorb, folder=folder_preorb)
     """
 
@@ -42,7 +43,7 @@ class SentinelOrbit:
         """init SentinelOrbit.
 
         Parameters:
-        ----------
+        -----------
         home_aux_cal : str
             home url of aux_cal, default is "https://s1qc.asf.alaska.edu/aux_cal/".
         home_preorb : str
@@ -55,11 +56,11 @@ class SentinelOrbit:
         """filter files from urls of aux_cal by platform.
 
         Parameters:
-        ----------
+        -----------
         platform : str, one of ['S1A', 'S1B','all']
             platform of satellite. should be one of ['S1A', 'S1B','all']
         """
-        urls = parse_urls.from_html(self.home_aux_cal)
+        urls = _core.from_html(self.home_aux_cal)
         if platform in ["S1A", "S1B", "all"]:
             if platform == "all":
                 platform = ["S1A", "S1B"]
@@ -82,7 +83,7 @@ class SentinelOrbit:
         """filter files from urls of aux_poeorb (precise orbit) by date and platform.
 
         Parameters:
-        ----------
+        -----------
         date_start, date_end : str
             start/end date to filter, can be any format that can be converted by
             pd.to_datetime (e.g. '20210101', '2021-01-01', '2021/01/01').
@@ -100,7 +101,7 @@ class SentinelOrbit:
         date_start = pd.to_datetime(date_start).date()
         date_end = pd.to_datetime(date_end).date()
 
-        urls = parse_urls.from_html(self.home_preorb)
+        urls = _core.from_html(self.home_preorb)
         _urls = [i for i in urls if Path(i).suffix == ".EOF"]
         urls_filter = []
         for i in _urls:

@@ -1,4 +1,2 @@
-from data_downloader import downloader, parse_urls
-
-from .sentinel_aux import SentinelOrbit
-from .licsar import LiCSAR
+from data_downloader import downloader
+from data_downloader.parse_urls import _core

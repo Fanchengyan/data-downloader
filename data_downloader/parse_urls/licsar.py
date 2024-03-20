@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from data_downloader import parse_urls
+from data_downloader.parse_urls import _core
 
 
 class LiCSAR:
@@ -16,16 +16,21 @@ class LiCSAR:
     >>> from pathlib import Path
     >>> import pandas as pd
     >>> from data_downloader import LiCSAR, downloader
-
+    >>> # specify the folder to save data
     >>> home_dir = Path("/Volumes/Data/GeoData/YNG/Sentinel1/LiCSAR/106D_05248_131313/")
     >>> pair_dir = home_dir / "GEOC"
 
+    init LiCSAR by frame id and download all metadata files
+    
     >>> licsar = LiCSAR("106D_05248_131313")
     >>> downloader.download_datas(licsar.meta_urls, folder=home_dir, desc="Metadata")
 
-    >>> # mask data by primary_dates, secondary_dates and days span
+    generate mask data by primary_dates, secondary_dates and day span
+    
     >>> mask = (licsar.primary_dates>pd.to_datetime("2019-01-01")) & (licsar.primary_dates<pd.to_datetime("2019-12-31")) & (licsar.days < 12 * 5 + 1)
 
+    download interferograms and coherence files filtered by mask
+    
     >>> downloader.download_datas(licsar.ifg_urls[mask].values, folder=pair_dir, desc="Interferogram")
     >>> downloader.download_datas(licsar.coh_urls[mask], folder=pair_dir, desc="Coherence")
     """
@@ -38,7 +43,7 @@ class LiCSAR:
         """init LiCSAR.
 
         Parameters:
-        ----------
+        -----------
         frame_id : str
             frame id of LiCSAR.
         root_url : str
@@ -67,7 +72,7 @@ class LiCSAR:
     def _retrieve_pairs_urls(self):
         """retrieve pairs of LiCSAR."""
         url = f"{self.home_url}/interferograms/"
-        page_urls = parse_urls.from_html(url, url_depth=1)
+        page_urls = _core.from_html(url, url_depth=1)
         pairs = []
         ifg_urls = []
         coh_urls = []
@@ -81,30 +86,30 @@ class LiCSAR:
 
     @property
     def pairs(self)->np.ndarray:
-        """return available pairs of given frame id."""
+        """all available pairs of given frame id."""
         return np.array(self._pairs)
 
     @property
     def ifg_urls(self)->pd.Series:
-        """return interferogram urls of given frame id."""
+        """interferogram urls of given frame id."""
         df = pd.Series(self._ifg_urls, name="ifg_urls", index=self._pairs)
         return df
 
     @property
     def coh_urls(self)->pd.Series:
-        """return coherence urls of given frame id."""
+        """coherence urls of given frame id."""
         df = pd.Series(self._coh_urls, name="coh_urls", index=self._pairs)
         return df
 
     @property
     def urls(self)->pd.DataFrame:
-        """return all urls of given frame id."""
+        """all urls, including interferogram and coherence, of given frame id."""
         urls = pd.concat([self.ifg_urls, self.coh_urls], axis=1)
         return urls
 
     @property
     def primary_dates(self)->np.ndarray:
-        """return primary dates of pairs for given frame id."""
+        """primary dates of pairs for given frame id."""
         primary_dates = [
             datetime.strptime(i.split("_")[0], "%Y%m%d") for i in self.pairs
         ]
@@ -112,7 +117,7 @@ class LiCSAR:
 
     @property
     def secondary_dates(self)->np.ndarray:
-        """return secondary dates of pairs for given frame id."""
+        """secondary dates of pairs for given frame id."""
         secondary_dates = [
             datetime.strptime(i.split("_")[1], "%Y%m%d") for i in self.pairs
         ]
@@ -120,13 +125,22 @@ class LiCSAR:
 
     @property
     def days(self)->np.ndarray:
-        """return days between primary and secondary dates."""
+        """days between primary and secondary dates."""
         days = self.secondary_dates - self.primary_dates
         return days.astype(int)
 
     @property
     def meta_urls(self)->np.ndarray:
-        """metadata urls of LiCSAR. metadata includes: E, N, U, hgt, baselines, metadata.txt,network.png, and poly.txt."""
+        """metadata urls of LiCSAR. 
+        
+        metadata includes: 
+        
+        * E, N, U, hgt 
+        * baselines
+        * metadata.txt
+        * network.png
+        * frame_id-poly.txt
+        """
         urls = []
         file_names = [
             f"{self.frame_id}.geo.{ENU}.tif" for ENU in ["E", "N", "U", "hgt"]
