@@ -1,0 +1,424 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Quick Start\n",
+    "\n",
+    "This is a quick start guide to get you started with `data_downloader`. You will learn three main sections of the package:\n",
+    "\n",
+    "1. Netrc: How to manage your netrc file.\n",
+    "2. downloader: download data functions.\n",
+    "3. parse_url: classes or functions to parse a URL."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Netrc\n",
+    "\n",
+    "If the website needs to log in, you can add a record to a .netrc file in your home which contains your login information to avoid supplying username and password each time you download data. \n",
+    "\n",
+    "To view existing hosts in .netrc file:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "{'urs.earthdata.nasa.gov': ('fanchengyan', '', 'Fanchy19950625'), 'urs.earthdata.nasa.gov.back': ('fanchengyan', '', 'Fanchy19950625'), 'urs.earthdata.nasa.gov.bill': ('carlos1998', '', 'Aragaki1998.'), 'urs.earthdata.nasa.gov.bill1': ('VIKTR13@outlook.com', '', 'Zws921018529.'), 'urs.earthdata.nasa.gov.mingkai': ('hurleykane233', '', '#Chenmingkai233'), 'urs.earthdata.nasa.gov.fancy1995': ('fancy1995', '', 'Fanchy19950625+2s'), 'urs.earthdata.nasa.gov.fanchengyan1995': ('fanchengyan1995', '', 'Fanchy19950625+2s'), 'urs.earthdata.nasa.gov.carol': ('XingyuXu', '', 'Xingyu19941108')}\n"
+     ]
+    }
+   ],
+   "source": [
+    "from data_downloader import downloader\n",
+    "\n",
+    "netrc = downloader.Netrc()\n",
+    "print(netrc.hosts)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "To add a record to the .netrc file:\n",
+    "\n",
+    "```python\n",
+    "netrc.add(host, login, password, account=None, overwrite=False)\n",
+    "```\n",
+    "If you want to update a record, set tha parameter `overwrite=True`\n",
+    "\n",
+    "for NASA data user:\n",
+    "\n",
+    "```python\n",
+    "netrc.add(\"urs.earthdata.nasa.gov\", \"your_username\", \"your_password\")\n",
+    "```\n",
+    "\n",
+    "You can use the downloader.get_url_host(url) to get the host name when you don't know the host of the website:\n",
+    "\n",
+    "```python\n",
+    "host = downloader.get_url_host(url)\n",
+    "```\n",
+    "To remove a record\n",
+    "\n",
+    "```python\n",
+    "netrc.remove(self, host)\n",
+    "```\n",
+    "\n",
+    "To clear all records\n",
+    "\n",
+    "```python\n",
+    "netrc.clear()\n",
+    "```\n",
+    "\n",
+    "Example:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "netrc = downloader.Netrc()\n",
+    "netrc.hosts"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "netrc.add(\"urs.earthdata.nasa.gov\", \"username\", \"passwd\")\n",
+    "netrc.hosts"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "!cat ~/.netrc"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "'gpm1.gesdisc.eosdis.nasa.gov'"
+      ]
+     },
+     "execution_count": 6,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "url = \"https://gpm1.gesdisc.eosdis.nasa.gov/daac-bin/OTF/HTTP_services.cgi?FILENAME=%2Fdata%2FGPM_L3%2FGPM_3IMERGM.06%2F2000%2F3B-MO.MS.MRG.3IMERG.20000601-S000000-E235959.06.V06B.HDF5&FORMAT=bmM0Lw&BBOX=31.904%2C99.492%2C35.771%2C105.908&LABEL=3B-MO.MS.MRG.3IMERG.20000601-S000000-E235959.06.V06B.HDF5.SUB.nc4&SHORTNAME=GPM_3IMERGM&SERVICE=L34RS_GPM&VERSION=1.02&DATASET_VERSION=06&VARIABLES=precipitation\"\n",
+    "\n",
+    "downloader.get_url_host(url)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "machine urs.earthdata.nasa.gov\n",
+       "\tlogin fanchengyan\n",
+       "\tpassword Fanchy19950625\n",
+       "machine urs.earthdata.nasa.gov.back\n",
+       "\tlogin fanchengyan\n",
+       "\tpassword Fanchy19950625\n",
+       "machine urs.earthdata.nasa.gov.bill\n",
+       "\tlogin carlos1998\n",
+       "\tpassword Aragaki1998.\n",
+       "machine urs.earthdata.nasa.gov.bill1\n",
+       "\tlogin VIKTR13@outlook.com\n",
+       "\tpassword Zws921018529.\n",
+       "machine urs.earthdata.nasa.gov.mingkai\n",
+       "\tlogin hurleykane233\n",
+       "\tpassword #Chenmingkai233\n",
+       "machine urs.earthdata.nasa.gov.fancy1995\n",
+       "\tlogin fancy1995\n",
+       "\tpassword Fanchy19950625+2s\n",
+       "machine urs.earthdata.nasa.gov.fanchengyan1995\n",
+       "\tlogin fanchengyan1995\n",
+       "\tpassword Fanchy19950625+2s\n",
+       "machine urs.earthdata.nasa.gov.carol\n",
+       "\tlogin XingyuXu\n",
+       "\tpassword Xingyu19941108\n",
+       "machine gpm1.gesdisc.eosdis.nasa.gov\n",
+       "\tlogin username\n",
+       "\tpassword passwd"
+      ]
+     },
+     "execution_count": 7,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "netrc.add(downloader.get_url_host(url), \"username\", \"passwd\")\n",
+    "netrc"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "netrc.add(downloader.get_url_host(url), \"username\", \"new_passwd\")\n",
+    "netrc"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "netrc.remove(downloader.get_url_host(url))\n",
+    "netrc"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "netrc.clear()\n",
+    "netrc"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## downloader Usage\n",
+    "\n",
+    "All downloading functions are in data_downloader.downloader . So import downloader at the beginning."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from data_downloader import downloader"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### download_data\n",
+    "\n",
+    "This function is design for downloading a single file. Try to use `download_datas`, `mp_download_datas` or `async_download_datas` function if you have a lot of files to download\n",
+    "\n",
+    "Example:\n",
+    "\n",
+    "```python\n",
+    "In [6]: url = 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_201\n",
+    "   ...: 41211.geo.unw.tif'\n",
+    "   ...:  \n",
+    "   ...: folder = 'D:\\\\data'\n",
+    "   ...: downloader.download_data(url,folder)\n",
+    "\n",
+    "20141117_20141211.geo.unw.tif:   2%|▌                   | 455k/22.1M [00:52<42:59, 8.38kB/s]\n",
+    "```"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### download_datas\n",
+    "\n",
+    "download datas from a list like object that contains urls. This function will download files one by one.\n",
+    "\n",
+    "Example:\n",
+    "\n",
+    "```python\n",
+    "In [12]: from data_downloader import downloader \n",
+    "    ...:  \n",
+    "    ...: urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_20\n",
+    "    ...: 141211.geo.unw.tif', \n",
+    "    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150221/20141024_20150221\n",
+    "    ...: .geo.unw.tif', \n",
+    "    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128\n",
+    "    ...: .geo.cc.tif', \n",
+    "    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128\n",
+    "    ...: .geo.unw.tif', \n",
+    "    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141211_20150128/20141211_20150128\n",
+    "    ...: .geo.cc.tif', \n",
+    "    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317\n",
+    "    ...: .geo.cc.tif', \n",
+    "    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221\n",
+    "    ...: .geo.cc.tif']  \n",
+    "    ...:  \n",
+    "    ...: folder = 'D:\\\\data'         G, param_names = GC.ftc_model1(t1s, t2s, t3s, t4s, years, ftc)\n",
+    "    ...: downloader.download_datas(urls,folder)\n",
+    "\n",
+    "20141117_20141211.geo.unw.tif:   6%|█           | 1.37M/22.1M [03:09<2:16:31, 2.53kB/s]\n",
+    "```"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### async_download_datas\n",
+    "\n",
+    "Download files simultaneously with asynchronous mode. The website that don't support resuming may lead to download incompletely. You can use `download_datas` instead\n",
+    "\n",
+    "Example:\n",
+    "\n",
+    "```python\n",
+    "In [3]: from data_downloader import downloader \n",
+    "   ...:  \n",
+    "   ...: urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049\n",
+    "   ...: _131313/interferograms/20141117_20141211/20141117_20141211.geo.unw.tif', \n",
+    "   ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_13131\n",
+    "   ...: 3/interferograms/20141024_20150221/20141024_20150221.geo.unw.tif', \n",
+    "   ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_13131\n",
+    "   ...: 3/interferograms/20141024_20150128/20141024_20150128.geo.cc.tif', \n",
+    "   ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_13131\n",
+    "   ...: 3/interferograms/20141024_20150128/20141024_20150128.geo.unw.tif', \n",
+    "   ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_13131\n",
+    "   ...: 3/interferograms/20141211_20150128/20141211_20150128.geo.cc.tif', \n",
+    "   ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_13131\n",
+    "   ...: 3/interferograms/20141117_20150317/20141117_20150317.geo.cc.tif', \n",
+    "   ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_13131\n",
+    "   ...: 3/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif']  \n",
+    "   ...:  \n",
+    "   ...: folder = 'D:\\\\data' \n",
+    "   ...: downloader.async_download_datas(urls,folder,limit=3,desc='interferograms')\n",
+    "\n",
+    ">>> Total | Interferograms :   0%|                          | 0/7 [00:00<?, ?it/s]\n",
+    "    20141024_20150221.geo.unw.tif:  11%|▌    | 2.41M/21.2M [00:11<41:44, 7.52kB/s]\n",
+    "    20141117_20141211.geo.unw.tif:   9%|▍    | 2.06M/22.1M [00:11<25:05, 13.3kB/s]\n",
+    "    20141024_20150128.geo.cc.tif:  36%|██▏   | 1.98M/5.42M [00:12<04:17, 13.4kB/s] \n",
+    "    20141117_20150317.geo.cc.tif:   0%|               | 0.00/5.44M [00:00<?, ?B/s]\n",
+    "    20141117_20150221.geo.cc.tif:   0%|               | 0.00/5.47M [00:00<?, ?B/s]\n",
+    "    20141024_20150128.geo.unw.tif:   0%|              | 0.00/23.4M [00:00<?, ?B/s]\n",
+    "    20141211_20150128.geo.cc.tif:   0%|               | 0.00/5.44M [00:00<?, ?B/s]\n",
+    "```"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### mp_download_datas\n",
+    "\n",
+    "Download files simultaneously using multiprocessing. The website that don't support resuming may download incompletely. You can use download_datas instead\n",
+    "\n",
+    "Example:\n",
+    "\n",
+    "```python\n",
+    "In [12]: from data_downloader import downloader \n",
+    "    ...:  \n",
+    "    ...: urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_20\n",
+    "    ...: 141211.geo.unw.tif', \n",
+    "    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150221/20141024_20150221\n",
+    "    ...: .geo.unw.tif', \n",
+    "    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128\n",
+    "    ...: .geo.cc.tif', \n",
+    "    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128\n",
+    "    ...: .geo.unw.tif', \n",
+    "    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141211_20150128/20141211_20150128\n",
+    "    ...: .geo.cc.tif', \n",
+    "    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317\n",
+    "    ...: .geo.cc.tif', \n",
+    "    ...: 'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221\n",
+    "    ...: .geo.cc.tif']  \n",
+    "    ...:  \n",
+    "    ...: folder = 'D:\\\\data' \n",
+    "    ...: downloader.mp_download_datas(urls,folder)\n",
+    "\n",
+    " >>> 12 parallel downloading\n",
+    " >>> Total | :   0%|                                         | 0/7 [00:00<?, ?it/s]\n",
+    "20141211_20150128.geo.cc.tif:  15%|██▊                | 803k/5.44M [00:00<?, ?B/s]\n",
+    "```"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### status_ok\n",
+    "\n",
+    "Simultaneously detecting whether the given links are accessible.\n",
+    "\n",
+    "Example:\n",
+    "\n",
+    "```python\n",
+    "In [1]: from data_downloader import downloader\n",
+    "   ...: import numpy as np\n",
+    "   ...: \n",
+    "   ...: urls = np.array(['https://www.baidu.com',\n",
+    "   ...: 'https://www.bai.com/wrongurl',\n",
+    "   ...: 'https://cn.bing.com/',\n",
+    "   ...: 'https://bing.com/wrongurl',\n",
+    "   ...: 'https://bing.com/'] )\n",
+    "   ...: \n",
+    "   ...: status_ok = downloader.status_ok(urls)\n",
+    "   ...: urls_accessable = urls[status_ok]\n",
+    "   ...: print(urls_accessable)\n",
+    "\n",
+    "['https://www.baidu.com' 'https://cn.bing.com/' 'https://bing.com/']\n",
+    "```"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## parse_url Usage\n",
+    "\n",
+    "See the [parse_url](./api/parse_urls.html#parse-urls) notebook for more details."
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "geo",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.11.6"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}

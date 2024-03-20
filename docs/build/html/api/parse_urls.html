@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>parse_urls &mdash; data_downloader v1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=92fd9be5" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+      <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css?v=be8a1c11" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=e160b93e"></script>
+        <script src="../_static/doctools.js?v=888ff710"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="downloader" href="downloader.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            data_downloader
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quick_start.html">Quick Start</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">API Reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="netrc.html">netrc</a></li>
+<li class="toctree-l2"><a class="reference internal" href="downloader.html">downloader</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">parse_urls</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#data_downloader.parse_urls.from_urls_file"><code class="docutils literal notranslate"><span class="pre">from_urls_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#data_downloader.parse_urls.from_html"><code class="docutils literal notranslate"><span class="pre">from_html()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#data_downloader.parse_urls.from_sentinel_meta4"><code class="docutils literal notranslate"><span class="pre">from_sentinel_meta4()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#data_downloader.parse_urls.from_EarthExplorer_order"><code class="docutils literal notranslate"><span class="pre">from_EarthExplorer_order()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#classes">Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#licsar">LiCSAR</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#sentinelorbit">SentinelOrbit</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">data_downloader</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Python API Reference</a></li>
+      <li class="breadcrumb-item active">parse_urls</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/parse_urls.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="parse-urls">
+<span id="id1"></span><h1>parse_urls<a class="headerlink" href="#parse-urls" title="Link to this heading"></a></h1>
+<p>Functions and Classes for parsing urls from different sources.</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>Functions</dt><dd><ul>
+<li><p><a class="reference internal" href="#data_downloader.parse_urls.from_urls_file" title="data_downloader.parse_urls.from_urls_file"><code class="xref py py-func docutils literal notranslate"><span class="pre">from_urls_file()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#data_downloader.parse_urls.from_html" title="data_downloader.parse_urls.from_html"><code class="xref py py-func docutils literal notranslate"><span class="pre">from_html()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#data_downloader.parse_urls.from_sentinel_meta4" title="data_downloader.parse_urls.from_sentinel_meta4"><code class="xref py py-func docutils literal notranslate"><span class="pre">from_sentinel_meta4()</span></code></a></p></li>
+<li><p><a class="reference internal" href="#data_downloader.parse_urls.from_EarthExplorer_order" title="data_downloader.parse_urls.from_EarthExplorer_order"><code class="xref py py-func docutils literal notranslate"><span class="pre">from_EarthExplorer_order()</span></code></a></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Class</dt><dd><ul>
+<li><p><a class="reference internal" href="#data_downloader.parse_urls.LiCSAR" title="data_downloader.parse_urls.LiCSAR"><code class="xref py py-class docutils literal notranslate"><span class="pre">LiCSAR</span></code></a></p></li>
+<li><p><a class="reference internal" href="#data_downloader.parse_urls.SentinelOrbit" title="data_downloader.parse_urls.SentinelOrbit"><code class="xref py py-class docutils literal notranslate"><span class="pre">SentinelOrbit</span></code></a></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.from_urls_file">
+<span class="sig-prename descclassname"><span class="pre">data_downloader.parse_urls.</span></span><span class="sig-name descname"><span class="pre">from_urls_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#data_downloader.parse_urls.from_urls_file" title="Link to this definition"></a></dt>
+<dd><p>parse urls from a file which only contains urls</p>
+<section id="parameters">
+<h3>Parameters:<a class="headerlink" href="#parameters" title="Link to this heading"></a></h3>
+<dl class="simple">
+<dt>url_file: str</dt><dd><p>path to file which only contains urls</p>
+</dd>
+</dl>
+</section>
+<section id="return">
+<h3>Return:<a class="headerlink" href="#return" title="Link to this heading"></a></h3>
+<p>a list contains urls</p>
+</section>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.from_html">
+<span class="sig-prename descclassname"><span class="pre">data_downloader.parse_urls.</span></span><span class="sig-name descname"><span class="pre">from_html</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">suffix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">suffix_depth</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">url_depth</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#data_downloader.parse_urls.from_html" title="Link to this definition"></a></dt>
+<dd><p>parse urls from html website</p>
+<section id="id2">
+<h3>Parameters:<a class="headerlink" href="#id2" title="Link to this heading"></a></h3>
+<dl class="simple">
+<dt>url: str</dt><dd><p>the website contains data</p>
+</dd>
+<dt>suffix: list, optional</dt><dd><p>data format. suffix should be a list contains multipart.
+if suffix_depth is 0, all ‘.’ will parsed.
+Examples:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>when set ‘suffix_depth=0’:</dt><dd><ul>
+<li><p>suffix of ‘xxx8.1_GLOBAL.nc’ should be [‘.1_GLOBAL’, ‘.nc’]</p></li>
+<li><p>suffix of ‘xxx.tar.gz’ should be [‘.tar’, ‘.gz’]</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>when set ‘suffix_depth=1’:</dt><dd><ul>
+<li><p>suffix of ‘xxx8.1_GLOBAL.nc’ should be [‘.nc’]</p></li>
+<li><p>suffix of ‘xxx.tar.gz’ should be [‘.gz’]</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+<dt>suffix_depth: int</dt><dd><p>Number of suffixes</p>
+</dd>
+<dt>url_depth: int</dt><dd><p>depth of url in website will parsed</p>
+</dd>
+</dl>
+</section>
+<section id="id3">
+<h3>Return:<a class="headerlink" href="#id3" title="Link to this heading"></a></h3>
+<p>a list contains urls</p>
+</section>
+<section id="example">
+<h3>Example:<a class="headerlink" href="#example" title="Link to this heading"></a></h3>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">downloader</span> <span class="kn">import</span> <span class="n">parse_urls</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">url</span> <span class="o">=</span> <span class="s1">&#39;https://cds-espri.ipsl.upmc.fr/espri/pubipsl/iasib_CH4_2014_uk.jsp&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">urls</span> <span class="o">=</span> <span class="n">parse_urls</span><span class="o">.</span><span class="n">from_html</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;.nc&#39;</span><span class="p">],</span> <span class="n">suffix_depth</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">urls_all</span> <span class="o">=</span> <span class="n">parse_urls</span><span class="o">.</span><span class="n">from_html</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;.nc&#39;</span><span class="p">],</span> <span class="n">suffix_depth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">url_depth</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">urls_all</span><span class="p">)</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">urls</span><span class="p">))</span>
+</pre></div>
+</div>
+</section>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.from_sentinel_meta4">
+<span class="sig-prename descclassname"><span class="pre">data_downloader.parse_urls.</span></span><span class="sig-name descname"><span class="pre">from_sentinel_meta4</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#data_downloader.parse_urls.from_sentinel_meta4" title="Link to this definition"></a></dt>
+<dd><p>parse urls from sentinel <cite>products.meta4</cite> file downloaded from
+<a class="reference external" href="https://scihub.copernicus.eu/dhus">https://scihub.copernicus.eu/dhus</a></p>
+<section id="id4">
+<h3>Parameters:<a class="headerlink" href="#id4" title="Link to this heading"></a></h3>
+<dl class="simple">
+<dt>url_file: str</dt><dd><p>path to products.meta4</p>
+</dd>
+</dl>
+</section>
+<section id="id5">
+<h3>Return:<a class="headerlink" href="#id5" title="Link to this heading"></a></h3>
+<p>a list contains urls</p>
+</section>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.from_EarthExplorer_order">
+<span class="sig-prename descclassname"><span class="pre">data_downloader.parse_urls.</span></span><span class="sig-name descname"><span class="pre">from_EarthExplorer_order</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">passwd</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">email</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">url_host</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#data_downloader.parse_urls.from_EarthExplorer_order" title="Link to this definition"></a></dt>
+<dd><p>parse urls from orders in earthexplorer.</p>
+<p>Reference: [bulk-downloader](<a class="reference external" href="https://code.usgs.gov/espa/bulk-downloader">https://code.usgs.gov/espa/bulk-downloader</a>)</p>
+<section id="id6">
+<h3>Parameters:<a class="headerlink" href="#id6" title="Link to this heading"></a></h3>
+<dl class="simple">
+<dt>username, passwd: str, optional</dt><dd><p>your username and passwd to login in EarthExplorer. Could be
+None when you have save them in .netrc</p>
+</dd>
+<dt>email: str, optional</dt><dd><p>email address for the user that submitted the order</p>
+</dd>
+<dt>order: str or dict</dt><dd><p>which order to download. If None, all orders retrieved from
+EarthExplorer will be used.</p>
+</dd>
+<dt>url_host: str</dt><dd><p>if host is not USGS ESPA</p>
+</dd>
+</dl>
+</section>
+<section id="id7">
+<h3>Return:<a class="headerlink" href="#id7" title="Link to this heading"></a></h3>
+<p>a dict in format of {orderid: urls}</p>
+</section>
+<section id="id8">
+<h3>Example:<a class="headerlink" href="#id8" title="Link to this heading"></a></h3>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">data_downloader</span> <span class="kn">import</span> <span class="n">downloader</span><span class="p">,</span> <span class="n">parse_urls</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">folder_out</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;D:\data&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">urls_info</span> <span class="o">=</span> <span class="n">parse_urls</span><span class="o">.</span><span class="n">from_EarthExplorer_order</span><span class="p">(</span><span class="s1">&#39;your username&#39;</span><span class="p">,</span> <span class="s1">&#39;your passwd&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">odr</span> <span class="ow">in</span> <span class="n">urls_info</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">folder</span> <span class="o">=</span> <span class="n">folder_out</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">odr</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">if</span> <span class="ow">not</span> <span class="n">folder</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="n">folder</span><span class="o">.</span><span class="n">mkdir</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">urls</span> <span class="o">=</span> <span class="n">urls_info</span><span class="p">[</span><span class="n">odr</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">downloader</span><span class="o">.</span><span class="n">download_datas</span><span class="p">(</span><span class="n">urls</span><span class="p">,</span> <span class="n">folder</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</dd></dl>
+
+</section>
+<section id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
+<section id="licsar">
+<h3>LiCSAR<a class="headerlink" href="#licsar" title="Link to this heading"></a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.LiCSAR">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">data_downloader.parse_urls.</span></span><span class="sig-name descname"><span class="pre">LiCSAR</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">frame_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">root_url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#data_downloader.parse_urls.LiCSAR" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>class for LiCSAR.</p>
+<section id="id9">
+<h4>Example:<a class="headerlink" href="#id9" title="Link to this heading"></a></h4>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">data_downloader</span> <span class="kn">import</span> <span class="n">LiCSAR</span><span class="p">,</span> <span class="n">downloader</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># specify the folder to save data</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">home_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;/Volumes/Data/GeoData/YNG/Sentinel1/LiCSAR/106D_05248_131313/&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pair_dir</span> <span class="o">=</span> <span class="n">home_dir</span> <span class="o">/</span> <span class="s2">&quot;GEOC&quot;</span>
+</pre></div>
+</div>
+<p>init LiCSAR by frame id and download all metadata files</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">licsar</span> <span class="o">=</span> <span class="n">LiCSAR</span><span class="p">(</span><span class="s2">&quot;106D_05248_131313&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">downloader</span><span class="o">.</span><span class="n">download_datas</span><span class="p">(</span><span class="n">licsar</span><span class="o">.</span><span class="n">meta_urls</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="n">home_dir</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Metadata&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>generate mask data by primary_dates, secondary_dates and day span</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">licsar</span><span class="o">.</span><span class="n">primary_dates</span><span class="o">&gt;</span><span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="s2">&quot;2019-01-01&quot;</span><span class="p">))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">licsar</span><span class="o">.</span><span class="n">primary_dates</span><span class="o">&lt;</span><span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="s2">&quot;2019-12-31&quot;</span><span class="p">))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">licsar</span><span class="o">.</span><span class="n">days</span> <span class="o">&lt;</span> <span class="mi">12</span> <span class="o">*</span> <span class="mi">5</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>download interferograms and coherence files filtered by mask</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">downloader</span><span class="o">.</span><span class="n">download_datas</span><span class="p">(</span><span class="n">licsar</span><span class="o">.</span><span class="n">ifg_urls</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="n">pair_dir</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Interferogram&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">downloader</span><span class="o">.</span><span class="n">download_datas</span><span class="p">(</span><span class="n">licsar</span><span class="o">.</span><span class="n">coh_urls</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span> <span class="n">folder</span><span class="o">=</span><span class="n">pair_dir</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Coherence&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.LiCSAR.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">frame_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">root_url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#data_downloader.parse_urls.LiCSAR.__init__" title="Link to this definition"></a></dt>
+<dd><p>init LiCSAR.</p>
+<section id="id10">
+<h5>Parameters:<a class="headerlink" href="#id10" title="Link to this heading"></a></h5>
+<dl class="simple">
+<dt>frame_id<span class="classifier">str</span></dt><dd><p>frame id of LiCSAR.</p>
+</dd>
+<dt>root_url<span class="classifier">str</span></dt><dd><p>root url of LiCSAR. default is “<a class="reference external" href="https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products">https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products</a>”.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.LiCSAR.pairs">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">pairs</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#data_downloader.parse_urls.LiCSAR.pairs" title="Link to this definition"></a></dt>
+<dd><p>all available pairs of given frame id.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.LiCSAR.ifg_urls">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ifg_urls</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Series</span></em><a class="headerlink" href="#data_downloader.parse_urls.LiCSAR.ifg_urls" title="Link to this definition"></a></dt>
+<dd><p>interferogram urls of given frame id.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.LiCSAR.coh_urls">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">coh_urls</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Series</span></em><a class="headerlink" href="#data_downloader.parse_urls.LiCSAR.coh_urls" title="Link to this definition"></a></dt>
+<dd><p>coherence urls of given frame id.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.LiCSAR.urls">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">urls</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">DataFrame</span></em><a class="headerlink" href="#data_downloader.parse_urls.LiCSAR.urls" title="Link to this definition"></a></dt>
+<dd><p>all urls, including interferogram and coherence, of given frame id.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.LiCSAR.primary_dates">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">primary_dates</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#data_downloader.parse_urls.LiCSAR.primary_dates" title="Link to this definition"></a></dt>
+<dd><p>primary dates of pairs for given frame id.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.LiCSAR.secondary_dates">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">secondary_dates</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#data_downloader.parse_urls.LiCSAR.secondary_dates" title="Link to this definition"></a></dt>
+<dd><p>secondary dates of pairs for given frame id.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.LiCSAR.days">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">days</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#data_downloader.parse_urls.LiCSAR.days" title="Link to this definition"></a></dt>
+<dd><p>days between primary and secondary dates.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.LiCSAR.meta_urls">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">meta_urls</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ndarray</span></em><a class="headerlink" href="#data_downloader.parse_urls.LiCSAR.meta_urls" title="Link to this definition"></a></dt>
+<dd><p>metadata urls of LiCSAR.</p>
+<p>metadata includes:</p>
+<ul class="simple">
+<li><p>E, N, U, hgt</p></li>
+<li><p>baselines</p></li>
+<li><p>metadata.txt</p></li>
+<li><p>network.png</p></li>
+<li><p>frame_id-poly.txt</p></li>
+</ul>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+</section>
+<section id="sentinelorbit">
+<h3>SentinelOrbit<a class="headerlink" href="#sentinelorbit" title="Link to this heading"></a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.SentinelOrbit">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">data_downloader.parse_urls.</span></span><span class="sig-name descname"><span class="pre">SentinelOrbit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">home_aux_cal</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'https://s1qc.asf.alaska.edu/aux_cal/'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">home_preorb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'https://s1qc.asf.alaska.edu/aux_poeorb/'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#data_downloader.parse_urls.SentinelOrbit" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Sentinel-1 orbit data downloader.</p>
+<section id="examples">
+<h4>Examples:<a class="headerlink" href="#examples" title="Link to this heading"></a></h4>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">data_downloader</span> <span class="kn">import</span> <span class="n">downloader</span><span class="p">,</span> <span class="n">SentinelOrbit</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">folder_cal</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;/media/data/aux_cal&quot;</span><span class="p">)</span>  <span class="c1"># specify the folder to save aux_cal</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">folder_preorb</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;/media/data/poeorb&quot;</span><span class="p">)</span>  <span class="c1"># specify the folder to save aux_poeorb</span>
+</pre></div>
+</div>
+<p>init SentinelOrbit:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">s1_orbit</span> <span class="o">=</span> <span class="n">SentinelOrbit</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Get all aux_cal data links of S1A and S1B and download them:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">urls_cal</span> <span class="o">=</span> <span class="n">s1_orbit</span><span class="o">.</span><span class="n">cal_urls</span><span class="p">(</span><span class="n">platform</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">downloader</span><span class="o">.</span><span class="n">async_download_datas</span><span class="p">(</span><span class="n">urls_cal</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="n">folder_cal</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Get all precise orbit data links of S1A during 20210101-20220301 and download them:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">urls_preorb</span> <span class="o">=</span> <span class="n">s1_orbit</span><span class="o">.</span><span class="n">poeorb_urls</span><span class="p">(</span>
+<span class="gp">&gt;&gt;&gt; </span>   <span class="n">date_start</span><span class="o">=</span><span class="s2">&quot;20210101&quot;</span><span class="p">,</span> <span class="n">date_end</span><span class="o">=</span><span class="s2">&quot;20220301&quot;</span><span class="p">,</span> <span class="n">platform</span><span class="o">=</span><span class="s2">&quot;S1A&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">downloader</span><span class="o">.</span><span class="n">download_datas</span><span class="p">(</span><span class="n">urls_preorb</span><span class="p">,</span> <span class="n">folder</span><span class="o">=</span><span class="n">folder_preorb</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.SentinelOrbit.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">home_aux_cal</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'https://s1qc.asf.alaska.edu/aux_cal/'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">home_preorb</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'https://s1qc.asf.alaska.edu/aux_poeorb/'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#data_downloader.parse_urls.SentinelOrbit.__init__" title="Link to this definition"></a></dt>
+<dd><p>init SentinelOrbit.</p>
+<section id="id11">
+<h5>Parameters:<a class="headerlink" href="#id11" title="Link to this heading"></a></h5>
+<dl class="simple">
+<dt>home_aux_cal<span class="classifier">str</span></dt><dd><p>home url of aux_cal, default is “<a class="reference external" href="https://s1qc.asf.alaska.edu/aux_cal/">https://s1qc.asf.alaska.edu/aux_cal/</a>”.</p>
+</dd>
+<dt>home_preorb<span class="classifier">str</span></dt><dd><p>home url of aux_poeorb, default is “<a class="reference external" href="https://s1qc.asf.alaska.edu/aux_poeorb/">https://s1qc.asf.alaska.edu/aux_poeorb/</a>”.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.SentinelOrbit.cal_urls">
+<span class="sig-name descname"><span class="pre">cal_urls</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">platform</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'all'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#data_downloader.parse_urls.SentinelOrbit.cal_urls" title="Link to this definition"></a></dt>
+<dd><p>filter files from urls of aux_cal by platform.</p>
+<section id="id12">
+<h5>Parameters:<a class="headerlink" href="#id12" title="Link to this heading"></a></h5>
+<dl class="simple">
+<dt>platform<span class="classifier">str, one of [‘S1A’, ‘S1B’,’all’]</span></dt><dd><p>platform of satellite. should be one of [‘S1A’, ‘S1B’,’all’]</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="data_downloader.parse_urls.SentinelOrbit.poeorb_urls">
+<span class="sig-name descname"><span class="pre">poeorb_urls</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">date_start</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">date_end</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">platform</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'all'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#data_downloader.parse_urls.SentinelOrbit.poeorb_urls" title="Link to this definition"></a></dt>
+<dd><p>filter files from urls of aux_poeorb (precise orbit) by date and platform.</p>
+<section id="id13">
+<h5>Parameters:<a class="headerlink" href="#id13" title="Link to this heading"></a></h5>
+<dl class="simple">
+<dt>date_start, date_end<span class="classifier">str</span></dt><dd><p>start/end date to filter, can be any format that can be converted by
+pd.to_datetime (e.g. ‘20210101’, ‘2021-01-01’, ‘2021/01/01’).</p>
+</dd>
+<dt>platform<span class="classifier">str, one of [‘S1A’, ‘S1B’,’all’]</span></dt><dd><p>platform of satellite. should be one of [‘S1A’, ‘S1B’,’all’]</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="downloader.html" class="btn btn-neutral float-left" title="downloader" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Fan Chengyan (Fancy).</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

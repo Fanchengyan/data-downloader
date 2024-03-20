@@ -1,0 +1,6 @@
+recommonmark
+sphinx>=7
+myst-nb
+sphinx_rtd_theme
+Jinja2
+git+https://github.com/Fanchengyan/data_downloader.git@main
