@@ -1,8 +1,12 @@
+import warnings
 from datetime import datetime
-from typing import Optional, Union
+from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import pandas as pd
+from dateutil.parser import parse as parse_date
+from tqdm.auto import tqdm
 
 from .constants import JOB_TYPE, STATUS_CODE
 
@@ -12,6 +16,58 @@ except ImportError:
     raise ImportError(
         "HyP3 SDK not installed. Please install it using 'pip install hyp3_sdk'"
     )
+
+try:
+    from faninsar import Pairs, datasets
+except ImportError:
+    raise ImportError(
+        "FanInSAR package not installed. Please install it using 'pip install FanInSAR'"
+    )
+
+
+def id_of_job(job: sdk.Job) -> str:
+    return f"{job.job_id}{job.job_type}"
+
+
+class Job(sdk.Job):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __hash__(self) -> int:
+        return hash(id_of_job(self))
+
+    def __lt__(self, other: "Job") -> bool:
+        return id_of_job(self) < id_of_job(other)
+
+    def __eq__(self, other: "Job") -> bool:
+        return id_of_job(self) == id_of_job(other)
+
+    def __gt__(self, other: "Job") -> bool:
+        return id_of_job(self) > id_of_job(other)
+
+    @staticmethod
+    def from_dict(input_dict: dict):
+        expiration_time = (
+            parse_date(input_dict["expiration_time"])
+            if input_dict.get("expiration_time")
+            else None
+        )
+        return Job(
+            job_type=input_dict["job_type"],
+            job_id=input_dict["job_id"],
+            request_time=parse_date(input_dict["request_time"]),
+            status_code=input_dict["status_code"],
+            user_id=input_dict["user_id"],
+            name=input_dict.get("name"),
+            job_parameters=input_dict.get("job_parameters"),
+            files=input_dict.get("files"),
+            logs=input_dict.get("logs"),
+            browse_images=input_dict.get("browse_images"),
+            thumbnail_images=input_dict.get("thumbnail_images"),
+            expiration_time=expiration_time,
+            processing_times=input_dict.get("processing_times"),
+            credit_cost=input_dict.get("credit_cost"),
+        )
 
 
 class Jobs:
@@ -29,7 +85,10 @@ class Jobs:
             List of Job objects from HyP3 SDK. You can get the jobs from the
             hyp3_sdk.Batch.jobs attribute.
         """
-        self.jobs = np.array(jobs, dtype="O")
+        self.jobs = pd.Series(
+            [Job.from_dict(i.to_dict()) for i in jobs],
+            dtype="O",
+        )
         (
             self._job_id,
             self._job_type,
@@ -52,6 +111,23 @@ class Jobs:
 
     def __len__(self) -> int:
         return len(self.jobs)
+
+    def __add__(self, other: "Jobs") -> "Jobs":
+        if not isinstance(other, Jobs):
+            raise ValueError("Can only sum Jobs with Jobs instances.")
+        return Jobs(pd.concat([self.jobs, other.jobs]))
+
+    def __sub__(self, other: "Jobs") -> "Jobs":
+        if not isinstance(other, Jobs):
+            raise ValueError("Can only subtract Jobs with Jobs instances.")
+        mask = np.isin(self.jobs, other.jobs)
+        return Jobs(self.jobs[~mask])
+
+    def __iter__(self):
+        return iter(self.jobs)
+
+    def __getitem__(self, key):
+        return Jobs(self.jobs[key])
 
     def _retrieve_jobs(self) -> list[sdk.Job]:
         """Retrieve jobs based on job type and status code
@@ -119,7 +195,7 @@ class Jobs:
             return np.nan
         return val[0]
 
-    def _ensure_datetime(self, val: Union[datetime, str]) -> np.datetime64:
+    def _ensure_datetime(self, val: datetime | str) -> np.datetime64:
         """Convert a string to a datetime object, otherwise return the object"""
         if isinstance(val, str):
             return pd.to_datetime(val)
@@ -252,19 +328,19 @@ class Jobs:
 
     def sel(
         self,
-        job_type: Optional[JOB_TYPE] = None,
-        status_code: Optional[STATUS_CODE] = None,
-        request_time: Optional[Union[datetime, str, slice]] = None,
+        job_type: JOB_TYPE | None = None,
+        status_code: STATUS_CODE | None = None,
+        request_time: datetime | str | slice | None = None,
     ) -> "Jobs":
         """Select jobs based on job type and status code
 
         Parameters
         ----------
-        job_type : Optional[JOB_TYPE]
+        job_type : JOB_TYPE | None
             Job type to filter by
-        status_code : Optional[STATUS_CODE]
+        status_code : STATUS_CODE | None
             Status code to filter by
-        request_time : Optional[Union[datetime,str,slice]]
+        request_time : datetime | str | slice | None
             Request time to filter by. Can be a datetime object, a string, or a slice object. If a slice object is used, the start must be a string or a datetime object, and the stop can be None, a string, or a datetime object. If a string is used, it must be in the format that can be converted to a datetime object using pd.to_datetime. by default None
         """
         if job_type != None and not hasattr(JOB_TYPE, job_type):
@@ -299,6 +375,26 @@ class Jobs:
 
         return Jobs(self.jobs[mask])
 
+    @property
+    def succeeded(self) -> "Jobs":
+        """all succeeded jobs (not expired by default)"""
+        return self.sel(status_code=STATUS_CODE.SUCCEEDED)
+
+    @property
+    def failed(self) -> "Jobs":
+        """all failed jobs (not expired by default)"""
+        return self.sel(status_code=STATUS_CODE.FAILED)
+
+    @property
+    def pending(self) -> "Jobs":
+        """all pending jobs (not expired by default)"""
+        return self.sel(status_code=STATUS_CODE.PENDING)
+
+    @property
+    def running(self) -> "Jobs":
+        """all running jobs (not expired by default)"""
+        return self.sel(status_code=STATUS_CODE.RUNNING)
+
 
 class HyP3Service:
     """Class to manage HyP3 user information and jobs"""
@@ -313,6 +409,17 @@ class HyP3Service:
         prompt: bool = False,
         include_expired=False,
     ):
+        """Initialize the HyP3Service class
+
+        Parameters
+        ----------
+        username, password : str, optional
+            Username and password for HyP3
+        prompt : bool, optional
+            Prompt for the username and password in the terminal, by default False.
+        include_expired : bool, optional
+            Include expired jobs, by default False
+        """
         self.include_expired = include_expired
         self.login(username, password, prompt)
 
@@ -320,10 +427,10 @@ class HyP3Service:
         return (
             f"HyP3Service(\n    user_id={self.my_info['user_id']}, "
             f"\n    remaining_credits={self.my_info['remaining_credits']}, "
-            f"\n    succeeded={len(self.succeeded)},"
-            f"\n    failed={len(self.failed)},"
-            f"\n    pending={len(self.pending)},"
-            f"\n    running={len(self.running)}"
+            f"\n    succeeded={len(self.jobs.succeeded)},"
+            f"\n    failed={len(self.jobs.failed)},"
+            f"\n    pending={len(self.jobs.pending)},"
+            f"\n    running={len(self.jobs.running)}"
             "\n)"
         )
 
@@ -350,10 +457,10 @@ class HyP3Service:
         prompt: Optional[bool] = False,
     ):
         """Login to HyP3. If neither username/password nor prompt is provided,
-        it will attempts to use credentials from a ``.netrc`` file. If prompt is True, 
+        it will attempts to use credentials from a ``.netrc`` file. If prompt is True,
         the username and password will be prompted in the terminal. Otherwise, the
         username and password must be provided.
-        
+
         .. note::
 
             This method will be called automatically when the class is initialized.
@@ -377,7 +484,7 @@ class HyP3Service:
 
     @property
     def jobs(self) -> Jobs:
-        """all jobs (not expired by default, set ``include_expired=True`` to 
+        """all jobs (not expired by default, set ``include_expired=True`` to
         include expired jobs)"""
         return self._jobs
 
@@ -386,22 +493,179 @@ class HyP3Service:
         batch = self.hyp3.find_jobs().filter_jobs(include_expired=self.include_expired)
         return Jobs(batch.jobs)
 
-    @property
-    def succeeded(self) -> Jobs:
-        """all succeeded jobs (not expired by default)"""
-        return self.jobs.sel(status_code=STATUS_CODE.SUCCEEDED)
+
+class InSARMission:
+    """Class to manage INSAR_GAMMA jobs. It provides a pythonic interface to
+    submit and download InSAR jobs from HyP3.
+    """
+
+    job_type = JOB_TYPE.INSAR_GAMMA
+    dataset = datasets.HyP3S1
+
+    _pairs_succeed = []
+    _pairs_failed = []
+    _job_index: int = 0
+    _job_parameters: dict
+
+    def __init__(
+        self,
+        service: HyP3Service,
+        granules: pd.Series,
+        job_parameters: dict = {},
+    ) -> None:
+        """Initialize the InSARJob class
+
+        Parameters
+        ----------
+        service : HyP3Service
+            HyP3Service instance to submit the job and check the submitted jobs.
+        granules : pd.Series
+            A pandas Series containing the granules information. The index of
+            the Series should be the date of the granule, and the values should
+            be the granule name.
+        job_parameters : dict, optional
+            Arguments to be passed to the job, by default {}. You can also change
+            the job parameters after initializing the class by job_parameters
+            attribute.
+        """
+        self.granules = granules
+        self.service = service
+        self.job_parameters = job_parameters
+
+        # initialize the batch
+        self.batch = sdk.Batch()
 
     @property
-    def failed(self) -> Jobs:
-        """all failed jobs (not expired by default)"""
-        return self.jobs.sel(status_code=STATUS_CODE.FAILED)
+    def jobs_on_service(self) -> Jobs:
+        """Get the INSAR_GAMMA jobs on the service"""
+        self.service.flush()
+        jobs_valid = self.service.jobs.sel(job_type=self.job_type)
+        return jobs_valid
 
     @property
-    def pending(self) -> Jobs:
-        """all pending jobs (not expired by default)"""
-        return self.jobs.sel(status_code=STATUS_CODE.PENDING)
+    def job_parameters(self) -> dict:
+        """Job parameters"""
+        return self._job_parameters
+
+    @job_parameters.setter
+    def job_parameters(self, job_parameters: dict):
+        """Set the job parameters"""
+        if not isinstance(job_parameters, dict):
+            raise ValueError("job_parameters must be a dictionary.")
+        self._job_parameters = job_parameters
 
     @property
-    def running(self) -> Jobs:
-        """all running jobs (not expired by default)"""
-        return self.jobs.sel(status_code=STATUS_CODE.RUNNING)
+    def pairs_succeed(self) -> Pairs:
+        """Pairs that succeeded in the job submission"""
+        if len(self._pairs_succeed) == 0:
+            return None
+        return Pairs(self._pairs_succeed)
+
+    @property
+    def pairs_failed(self) -> Pairs:
+        """Pairs that failed in the job submission"""
+        if len(self._pairs_failed) == 0:
+            return None
+        return Pairs(self._pairs_failed)
+
+    def jobs_to_pairs(self, jobs: Jobs) -> Pairs:
+        """Convert INSAR_GAMMA jobs to pairs"""
+        pairs = []
+        for job in jobs:
+            if job.job_type != self.job_type:
+                warnings.warn(
+                    f"Job type {job.job_type} is not {self.job_type}. Skipping."
+                )
+                continue
+            if len(job.job_parameters["granules"]) != 2:
+                warnings.warn(
+                    f"Invalid number of granules for job {job.job_id}. Skipping."
+                )
+                continue
+            pair = (
+                granule_to_date(job.job_parameters["granules"][0]),
+                granule_to_date(job.job_parameters["granules"][1]),
+            )
+            pairs.append(pair)
+        if len(pairs) == 0:
+            warnings.warn("No valid pairs found.")
+            return None
+        return Pairs(pairs)
+
+    def _get_remain_pairs(self, pairs: Pairs, skip_existing: bool = True):
+        """Get the remaining pairs to submit"""
+        if not skip_existing:
+            return pairs
+
+        pairs_exclude = self.jobs_to_pairs(self.jobs_valid)
+        if pairs_exclude is None:
+            return pairs
+        warnings.warn(
+            f"Skipping {len(pairs_exclude)} existing pairs already submitted."
+        )
+        pairs_remain = pairs - pairs_exclude
+        return pairs_remain
+
+    def _reset_job_index(self):
+        """Reset the job index"""
+        self._job_index = 0
+
+    def _ensure_granules(self, granule: pd.Series | str) -> str:
+        """Remove the duplicate pairs"""
+        if isinstance(granule, pd.Series):
+            granule = granule[0]
+        return granule
+
+    def submit_jobs(self, pairs: Pairs, skip_existing: bool = True):
+        """Submit the job to HyP3
+
+        Parameters
+        ----------
+        pairs : Pairs
+            Pairs to be submitted to HyP3
+        skip_existing : bool, optional
+            Whether to skip the existing pairs that have succeeded or are running,
+            by default True
+        """
+        pairs_remain = self._get_remain_pairs(pairs, skip_existing)
+        for pair in tqdm(pairs_remain, desc="Submitting jobs"):
+            try:
+                ref, sec = str(pair).split("_")
+                reference, secondary = self.granules[ref], self.granules[sec]
+
+                if reference is None or secondary is None:
+                    tqdm.write(f"Granule not found for pair {pair}. Skipping.")
+                    self._pairs_failed.append(pair)
+                    continue
+
+                def _ensure_granules(granule: pd.Series | str) -> str:
+                    """Remove the duplicate pairs"""
+                    if isinstance(granule, pd.Series):
+                        tqdm.write(
+                            f"Multiple granules found for pair {pair}: {[i for i in granule]}."
+                            "First one will be used."
+                        )
+                        granule = granule[0]
+                    return granule
+
+                reference = _ensure_granules(reference)
+                secondary = _ensure_granules(secondary)
+
+                self.batch += self.service.hyp3.submit_insar_job(
+                    reference, secondary, **self.job_parameters
+                )
+                self._pairs_succeed.append(pair)
+            except Exception as e:
+                params = {"granule1": reference, "granule2": secondary}
+                params.update(self.job_parameters)
+
+                tqdm.write(
+                    f"Failed to submit job for pair {pair}. {e}."
+                    f"\nJob parameters: {params}"
+                )
+                self._pairs_failed.append(pair)
+
+
+def granule_to_date(granule: str):
+    """Convert granule to date"""
+    return pd.to_datetime(granule.split("_")[5])
