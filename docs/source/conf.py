@@ -26,6 +26,9 @@ source_suffix = {
     ".rst": "restructuredtext",
     ".md": "markdown",
 }
+myst_enable_extensions = ["colon_fence"]
+myst_url_schemes=["http", "https", "mailto"]
+suppress_warnings = ["mystnb.unknown_mime_type"]
 nb_execution_mode = "off"
 # templates_path = ['_templates']
 exclude_patterns = []
@@ -35,7 +38,7 @@ exclude_patterns = []
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "sphinx_rtd_theme"
-# html_static_path = ['_static']
+html_static_path = ['_static']
 
 
 video_enforce_extra_source = True
