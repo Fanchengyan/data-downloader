@@ -92,54 +92,19 @@
 <h1>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading"></a></h1>
 <p>This is a quick start guide to get you started with <code class="docutils literal notranslate"><span class="pre">data_downloader</span></code>. You will learn three main sections of the package:</p>
 <ol class="arabic simple">
-<li><p>Netrc: How to manage your netrc file.</p></li>
-<li><p>downloader: download data functions.</p></li>
-<li><p>parse_url: classes or functions to parse a URL.</p></li>
+<li><p><strong>Netrc</strong>: How to manage your netrc file.</p></li>
+<li><p><strong>downloader</strong>: download data functions.</p></li>
+<li><p><strong>parse_url</strong>: classes or functions to parse a URL.</p></li>
 </ol>
 <section id="netrc">
 <h2>Netrc<a class="headerlink" href="#netrc" title="Link to this heading"></a></h2>
-<p>If the website needs to log in, you can add a record to a .netrc file in your home which contains your login information to avoid supplying username and password each time you download data.</p>
-<p>To view existing hosts in .netrc file:</p>
+<p>If the website needs to log in, you can add a record to a .netrc file in your home which contains your login information to avoid supplying username and password each time you download data. See <a class="reference external" href="https://data-downloader.readthedocs.io/en/latest/api/netrc.html">netrc</a> for more details.</p>
+<p>Example:</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">data_downloader</span> <span class="kn">import</span> <span class="n">downloader</span>
 
 <span class="n">netrc</span> <span class="o">=</span> <span class="n">downloader</span><span class="o">.</span><span class="n">Netrc</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">netrc</span><span class="o">.</span><span class="n">hosts</span><span class="p">)</span>
-</pre></div>
-</div>
-</div>
-<div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{}
-</pre></div>
-</div>
-</div>
-</div>
-<p>To add a record to the .netrc file:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">netrc</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">login</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">account</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>If you want to update a record, set tha parameter <code class="docutils literal notranslate"><span class="pre">overwrite=True</span></code></p>
-<p>for NASA data user:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">netrc</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;urs.earthdata.nasa.gov&quot;</span><span class="p">,</span> <span class="s2">&quot;your_username&quot;</span><span class="p">,</span> <span class="s2">&quot;your_password&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>You can use the downloader.get_url_host(url) to get the host name when you don’t know the host of the website:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">host</span> <span class="o">=</span> <span class="n">downloader</span><span class="o">.</span><span class="n">get_url_host</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>To remove a record</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">netrc</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>To clear all records</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">netrc</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-</pre></div>
-</div>
-<p>Example:</p>
-<div class="cell docutils container">
-<div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">netrc</span> <span class="o">=</span> <span class="n">downloader</span><span class="o">.</span><span class="n">Netrc</span><span class="p">()</span>
 <span class="n">netrc</span><span class="o">.</span><span class="n">hosts</span>
 </pre></div>
 </div>
@@ -211,21 +176,18 @@ machine gpm1.gesdisc.eosdis.nasa.gov
 </div>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">netrc</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">downloader</span><span class="o">.</span><span class="n">get_url_host</span><span class="p">(</span><span class="n">url</span><span class="p">),</span> <span class="s2">&quot;username&quot;</span><span class="p">,</span> <span class="s2">&quot;new_passwd&quot;</span><span class="p">)</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">netrc</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">downloader</span><span class="o">.</span><span class="n">get_url_host</span><span class="p">(</span><span class="n">url</span><span class="p">),</span> <span class="s2">&quot;username&quot;</span><span class="p">,</span> <span class="s2">&quot;new_passwd&quot;</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 <span class="n">netrc</span>
 </pre></div>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&gt;&gt;&gt; Warning: gpm1.gesdisc.eosdis.nasa.gov existed, nothing will be done. If you want to overwrite the existed record, set overwrite=True
-</pre></div>
-</div>
 <div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>machine urs.earthdata.nasa.gov
 	login username
 	password passwd
 machine gpm1.gesdisc.eosdis.nasa.gov
 	login username
-	password passwd
+	password new_passwd
 </pre></div>
 </div>
 </div>
@@ -261,7 +223,7 @@ machine gpm1.gesdisc.eosdis.nasa.gov
 </section>
 <section id="downloader-usage">
 <h2>downloader Usage<a class="headerlink" href="#downloader-usage" title="Link to this heading"></a></h2>
-<p>All downloading functions are in data_downloader.downloader . So import downloader at the beginning.</p>
+<p>All downloading functions are in data_downloader.downloader . So import downloader at the beginning. The detailed usage of each function can be found in the <a class="reference external" href="https://data-downloader.readthedocs.io/en/latest/api/downloader.html">API Reference</a>.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">data_downloader</span> <span class="kn">import</span> <span class="n">downloader</span>
@@ -400,7 +362,7 @@ machine gpm1.gesdisc.eosdis.nasa.gov
 </section>
 <section id="parse-url-usage">
 <h2>parse_url Usage<a class="headerlink" href="#parse-url-usage" title="Link to this heading"></a></h2>
-<p>See the <a class="reference internal" href="#./api/parse_urls.html#parse-urls"><span class="xref myst">parse_url</span></a> notebook for more details.</p>
+<p>See the <a class="reference external" href="https://data-downloader.readthedocs.io/en/latest/api/parse_urls.html">parse_url</a> notebook for more details.</p>
 </section>
 </section>
 

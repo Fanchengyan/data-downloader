@@ -8,9 +8,9 @@
     "\n",
     "This is a quick start guide to get you started with `data_downloader`. You will learn three main sections of the package:\n",
     "\n",
-    "1. Netrc: How to manage your netrc file.\n",
-    "2. downloader: download data functions.\n",
-    "3. parse_url: classes or functions to parse a URL."
+    "1. **Netrc**: How to manage your netrc file.\n",
+    "2. **downloader**: download data functions.\n",
+    "3. **parse_url**: classes or functions to parse a URL."
    ]
   },
   {
@@ -19,9 +19,9 @@
    "source": [
     "## Netrc\n",
     "\n",
-    "If the website needs to log in, you can add a record to a .netrc file in your home which contains your login information to avoid supplying username and password each time you download data. \n",
+    "If the website needs to log in, you can add a record to a .netrc file in your home which contains your login information to avoid supplying username and password each time you download data. See [netrc](https://data-downloader.readthedocs.io/en/latest/api/netrc.html) for more details.\n",
     "\n",
-    "To view existing hosts in .netrc file:"
+    "Example:"
    ]
   },
   {
@@ -30,72 +30,39 @@
    "metadata": {},
    "outputs": [
     {
-     "name": "stdout",
-     "output_type": "stream",
-     "text": [
-      "{'urs.earthdata.nasa.gov': ('fanchengyan', '', 'Fanchy19950625'), 'urs.earthdata.nasa.gov.back': ('fanchengyan', '', 'Fanchy19950625'), 'urs.earthdata.nasa.gov.bill': ('carlos1998', '', 'Aragaki1998.'), 'urs.earthdata.nasa.gov.bill1': ('VIKTR13@outlook.com', '', 'Zws921018529.'), 'urs.earthdata.nasa.gov.mingkai': ('hurleykane233', '', '#Chenmingkai233'), 'urs.earthdata.nasa.gov.fancy1995': ('fancy1995', '', 'Fanchy19950625+2s'), 'urs.earthdata.nasa.gov.fanchengyan1995': ('fanchengyan1995', '', 'Fanchy19950625+2s'), 'urs.earthdata.nasa.gov.carol': ('XingyuXu', '', 'Xingyu19941108')}\n"
-     ]
+     "data": {
+      "text/plain": [
+       "{}"
+      ]
+     },
+     "execution_count": 1,
+     "metadata": {},
+     "output_type": "execute_result"
     }
    ],
    "source": [
     "from data_downloader import downloader\n",
     "\n",
     "netrc = downloader.Netrc()\n",
-    "print(netrc.hosts)"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "To add a record to the .netrc file:\n",
-    "\n",
-    "```python\n",
-    "netrc.add(host, login, password, account=None, overwrite=False)\n",
-    "```\n",
-    "If you want to update a record, set tha parameter `overwrite=True`\n",
-    "\n",
-    "for NASA data user:\n",
-    "\n",
-    "```python\n",
-    "netrc.add(\"urs.earthdata.nasa.gov\", \"your_username\", \"your_password\")\n",
-    "```\n",
-    "\n",
-    "You can use the downloader.get_url_host(url) to get the host name when you don't know the host of the website:\n",
-    "\n",
-    "```python\n",
-    "host = downloader.get_url_host(url)\n",
-    "```\n",
-    "To remove a record\n",
-    "\n",
-    "```python\n",
-    "netrc.remove(self, host)\n",
-    "```\n",
-    "\n",
-    "To clear all records\n",
-    "\n",
-    "```python\n",
-    "netrc.clear()\n",
-    "```\n",
-    "\n",
-    "Example:"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "netrc = downloader.Netrc()\n",
     "netrc.hosts"
    ]
   },
   {
    "cell_type": "code",
-   "execution_count": null,
+   "execution_count": 2,
    "metadata": {},
-   "outputs": [],
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "{'urs.earthdata.nasa.gov': ('username', '', 'passwd')}"
+      ]
+     },
+     "execution_count": 2,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
    "source": [
     "netrc.add(\"urs.earthdata.nasa.gov\", \"username\", \"passwd\")\n",
     "netrc.hosts"
@@ -103,16 +70,26 @@
   },
   {
    "cell_type": "code",
-   "execution_count": null,
+   "execution_count": 3,
    "metadata": {},
-   "outputs": [],
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "machine urs.earthdata.nasa.gov\n",
+      "\tlogin username\n",
+      "\tpassword passwd\n"
+     ]
+    }
+   ],
    "source": [
     "!cat ~/.netrc"
    ]
   },
   {
    "cell_type": "code",
-   "execution_count": 6,
+   "execution_count": 4,
    "metadata": {},
    "outputs": [
     {
@@ -121,7 +98,7 @@
        "'gpm1.gesdisc.eosdis.nasa.gov'"
       ]
      },
-     "execution_count": 6,
+     "execution_count": 4,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -134,42 +111,21 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 7,
+   "execution_count": 5,
    "metadata": {},
    "outputs": [
     {
      "data": {
       "text/plain": [
        "machine urs.earthdata.nasa.gov\n",
-       "\tlogin fanchengyan\n",
-       "\tpassword Fanchy19950625\n",
-       "machine urs.earthdata.nasa.gov.back\n",
-       "\tlogin fanchengyan\n",
-       "\tpassword Fanchy19950625\n",
-       "machine urs.earthdata.nasa.gov.bill\n",
-       "\tlogin carlos1998\n",
-       "\tpassword Aragaki1998.\n",
-       "machine urs.earthdata.nasa.gov.bill1\n",
-       "\tlogin VIKTR13@outlook.com\n",
-       "\tpassword Zws921018529.\n",
-       "machine urs.earthdata.nasa.gov.mingkai\n",
-       "\tlogin hurleykane233\n",
-       "\tpassword #Chenmingkai233\n",
-       "machine urs.earthdata.nasa.gov.fancy1995\n",
-       "\tlogin fancy1995\n",
-       "\tpassword Fanchy19950625+2s\n",
-       "machine urs.earthdata.nasa.gov.fanchengyan1995\n",
-       "\tlogin fanchengyan1995\n",
-       "\tpassword Fanchy19950625+2s\n",
-       "machine urs.earthdata.nasa.gov.carol\n",
-       "\tlogin XingyuXu\n",
-       "\tpassword Xingyu19941108\n",
+       "\tlogin username\n",
+       "\tpassword passwd\n",
        "machine gpm1.gesdisc.eosdis.nasa.gov\n",
        "\tlogin username\n",
        "\tpassword passwd"
       ]
      },
-     "execution_count": 7,
+     "execution_count": 5,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -181,19 +137,48 @@
   },
   {
    "cell_type": "code",
-   "execution_count": null,
+   "execution_count": 6,
    "metadata": {},
-   "outputs": [],
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "machine urs.earthdata.nasa.gov\n",
+       "\tlogin username\n",
+       "\tpassword passwd\n",
+       "machine gpm1.gesdisc.eosdis.nasa.gov\n",
+       "\tlogin username\n",
+       "\tpassword new_passwd"
+      ]
+     },
+     "execution_count": 6,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
    "source": [
-    "netrc.add(downloader.get_url_host(url), \"username\", \"new_passwd\")\n",
+    "netrc.add(downloader.get_url_host(url), \"username\", \"new_passwd\", overwrite=True)\n",
     "netrc"
    ]
   },
   {
    "cell_type": "code",
-   "execution_count": null,
+   "execution_count": 7,
    "metadata": {},
-   "outputs": [],
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "machine urs.earthdata.nasa.gov\n",
+       "\tlogin username\n",
+       "\tpassword passwd"
+      ]
+     },
+     "execution_count": 7,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
    "source": [
     "netrc.remove(downloader.get_url_host(url))\n",
     "netrc"
@@ -201,9 +186,18 @@
   },
   {
    "cell_type": "code",
-   "execution_count": null,
+   "execution_count": 8,
    "metadata": {},
-   "outputs": [],
+   "outputs": [
+    {
+     "data": {
+      "text/plain": []
+     },
+     "execution_count": 8,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
    "source": [
     "netrc.clear()\n",
     "netrc"
@@ -215,7 +209,7 @@
    "source": [
     "## downloader Usage\n",
     "\n",
-    "All downloading functions are in data_downloader.downloader . So import downloader at the beginning."
+    "All downloading functions are in data_downloader.downloader . So import downloader at the beginning. The detailed usage of each function can be found in the [API Reference](https://data-downloader.readthedocs.io/en/latest/api/downloader.html)."
    ]
   },
   {
@@ -396,7 +390,7 @@
    "source": [
     "## parse_url Usage\n",
     "\n",
-    "See the [parse_url](./api/parse_urls.html#parse-urls) notebook for more details."
+    "See the [parse_url](https://data-downloader.readthedocs.io/en/latest/api/parse_urls.html) notebook for more details."
    ]
   }
  ],

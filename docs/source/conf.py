@@ -26,7 +26,7 @@ source_suffix = {
     ".rst": "restructuredtext",
     ".md": "markdown",
 }
-
+nb_execution_mode = "off"
 # templates_path = ['_templates']
 exclude_patterns = []
 
