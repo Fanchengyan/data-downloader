@@ -1,4 +1,3 @@
-import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -8,29 +7,29 @@ import pandas as pd
 from data_downloader.parse_urls import _core
 
 
-class LiCSAR:
+class LiCSARService:
     """class for LiCSAR.
 
     Example:
     --------
     >>> from pathlib import Path
     >>> import pandas as pd
-    >>> from data_downloader import LiCSAR, downloader
+    >>> from data_downloader import LiCSARService, downloader
     >>> # specify the folder to save data
     >>> home_dir = Path("/Volumes/Data/GeoData/YNG/Sentinel1/LiCSAR/106D_05248_131313/")
     >>> pair_dir = home_dir / "GEOC"
 
-    init LiCSAR by frame id and download all metadata files
-    
-    >>> licsar = LiCSAR("106D_05248_131313")
+    init LiCSARService by frame id and download all metadata files
+
+    >>> licsar = LiCSARService("106D_05248_131313")
     >>> downloader.download_datas(licsar.meta_urls, folder=home_dir, desc="Metadata")
 
     generate mask data by primary_dates, secondary_dates and day span
-    
+
     >>> mask = (licsar.primary_dates>pd.to_datetime("2019-01-01")) & (licsar.primary_dates<pd.to_datetime("2019-12-31")) & (licsar.days < 12 * 5 + 1)
 
     download interferograms and coherence files filtered by mask
-    
+
     >>> downloader.download_datas(licsar.ifg_urls[mask].values, folder=pair_dir, desc="Interferogram")
     >>> downloader.download_datas(licsar.coh_urls[mask], folder=pair_dir, desc="Coherence")
     """
@@ -40,7 +39,7 @@ class LiCSAR:
         frame_id: str,
         root_url: str = "https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products",
     ):
-        """init LiCSAR.
+        """init LiCSARService.
 
         Parameters:
         -----------

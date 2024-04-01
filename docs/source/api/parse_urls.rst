@@ -11,7 +11,8 @@ Functions and Classes for parsing urls from different sources.
     * :func:`.from_sentinel_meta4`
     * :func:`.from_EarthExplorer_order`
 * Class
-    * :class:`.LiCSAR`
+    * :class:`.HyP3Service`
+    * :class:`.LiCSARService`
     * :class:`.SentinelOrbit`
 
 Functions
@@ -28,6 +29,15 @@ Functions
 
 Classes
 -------
+
+HyP3Service
+^^^^^^^^^^^
+
+.. autoclass:: data_downloader.parse_urls.HyP3Service
+    :members:
+    :undoc-members:
+    :member-order: bysource
+    :show-inheritance:
 
 LiCSAR
 ^^^^^^
