@@ -15,7 +15,10 @@ except ImportError:
 
 
 class Jobs:
-    """Class to manage HyP3 jobs. It provides a basic jobs interface for the HyP3Service class."""
+    """A class to manage HyP3 jobs. It provides a pythonic interface to filter 
+    and select jobs using the numpy and pandas libraries. This class is designed 
+    to be used as the jobs attribute of the HyP3Service class. 
+    """
 
     def __init__(self, jobs: list[sdk.Job]) -> None:
         """Initialize the Jobs class
@@ -23,7 +26,8 @@ class Jobs:
         Parameters
         ----------
         jobs : list[sdk.Job]
-            List of Job objects from HyP3 SDK
+            List of Job objects from HyP3 SDK. You can get the jobs from the 
+            hyp3_sdk.Batch.jobs attribute.
         """
         self.jobs = np.array(jobs, dtype="O")
         (
@@ -302,7 +306,7 @@ class Jobs:
 
 
 class HyP3Service:
-    """Class to manage HyP3 jobs and user information."""
+    """Class to manage HyP3 user information and jobs"""
 
     _my_info = None
     _jobs = None
