@@ -15,9 +15,9 @@ except ImportError:
 
 
 class Jobs:
-    """A class to manage HyP3 jobs. It provides a pythonic interface to filter 
-    and select jobs using the numpy and pandas libraries. This class is designed 
-    to be used as the jobs attribute of the HyP3Service class. 
+    """A class to manage HyP3 jobs. It provides a pythonic interface to filter
+    and select jobs using the numpy and pandas libraries. This class is designed
+    to be used as the jobs attribute of the HyP3Service class.
     """
 
     def __init__(self, jobs: list[sdk.Job]) -> None:
@@ -26,7 +26,7 @@ class Jobs:
         Parameters
         ----------
         jobs : list[sdk.Job]
-            List of Job objects from HyP3 SDK. You can get the jobs from the 
+            List of Job objects from HyP3 SDK. You can get the jobs from the
             hyp3_sdk.Batch.jobs attribute.
         """
         self.jobs = np.array(jobs, dtype="O")
@@ -190,11 +190,6 @@ class Jobs:
         return np.array([file["size"] for file in self._files])
 
     @property
-    def df_files(self) -> pd.DataFrame:
-        """the files of all jobs"""
-        return pd.DataFrame(self._files, columns=["filename", "s3", "size", "url"])
-
-    @property
     def logs(self) -> np.ndarray:
         """the logs of all jobs"""
         return np.array(self._logs, dtype=np.str_)
@@ -231,7 +226,7 @@ class Jobs:
 
     @property
     def frame(self) -> pd.DataFrame:
-        """Convert the jobs to a pandas DataFrame"""
+        """jobs in the form of a pandas DataFrame"""
         df = pd.DataFrame(
             {
                 "name": self.name,
@@ -240,7 +235,7 @@ class Jobs:
                 "file_names": self.file_names,
                 "file_sizes": self.file_sizes,
                 "file_urls": self.file_urls,
-                "credit_cost": self.credit_cost, 
+                "credit_cost": self.credit_cost,
                 "request_time": self.request_time,
                 "processing_times": self.processing_times,
                 "expiration_time": self.expiration_time,
@@ -318,9 +313,8 @@ class HyP3Service:
         prompt: bool = False,
         include_expired=False,
     ):
-        self.hyp3 = sdk.HyP3(username=username, password=password, prompt=prompt)
         self.include_expired = include_expired
-        self.flush()
+        self.login(username, password, prompt)
 
     def __repr__(self) -> str:
         return (
@@ -349,37 +343,65 @@ class HyP3Service:
         self.flush_jobs()
         self.flush_info()
 
+    def login(
+        self,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        prompt: Optional[bool] = False,
+    ):
+        """Login to HyP3. If neither username/password nor prompt is provided,
+        it will attempts to use credentials from a ``.netrc`` file. If prompt is True, 
+        the username and password will be prompted in the terminal. Otherwise, the
+        username and password must be provided.
+        
+        .. note::
+
+            This method will be called automatically when the class is initialized.
+            However, you can change the user by calling this method again with the new
+            username and password.
+
+        Parameters
+        ----------
+        username, password : str, optional
+            Username and password for HyP3
+        prompt : bool, optional
+            Prompt for the username and password in the terminal, by default False.
+        """
+        self.hyp3 = sdk.HyP3(username=username, password=password, prompt=prompt)
+        self.flush()
+
     @property
     def my_info(self):
-        """Get the user's information"""
+        """user's information"""
         return self._my_info
 
     @property
     def jobs(self) -> Jobs:
-        """Get the jobs"""
+        """all jobs (not expired by default, set ``include_expired=True`` to 
+        include expired jobs)"""
         return self._jobs
 
     def _parse_jobs(self) -> Jobs:
-        """Parse the jobs not expired"""
+        """Parse all jobs"""
         batch = self.hyp3.find_jobs().filter_jobs(include_expired=self.include_expired)
         return Jobs(batch.jobs)
 
     @property
     def succeeded(self) -> Jobs:
-        """Get the succeeded jobs"""
+        """all succeeded jobs (not expired by default)"""
         return self.jobs.sel(status_code=STATUS_CODE.SUCCEEDED)
 
     @property
     def failed(self) -> Jobs:
-        """Get the failed jobs"""
+        """all failed jobs (not expired by default)"""
         return self.jobs.sel(status_code=STATUS_CODE.FAILED)
 
     @property
     def pending(self) -> Jobs:
-        """Get the pending jobs"""
+        """all pending jobs (not expired by default)"""
         return self.jobs.sel(status_code=STATUS_CODE.PENDING)
 
     @property
     def running(self) -> Jobs:
-        """Get the running jobs"""
+        """all running jobs (not expired by default)"""
         return self.jobs.sel(status_code=STATUS_CODE.RUNNING)
