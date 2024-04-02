@@ -1,11 +1,15 @@
 import warnings
+import zipfile
 from datetime import datetime
 from pathlib import Path
+from time import sleep
 
 import numpy as np
 import pandas as pd
 from dateutil.parser import parse as parse_date
 from tqdm.auto import tqdm
+
+from data_downloader import downloader
 
 from .constants import JOB_TYPE, STATUS_CODE
 
@@ -327,6 +331,7 @@ class Jobs:
 
     def sel(
         self,
+        name: str | None = None,
         job_type: JOB_TYPE | None = None,
         status_code: STATUS_CODE | None = None,
         request_time: datetime | str | slice | None = None,
@@ -335,6 +340,8 @@ class Jobs:
 
         Parameters
         ----------
+        name : str | None
+            Name of the job to filter by
         job_type : JOB_TYPE | None
             Job type to filter by
         status_code : STATUS_CODE | None
@@ -367,6 +374,8 @@ class Jobs:
             if isinstance(request_time, datetime):
                 mask = self.request_time == request_time
 
+        if name is not None:
+            mask = (self.name == name) & mask
         if job_type is not None:
             mask = (self.job_type == job_type) & mask
         if status_code is not None:
@@ -664,7 +673,113 @@ class InSARMission:
                 )
                 self._pairs_failed.append(pair)
 
+    def _scan_interferograms(self, home_dir: Path | str) -> list[str]:
+        """Scan the local directory for the interferograms"""
+        home_dir = Path(home_dir)
+        return [i.stem for i in home_dir.glob("*") if i.is_dir()]
+
+    def _download_jobs(
+        self,
+        output_dir: Path | str,
+        name: str | None = None,
+        request_time: datetime | str | slice | None = None,
+        unzip: bool = True,
+        remove_zip: bool = True,
+        overwrite: bool = False,
+    ):
+        """Download the INSAR_GAMMA jobs from HyP3"""
+        jobs = self.jobs_on_service.sel(name=name, request_time=request_time).succeeded
+        for file_name, url in tqdm(
+            zip(jobs.file_names, jobs.file_urls),
+            desc="Downloading jobs",
+            total=len(jobs),
+        ):
+            local_ifgs = self._scan_interferograms(output_dir)
+            if Path(file_name).stem in local_ifgs and not overwrite:
+                tqdm.write(f"Interferogram {file_name} already exists. Skipping.")
+                continue
+            try:
+                downloader.download_data(url, output_dir, file_name)
+                if unzip:
+                    unzip_file(output_dir, file_name, remove_zip, overwrite)
+            except Exception as e:
+                tqdm.write(f"Failed to download file {file_name}. {e}")
+
+    def download_jobs(
+        self,
+        output_dir: Path | str,
+        name: str | None = None,
+        request_time: datetime | str | slice | None = None,
+        unzip: bool = True,
+        remove_zip: bool = True,
+        overwrite: bool = False,
+        wait_running=True,
+        wait_minutes=60,
+    ):
+        """Download the INSAR_GAMMA jobs from HyP3
+
+        Parameters
+        ----------
+        output_dir : Path | str
+            Output directory to save the files
+        name : str, optional
+            Name of submitted jobs to filter by, by default None
+        request_time : datetime | str | slice, optional
+            Request time of submitted jobs to filter by. Can be a datetime object,
+            a string, or a slice object. If a slice object is used, the start
+            must be a string or a datetime object, and the stop can be None, a
+            string. If a string is used, it must be in the format that can be
+            converted to a datetime
+        unzip : bool, optional
+            Whether to unzip the files, by default True
+        remove_zip : bool, optional
+            Whether to remove the zip files after unzipping, by default True
+        overwrite : bool, optional
+            Whether to overwrite the existing files when unzipping. If False, The
+            interferogram folders that are already unzipped will not be downloaded
+            again, by default False.
+        wait_running : bool, optional
+            Whether to wait for the jobs that are still running, by default True
+        wait_minutes : int, optional
+            Time to wait for the jobs to finish, by default 60 (1 hour)
+        """
+        while True:
+            self._download_jobs(
+                output_dir, name, request_time, unzip, remove_zip, overwrite
+            )
+            # check if there are still running jobs
+            jobs = self.jobs_on_service.sel(name=name, request_time=request_time)
+            if len(jobs.running) == 0:
+                break
+            if not wait_running:
+                warnings.warn(
+                    "Some jobs are still running. You may need to download them later."
+                )
+                break
+            wait_minutes = int(wait_minutes)
+            tqdm.write(
+                "Downloading jobs finished. But some jobs are still running."
+                f"\nA new download will be attempted in {wait_minutes} minutes."
+                "\nYou can stop the process by pressing Ctrl+C."
+            )
+            sleep(wait_minutes * 60)
+
 
 def granule_to_date(granule: str):
     """Convert granule to date"""
     return pd.to_datetime(granule.split("_")[5])
+
+
+def unzip_file(output_dir, file_name, remove_zip=True, overwrite=False):
+    try:
+        zip_file = Path(output_dir) / file_name
+        unzip_dir = Path(output_dir) / Path(file_name).stem
+        if not overwrite and unzip_dir.exists():
+            warnings.warn(f"Directory {unzip_dir} already exists. Skipping.")
+            return None
+        with zipfile.ZipFile(zip_file, "r") as zip_ref:
+            zip_ref.extractall(output_dir)
+        if remove_zip:
+            zip_file.unlink()
+    except Exception as e:
+        warnings.warn(f"Error in unzipping {zip_file}: {e}")
