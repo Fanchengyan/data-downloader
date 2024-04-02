@@ -1,7 +1,6 @@
 import warnings
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -187,7 +186,7 @@ class Jobs:
             credit_cost,
         )
 
-    def _retrieve_list(self, val: Optional[list]) -> Optional[str]:
+    def _retrieve_list(self, val: list | None) -> str | None:
         """Retrieve job from a list"""
         if val is None:
             return np.nan
@@ -404,8 +403,8 @@ class HyP3Service:
 
     def __init__(
         self,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
+        username: str | None = None,
+        password: str | None = None,
         prompt: bool = False,
         include_expired=False,
     ):
@@ -452,9 +451,9 @@ class HyP3Service:
 
     def login(
         self,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        prompt: Optional[bool] = False,
+        username: str | None = None,
+        password: str | None = None,
+        prompt: bool | None = False,
     ):
         """Login to HyP3. If neither username/password nor prompt is provided,
         it will attempts to use credentials from a ``.netrc`` file. If prompt is True,

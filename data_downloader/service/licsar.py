@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from data_downloader.parse_urls import _core
+from data_downloader.parse_urls import parse_urls
 
 
 class LiCSARService:
@@ -71,7 +71,7 @@ class LiCSARService:
     def _retrieve_pairs_urls(self):
         """retrieve pairs of LiCSAR."""
         url = f"{self.home_url}/interferograms/"
-        page_urls = _core.from_html(url, url_depth=1)
+        page_urls = parse_urls.from_html(url, url_depth=1)
         pairs = []
         ifg_urls = []
         coh_urls = []

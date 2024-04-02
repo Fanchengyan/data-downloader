@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from data_downloader import downloader
-from data_downloader.parse_urls import _core
+from data_downloader.parse_urls import parse_urls
 
 
 class SentinelOrbit:
@@ -60,7 +60,7 @@ class SentinelOrbit:
         platform : str, one of ['S1A', 'S1B','all']
             platform of satellite. should be one of ['S1A', 'S1B','all']
         """
-        urls = _core.from_html(self.home_aux_cal)
+        urls = parse_urls.from_html(self.home_aux_cal)
         if platform in ["S1A", "S1B", "all"]:
             if platform == "all":
                 platform = ["S1A", "S1B"]
@@ -101,7 +101,7 @@ class SentinelOrbit:
         date_start = pd.to_datetime(date_start).date()
         date_end = pd.to_datetime(date_end).date()
 
-        urls = _core.from_html(self.home_preorb)
+        urls = parse_urls.from_html(self.home_preorb)
         _urls = [i for i in urls if Path(i).suffix == ".EOF"]
         urls_filter = []
         for i in _urls:
