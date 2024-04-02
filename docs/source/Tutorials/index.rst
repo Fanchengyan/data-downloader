@@ -1,6 +1,6 @@
-#########
-Tutorials
-#########
+#################
+Service Tutorials
+#################
 
 In this user guide, the tutorials are organized in the following order:
 
@@ -9,4 +9,6 @@ In this user guide, the tutorials are organized in the following order:
    :hidden:
 
    hyp3_InSAR_job
+   licsar
+   s1orbit
 
