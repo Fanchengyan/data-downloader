@@ -4,4 +4,6 @@ myst-nb
 sphinx_rtd_theme
 Jinja2
 pandas
+hyp3_sdk
 git+https://github.com/Fanchengyan/data-downloader.git@master#egg=data_downloader
+git+https://github.com/Fanchengyan/FanInSAR.git@main#egg=FanInSAR
