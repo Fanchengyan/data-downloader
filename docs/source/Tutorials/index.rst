@@ -1,6 +1,6 @@
-###########
-User Guides
-###########
+#########
+Tutorials
+#########
 
 In this user guide, the tutorials are organized in the following order:
 

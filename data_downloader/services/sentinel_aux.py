@@ -3,8 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from data_downloader import downloader
-from data_downloader.parse_urls import parse_urls
+from data_downloader import parse_urls
 
 
 class SentinelOrbit:

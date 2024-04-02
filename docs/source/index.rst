@@ -40,6 +40,6 @@ data_downloader has several features to make retrieving files easy, including:
 
     install
     quick_start
-    user_guide/index
+    Tutorials/index
     API Reference <api/index>
 

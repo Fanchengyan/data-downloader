@@ -16,6 +16,8 @@ The Python API reference is organized into several sections:
    netrc
    downloader
    parse_urls
+   services
+
 
 
    

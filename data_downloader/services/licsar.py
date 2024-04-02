@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from data_downloader.parse_urls import parse_urls
+from data_downloader import parse_urls
 
 
 class LiCSARService:
