@@ -11,7 +11,7 @@ class SentinelOrbit:
 
     Examples:
     ----------
-    >>> from data_downloader import downloader, SentinelOrbit
+    >>> from data_downloader import downloader, services
     >>> from pathlib import Path
 
     >>> folder_cal = Path("/media/data/aux_cal")  # specify the folder to save aux_cal
@@ -19,7 +19,7 @@ class SentinelOrbit:
 
     init SentinelOrbit:
 
-    >>> s1_orbit = SentinelOrbit()
+    >>> s1_orbit = services.SentinelOrbit()
 
     Get all aux_cal data links of S1A and S1B and download them:
 

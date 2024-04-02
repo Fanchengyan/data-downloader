@@ -14,14 +14,14 @@ class LiCSARService:
     --------
     >>> from pathlib import Path
     >>> import pandas as pd
-    >>> from data_downloader import downloader, parse_urls
+    >>> from data_downloader import downloader, services
     >>> # specify the folder to save data
     >>> home_dir = Path("/Volumes/Data/LiCSAR/106D_05248_131313/")
     >>> pair_dir = home_dir / "GEOC"
 
     init LiCSARService by frame id and download all metadata files
 
-    >>> licsar = parse_urls.LiCSARService("106D_05248_131313")
+    >>> licsar = services.LiCSARService("106D_05248_131313")
     >>> downloader.download_datas(licsar.meta_urls, folder=home_dir, desc="Metadata")
 
     generate mask data by primary_dates, secondary_dates and day span
