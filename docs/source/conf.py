@@ -30,6 +30,7 @@ myst_enable_extensions = ["colon_fence"]
 myst_url_schemes=["http", "https", "mailto"]
 suppress_warnings = ["mystnb.unknown_mime_type"]
 nb_execution_mode = "off"
+autodoc_inherit_docstrings = True
 # templates_path = ['_templates']
 exclude_patterns = []
 
@@ -45,6 +46,7 @@ video_enforce_extra_source = True
 
 autodoc_default_options = {
     "members": True,
+    "inherited-members" : True,
     "undoc-members": True,
     "member-order": "bysource",
     "special-members": "__init__",

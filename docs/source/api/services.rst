@@ -24,7 +24,6 @@ HyP3Service
 
 .. autoclass:: data_downloader.services.HyP3Service
     :members:
-    :undoc-members:
     :member-order: bysource
     :show-inheritance:
 
@@ -63,7 +62,7 @@ JOB_TYPE
 ^^^^^^^^
 
 .. autoclass:: data_downloader.services.hyp3.JOB_TYPE
-    :members:
+    :members: 
     :undoc-members:
     :member-order: bysource
     :show-inheritance:
