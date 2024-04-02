@@ -40,6 +40,6 @@ data_downloader has several features to make retrieving files easy, including:
 
     install
     quick_start
-    user_guide/hyp3_InSAR_job
+    user_guide/index
     API Reference <api/index>
 
