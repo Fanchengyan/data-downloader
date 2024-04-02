@@ -1,1 +1,1 @@
-from . import downloader, parse_urls, service
+from . import downloader, parse_urls, services
