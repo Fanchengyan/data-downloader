@@ -3,5 +3,5 @@ sphinx>=7
 myst-nb
 sphinx_rtd_theme
 Jinja2
-data_downloader
 pandas
+git+https://github.com/Fanchengyan/data-downloader.git@master#egg=data_downloader
