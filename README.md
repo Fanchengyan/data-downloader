@@ -1,4 +1,7 @@
-# data_downloader
+<h1 align="center">
+<img src="https://raw.githubusercontent.com/Fanchengyan/data-downloader/master/docs/source/_static/logo/logo.svg" width="300">
+</h1><br>
+
 
 [![Downloads](https://static.pepy.tech/badge/data_downloader)](https://pepy.tech/project/data_downloader) [![PyPI](https://img.shields.io/pypi/v/data_downloader)](https://pypi.org/project/data_downloader/) [![Documentation Status](https://readthedocs.org/projects/data-downloader/badge/?version=latest)](https://data-downloader.readthedocs.io/en/latest/?badge=latest)
 
@@ -6,11 +9,11 @@ Make downloading scientific data much easier
 
 ## Introduction
 
-`data_downloader` is a very convenient and powerful data download package for retrieving files using HTTP/HTTPS. It current includes download model `downloader` and url parsing model `parse_urls`. As `httpx` was used which provided a method to access website with synchronous and asynchronous way, you can download multiple files at the same time.
+`DataDownloader` is a very convenient and powerful data download package for retrieving files using HTTP/HTTPS. It current includes download model `downloader` and url parsing model `parse_urls`. As `httpx` was used which provided a method to access website with synchronous and asynchronous way, you can download multiple files at the same time.
 
 ## Highlight Features
 
-data_downloader has several features to make retrieving files easy, including:
+DataDownloader has several features to make retrieving files easy, including:
 
 * **Resumable**: You can resume aborted downloads automatically when you re-execute the code if website support resuming (status code is 216 or 416 when send a HEAD request to the server supplying a Range header)
 * **Asynchronous**: Can download multiple files at the same time when download a single file very slow. 
@@ -20,7 +23,7 @@ data_downloader has several features to make retrieving files easy, including:
 
 ## Installation
 
-You can install `data_downloader` via pip from [PyPI](https://pypi.org/project/data_downloader/):
+You can install `DataDownloader` via pip from [PyPI](https://pypi.org/project/data_downloader/):
 
 ```bash
 pip install data_downloader
