@@ -1,7 +1,7 @@
 recommonmark
 sphinx>=7
 myst-nb
-sphinx_rtd_theme
+pydata_sphinx_theme
 Jinja2
 pandas
 hyp3_sdk
