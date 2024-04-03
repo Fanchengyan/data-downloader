@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from time import sleep
 
+import hyp3_sdk as sdk
 import numpy as np
 import pandas as pd
 from dateutil.parser import parse as parse_date
@@ -14,13 +15,6 @@ from tqdm.auto import tqdm
 from data_downloader import downloader
 
 from .constants import JOB_TYPE, STATUS_CODE
-
-try:
-    import hyp3_sdk as sdk
-except ImportError:
-    raise ImportError(
-        "HyP3 SDK not installed. Please install it using 'pip install hyp3_sdk'"
-    )
 
 try:
     from faninsar import Pairs, datasets
