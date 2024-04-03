@@ -6,7 +6,7 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "data_downloader"
+project = "DataDownloader"
 copyright = "2024, Fan Chengyan (Fancy)"
 author = "Fan Chengyan (Fancy)"
 release = "v1.0"
@@ -21,13 +21,15 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.todo",
     "myst_nb",
+    "sphinx_copybutton",
+    "sphinx_design",
 ]
 source_suffix = {
     ".rst": "restructuredtext",
     ".md": "markdown",
 }
 myst_enable_extensions = ["colon_fence"]
-myst_url_schemes=["http", "https", "mailto"]
+myst_url_schemes = ["http", "https", "mailto"]
 suppress_warnings = ["mystnb.unknown_mime_type"]
 nb_execution_mode = "off"
 autodoc_inherit_docstrings = True
@@ -38,15 +40,41 @@ exclude_patterns = []
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "pydata_sphinx_theme"
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
+html_theme = "pydata_sphinx_theme"
+html_logo = "_static/logo/logo.png"
+html_theme_options = {
+    "show_toc_level": 3,
+    "show_nav_level": 2,
+    "use_edit_page_button": True,
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/Fanchengyan/data-downloader", 
+            "icon": "fa-brands fa-square-github",
+            "type": "fontawesome",
+        },
+        {
+            "name": "PyPI",
+            "url": "https://pypi.org/project/data-downloader/",
+            "icon": "fa-brands fa-python",
+            "type": "fontawesome",
+        },
+    ],
+}
+html_context = {
+    "github_url": "https://github.com", # or your GitHub Enterprise site
+    "github_user": "Fanchengyan",
+    "github_repo": "data-downloader",
+    "github_version": "master",
+}
 
 video_enforce_extra_source = True
 
 autodoc_default_options = {
     "members": True,
-    "inherited-members" : True,
+    "inherited-members": True,
     "undoc-members": True,
     "member-order": "bysource",
     "special-members": "__init__",

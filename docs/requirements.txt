@@ -1,6 +1,8 @@
 recommonmark
 sphinx>=7
 myst-nb
+sphinx-copybutton
+sphinx-design
 pydata_sphinx_theme
 Jinja2
 pandas

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="297.93411mm"
+   height="56.751144mm"
+   viewBox="0 0 297.93411 56.751144"
+   version="1.1"
+   id="svg1"
+   inkscape:export-filename="logo.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   inkscape:version="1.3 (0e150ed, 2023-07-21)"
+   sodipodi:docname="logo.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="0.71941468"
+     inkscape:cx="529.5972"
+     inkscape:cy="463.5713"
+     inkscape:window-width="2560"
+     inkscape:window-height="1324"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-10.917163,-23.624441)">
+    <rect
+       style="fill:#d9f2d9;fill-opacity:0.2;stroke:#009200;stroke-width:1.217;stroke-linecap:round;stroke-linejoin:bevel;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       id="rect8"
+       width="85.810326"
+       height="55.534145"
+       x="11.525663"
+       y="24.232943"
+       ry="18.264029" />
+    <rect
+       style="fill:#128b11;fill-opacity:1;stroke:none;stroke-width:0.499999;stroke-dasharray:1.5, 1.5"
+       id="rect1"
+       width="57.740807"
+       height="4.781086"
+       x="27.950962"
+       y="45.380051" />
+    <rect
+       style="fill:#128b11;fill-opacity:1;stroke:none;stroke-width:0.421626;stroke-dasharray:1.26488, 1.26488"
+       id="rect1-2"
+       width="41.058159"
+       height="4.781086"
+       x="27.950962"
+       y="54.688873" />
+    <rect
+       style="fill:#128b11;fill-opacity:0.25;stroke:none;stroke-width:0.268716;stroke-dasharray:0.80615, 0.80615;stroke-opacity:0.451839"
+       id="rect1-2-0"
+       width="16.677574"
+       height="4.781086"
+       x="69.014191"
+       y="54.688873" />
+    <rect
+       style="fill:#128b11;fill-opacity:1;stroke:none;stroke-width:0.499999;stroke-dasharray:1.49999, 1.49999"
+       id="rect1-2-9"
+       width="57.740807"
+       height="4.781086"
+       x="27.950962"
+       y="65.133316" />
+    <rect
+       style="fill:#128b11;fill-opacity:1;stroke:none;stroke-width:0.462385;stroke-dasharray:1.38714, 1.38714"
+       id="rect1-27"
+       width="49.380138"
+       height="4.781086"
+       x="19.628983"
+       y="35.422695" />
+    <rect
+       style="fill:#128b11;fill-opacity:0.25;stroke:none;stroke-width:0.268716;stroke-dasharray:0.80615, 0.80615;stroke-opacity:0.451839"
+       id="rect1-2-0-0"
+       width="16.677574"
+       height="4.781086"
+       x="69.009117"
+       y="35.422695" />
+    <text
+       xml:space="preserve"
+       style="font-style:italic;font-weight:bold;font-size:30.2152px;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman,  Bold Italic';text-align:center;letter-spacing:0px;text-anchor:middle;fill:#009200;fill-opacity:1;stroke:#009200;stroke-width:0.723856;stroke-linecap:round;stroke-linejoin:bevel;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       x="219.21339"
+       y="60.008923"
+       id="text8"
+       transform="scale(0.95626357,1.0457368)"><tspan
+         sodipodi:role="line"
+         id="tspan8"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:30.2152px;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman, ';fill:#009200;fill-opacity:1;stroke-width:0.723856"
+         x="219.21339"
+         y="60.008923">DataDownloader</tspan></text>
+  </g>
+</svg>
