@@ -64,10 +64,11 @@ html_theme_options = {
     ],
 }
 html_context = {
-    "github_url": "https://github.com", # or your GitHub Enterprise site
+    "github_url": "https://github.com",  # or your GitHub Enterprise site
     "github_user": "Fanchengyan",
     "github_repo": "data-downloader",
     "github_version": "master",
+    "doc_path": "docs/source",
 }
 
 video_enforce_extra_source = True
