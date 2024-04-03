@@ -715,6 +715,7 @@ class InSARMission:
         overwrite: bool = False,
         wait_running=True,
         wait_minutes=60,
+        retry=3,
     ):
         """Download the INSAR_GAMMA jobs from HyP3
 
@@ -742,11 +743,17 @@ class InSARMission:
             Whether to wait for the jobs that are still running, by default True
         wait_minutes : int, optional
             Time to wait for the jobs to finish, by default 60 (1 hour)
+        retry : int, optional
+            Number of times to retry the download, by default 3
         """
+        count = 0
         while True:
             self._download_jobs(
                 output_dir, name, request_time, unzip, remove_zip, overwrite
             )
+            count += 1
+            if count >= retry:
+                break
             # check if there are still running jobs
             jobs = self.jobs_on_service.sel(name=name, request_time=request_time)
             if len(jobs.running) == 0:
