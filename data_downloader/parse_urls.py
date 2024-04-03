@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Optional, Union
 from urllib.parse import urljoin
@@ -155,7 +157,7 @@ def from_EarthExplorer_order(
     email: Optional[str] = None,
     order: Optional[Union[str, dict]] = None,
     url_host: Optional[str] = None,
-)->dict:
+) -> dict:
     """parse urls from orders in earthexplorer.
 
     Reference: [bulk-downloader](https://code.usgs.gov/espa/bulk-downloader)

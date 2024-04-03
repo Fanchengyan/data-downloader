@@ -22,11 +22,12 @@ setuptools.setup(
         "nest_asyncio",
         "python-dateutil",
         "browser-cookie3",
+        "hyp3_sdk",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires=">=3.10",
+    python_requires=">=3.8",
 )
