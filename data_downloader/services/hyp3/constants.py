@@ -4,6 +4,7 @@ class BaseConstants:
 
     @classmethod
     def variables(cls):
+        """Returns a list of all available variables"""
         variables = [
             prop
             for prop in dir(cls)
