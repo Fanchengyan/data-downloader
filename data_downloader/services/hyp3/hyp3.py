@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import warnings
 import zipfile
 from datetime import datetime
@@ -16,12 +17,18 @@ from data_downloader import downloader
 
 from .constants import JOB_TYPE, STATUS_CODE
 
-try:
-    from faninsar import Pairs, datasets
-except ImportError:
-    raise ImportError(
-        "FanInSAR package not installed. Please install it using 'pip install FanInSAR'"
-    )
+
+def ensure_faninsar():
+    if "faninsar" in sys.modules:
+        return None
+
+    global Pairs
+    try:
+        from faninsar import Pairs
+    except ImportError:
+        raise ImportError(
+            "FanInSAR package not installed. Please install it using 'pip install FanInSAR'"
+        )
 
 
 def id_of_job(job: sdk.Job) -> str:
@@ -504,7 +511,6 @@ class InSARMission:
     """
 
     job_type = JOB_TYPE.INSAR_GAMMA
-    dataset = datasets.HyP3S1
 
     _pairs_succeed = []
     _pairs_failed = []
@@ -532,6 +538,7 @@ class InSARMission:
             the job parameters after initializing the class by job_parameters
             attribute.
         """
+        ensure_faninsar()
         self.granules = granules
         self.service = service
         self.job_parameters = job_parameters
