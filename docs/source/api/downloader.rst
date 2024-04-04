@@ -5,12 +5,12 @@ downloader
 
 This module provides a multiple download functions for downloading files from given urls.
 
-Functions:
+.. csv-table::
+   :file: tables/downloader.csv
+   :header-rows: 1
 
-* :func:`.download_data` - download a file from a given url
-* :func:`.download_datas` - download multiple files from given urls
-* :func:`.async_download_datas` - download multiple files from given urls asynchronously
-* :func:`.mp_download_datas` - download multiple files from given urls using multiprocessing
+Functions
+---------
 
 .. _download_data:
 .. automethod:: data_downloader.downloader.download_data

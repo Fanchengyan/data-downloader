@@ -3,14 +3,11 @@
 parse_urls
 ==========
 
-parse_urls module provides functions to parse URLs from different sources.
+``parse_urls`` module provides functions to parse URLs from different sources. The module provides functions to parse URLs from:
 
-* Functions:
-    * :func:`.from_urls_file`
-    * :func:`.from_html`
-    * :func:`.from_sentinel_meta4`
-    * :func:`.from_EarthExplorer_order`
-
+.. csv-table:: Different functions to parse URLs
+   :file: tables/parse_urls.csv
+   :header-rows: 1
 
 Functions
 ---------

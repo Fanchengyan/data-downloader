@@ -5,30 +5,40 @@ services
 
 The ``services`` module provides a easy way to interact with the well-known services:
 
-* Main Classes
-    * :class:`.HyP3Service`
-    * :class:`.LiCSARService`
-    * :class:`.SentinelOrbit`
-
-* Auxiliary Classes
-    * :class:`.Jobs`
-    * :class:`.JOB_TYPE`
-    * :class:`.STATUS_CODE`
+.. csv-table:: Services and corresponding classes
+   :file: tables/services.csv
+   :header-rows: 1
 
 
-Classes
--------
+.. csv-table:: Auxiliary classes for the HyP3
+    :file: tables/hyp3.csv
+    :header-rows: 1
 
-HyP3Service
-^^^^^^^^^^^
+
+
+Online Services
+---------------
+
+HyP3
+^^^^
 
 .. autoclass:: data_downloader.services.HyP3Service
     :members:
     :member-order: bysource
     :show-inheritance:
 
-LiCSARService
-^^^^^^^^^^^^^
+.. autoclass:: data_downloader.services.InSARMission
+    :members:
+    :member-order: bysource
+    :show-inheritance:
+
+.. autoclass:: data_downloader.services.InSARBurstMission
+    :members:
+    :member-order: bysource
+    :show-inheritance:
+
+LiCSAR
+^^^^^^
 
 .. autoclass:: data_downloader.services.LiCSARService
     :members:
@@ -36,8 +46,8 @@ LiCSARService
     :member-order: bysource
     :show-inheritance:
 
-SentinelOrbit
-^^^^^^^^^^^^^
+Sentinel-1 Orbit
+^^^^^^^^^^^^^^^^
 
 .. autoclass:: data_downloader.services.SentinelOrbit
     :members:
@@ -46,8 +56,8 @@ SentinelOrbit
     :show-inheritance:
 
 
-Auxiliary Classes
------------------
+Auxiliary classes for the HyP3
+------------------------------
 
 Jobs
 ^^^^

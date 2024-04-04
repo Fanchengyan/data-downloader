@@ -1,0 +1,5 @@
+Functions, Description
+:func:`.download_data`, download a single file from a given url
+:func:`.download_datas`, sequentially download multiple files from given urls 
+:func:`.async_download_datas`, asynchronously download multiple files from given urls
+:func:`.mp_download_datas`, download multiple files from given urls using multiprocessing

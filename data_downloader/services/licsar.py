@@ -8,7 +8,7 @@ from data_downloader import parse_urls
 
 
 class LiCSARService:
-    """class for LiCSAR.
+    """a class to retrieve LiCSAR data 
 
     Example:
     --------

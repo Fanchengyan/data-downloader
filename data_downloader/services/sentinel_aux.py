@@ -7,7 +7,7 @@ from data_downloader import parse_urls
 
 
 class SentinelOrbit:
-    """Sentinel-1 orbit data downloader.
+    """a class to retrieve Sentinel-1 orbit data links.
 
     Examples:
     ----------
