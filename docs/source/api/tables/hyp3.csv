@@ -1,4 +1,4 @@
- classes, Description
- :class:`.Jobs`, A class to manage HyP3 jobs. This class is designed to be used as the jobs attribute of the :class:`.HyP3Service` class
- :class:`.JOB_TYPE`, A class containing the job types that can be submitted to HyP3
- :class:`.STATUS_CODE`, A class containing the status of jobs that have be submitted to HyP3
+classes               ,Description
+:class:`.Jobs`        ,A class to manage HyP3 jobs. This class is designed to be used as the jobs attribute of the :class:`.HyP3Service` class
+:class:`.JOB_TYPE`    ,A class containing the job types that can be submitted to HyP3
+:class:`.STATUS_CODE` ,A class containing the status of jobs that have be submitted to HyP3
