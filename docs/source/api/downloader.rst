@@ -5,7 +5,7 @@ downloader
 
 This module provides a multiple download functions for downloading files from given urls.
 
-..currentmodule:: data_downloader.downloader
+.. currentmodule:: data_downloader.downloader
 
 .. csv-table::
    :file: tables/downloader.csv
@@ -14,11 +14,10 @@ This module provides a multiple download functions for downloading files from gi
 Functions
 ---------
 
-.. automethod:: download_data
+.. automethod:: data_downloader.downloader.download_data
 
-.. automethod:: download_datas
+.. automethod:: data_downloader.downloader.download_datas
 
-.. automethod:: async_download_datas
+.. automethod:: data_downloader.downloader.async_download_datas
 
-.. automethod:: mp_download_datas
-
+.. automethod:: data_downloader.downloader.mp_download_datas
