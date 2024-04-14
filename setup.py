@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="UTF-8") as fh:
 
 setuptools.setup(
     name="data_downloader",
-    version="1.0",
+    version="1.1",
     author="fanchegyan",
     author_email="fanchy14@lzu.edu.cn",
     description="Make downloading scientific data much easier",
@@ -23,6 +23,7 @@ setuptools.setup(
         "python-dateutil",
         "browser-cookie3",
         "hyp3_sdk",
+        "pandas",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
