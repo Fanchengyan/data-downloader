@@ -67,4 +67,4 @@ DataDownloader has several features to make retrieving files easy, including:
     quick_start
     Tutorials/index
     API Reference <api/index>
-
+    changelog

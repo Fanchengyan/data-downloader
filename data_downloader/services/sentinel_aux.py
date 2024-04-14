@@ -9,8 +9,8 @@ from data_downloader import parse_urls
 class SentinelOrbit:
     """a class to retrieve Sentinel-1 orbit data links.
 
-    Examples:
-    ----------
+    Examples
+    --------
     >>> from data_downloader import downloader, services
     >>> from pathlib import Path
 
@@ -41,8 +41,8 @@ class SentinelOrbit:
     ) -> None:
         """init SentinelOrbit.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         home_aux_cal : str
             home url of aux_cal, default is "https://s1qc.asf.alaska.edu/aux_cal/".
         home_preorb : str
@@ -54,8 +54,8 @@ class SentinelOrbit:
     def cal_urls(self, platform="all"):
         """filter files from urls of aux_cal by platform.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         platform : str, one of ['S1A', 'S1B','all']
             platform of satellite. should be one of ['S1A', 'S1B','all']
         """
@@ -81,8 +81,8 @@ class SentinelOrbit:
     ):
         """filter files from urls of aux_poeorb (precise orbit) by date and platform.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         date_start, date_end : str
             start/end date to filter, can be any format that can be converted by
             pd.to_datetime (e.g. '20210101', '2021-01-01', '2021/01/01').

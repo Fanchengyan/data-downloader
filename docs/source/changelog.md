@@ -1,5 +1,11 @@
 # Change Log
 
+## [1.0] - 2024-04-14
+
+### Added:
+- Add HyP3 service
+- add services module to support SentinelOrbit class, LiCSAR class and HyP3 class
+
 ## [1.0] - 2024-03-20
 
 ### Added:
