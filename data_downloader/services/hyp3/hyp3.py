@@ -299,7 +299,7 @@ class Jobs:
     @property
     def credit_cost(self) -> np.ndarray:
         """the credit cost of all jobs"""
-        return np.array(self._credit_cost, dtype=np.int_)
+        return np.array(self._credit_cost, dtype=np.float32)
 
     @property
     def total_credit_cost(self) -> int:
@@ -550,8 +550,8 @@ class InSARMission:
     def jobs_on_service(self) -> Jobs:
         f"""Get the {self.job_type} jobs on the service"""
         self.service.flush()
-        jobs_valid = self.service.jobs.sel(job_type=self.job_type)
-        return jobs_valid
+        jobs_on_service = self.service.jobs.sel(job_type=self.job_type)
+        return jobs_on_service
 
     @property
     def job_parameters(self) -> dict:
@@ -608,7 +608,7 @@ class InSARMission:
         if not skip_existing:
             return pairs
 
-        pairs_exclude = self.jobs_to_pairs(self.jobs_valid)
+        pairs_exclude = self.jobs_to_pairs(self.jobs_on_service)
         if pairs_exclude is None:
             return pairs
         warnings.warn(
