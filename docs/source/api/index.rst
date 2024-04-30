@@ -17,6 +17,7 @@ The Python API reference is organized into several sections:
    downloader
    parse_urls
    services
+   utils
 
 
 

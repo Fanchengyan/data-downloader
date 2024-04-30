@@ -14,21 +14,9 @@ from dateutil.parser import parse as parse_date
 from tqdm.auto import tqdm
 
 from data_downloader import downloader
+from data_downloader.utils import Pairs
 
 from .constants import JOB_TYPE, STATUS_CODE
-
-
-def ensure_faninsar():
-    if "faninsar" in sys.modules:
-        return None
-
-    global Pairs
-    try:
-        from faninsar import Pairs
-    except ImportError:
-        raise ImportError(
-            "FanInSAR package not installed. Please install it using 'pip install FanInSAR'"
-        )
 
 
 def id_of_job(job: sdk.Job) -> str:
@@ -538,7 +526,6 @@ class InSARMission:
             the job parameters after initializing the class by job_parameters
             attribute.
         """
-        ensure_faninsar()
         self.granules = granules
         self.service = service
         self.job_parameters = job_parameters
@@ -579,7 +566,7 @@ class InSARMission:
             return None
         return Pairs(self._pairs_failed)
 
-    def jobs_to_pairs(self, jobs: Jobs) -> Pairs:
+    def jobs_to_pairs(self, jobs: Jobs) -> Pairs | None:
         f"""Convert {self.job_type} jobs to pairs"""
         pairs = []
         for job in jobs:
