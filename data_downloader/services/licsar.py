@@ -1,13 +1,15 @@
 import re
 from datetime import datetime
+
 import numpy as np
 import pandas as pd
 
 from data_downloader import parse_urls
+from data_downloader.utils import Pairs
 
 
 class LiCSARService:
-    """a class to retrieve LiCSAR data 
+    """a class to retrieve LiCSAR data
 
     Example:
     --------
@@ -25,7 +27,8 @@ class LiCSARService:
 
     generate mask data by primary_dates, secondary_dates and day span
 
-    >>> mask = (licsar.primary_dates>pd.to_datetime("2019-01-01")) & (licsar.primary_dates<pd.to_datetime("2019-12-31")) & (licsar.days < 12 * 5 + 1)
+    >>> pairs = licsar.pairs
+    >>> mask = (pairs.primary>pd.to_datetime("2019-01-01")) & (pairs.primary<pd.to_datetime("2019-12-31")) & (pairs.days < 12 * 5 + 1)
 
     download interferograms and coherence files filtered by mask
 
@@ -83,57 +86,35 @@ class LiCSARService:
         return pairs, ifg_urls, coh_urls
 
     @property
-    def pairs(self)->np.ndarray:
+    def pairs(self) -> Pairs:
         """all available pairs of given frame id."""
-        return np.array(self._pairs)
+        return Pairs.from_names(self._pairs)
 
     @property
-    def ifg_urls(self)->pd.Series:
+    def ifg_urls(self) -> pd.Series:
         """interferogram urls of given frame id."""
         df = pd.Series(self._ifg_urls, name="ifg_urls", index=self._pairs)
         return df
 
     @property
-    def coh_urls(self)->pd.Series:
+    def coh_urls(self) -> pd.Series:
         """coherence urls of given frame id."""
         df = pd.Series(self._coh_urls, name="coh_urls", index=self._pairs)
         return df
 
     @property
-    def urls(self)->pd.DataFrame:
+    def urls(self) -> pd.DataFrame:
         """all urls, including interferogram and coherence, of given frame id."""
         urls = pd.concat([self.ifg_urls, self.coh_urls], axis=1)
         return urls
 
     @property
-    def primary_dates(self)->np.ndarray:
-        """primary dates of pairs for given frame id."""
-        primary_dates = [
-            datetime.strptime(i.split("_")[0], "%Y%m%d") for i in self.pairs
-        ]
-        return np.array(primary_dates, dtype="datetime64[D]")
+    def meta_urls(self) -> np.ndarray:
+        """metadata urls of LiCSAR.
 
-    @property
-    def secondary_dates(self)->np.ndarray:
-        """secondary dates of pairs for given frame id."""
-        secondary_dates = [
-            datetime.strptime(i.split("_")[1], "%Y%m%d") for i in self.pairs
-        ]
-        return np.array(secondary_dates, dtype="datetime64[D]")
+        metadata includes:
 
-    @property
-    def days(self)->np.ndarray:
-        """days between primary and secondary dates."""
-        days = self.secondary_dates - self.primary_dates
-        return days.astype(int)
-
-    @property
-    def meta_urls(self)->np.ndarray:
-        """metadata urls of LiCSAR. 
-        
-        metadata includes: 
-        
-        * E, N, U, hgt 
+        * E, N, U, hgt
         * baselines
         * metadata.txt
         * network.png
