@@ -500,6 +500,7 @@ class InSARMission:
     """
 
     job_type = JOB_TYPE.INSAR_GAMMA
+    date_idx = 5
 
     _pairs_succeed = []
     _pairs_failed = []
@@ -581,8 +582,8 @@ class InSARMission:
                 )
                 continue
             pair = (
-                granule_to_date(job.job_parameters["granules"][0]),
-                granule_to_date(job.job_parameters["granules"][1]),
+                granule_to_date(job.job_parameters["granules"][0], self.date_idx),
+                granule_to_date(job.job_parameters["granules"][1], self.date_idx),
             )
             pairs.append(pair)
         if len(pairs) == 0:
@@ -765,6 +766,7 @@ class InSARBurstMission(InSARMission):
     """
 
     job_type = JOB_TYPE.INSAR_ISCE_BURST
+    date_idx = 3
 
     def __init__(
         self, service: HyP3Service, granules: pd.Series, job_parameters: dict = {}
@@ -781,9 +783,9 @@ class InSARBurstMission(InSARMission):
         )
 
 
-def granule_to_date(granule: str):
+def granule_to_date(granule: str, idx_date):
     """Convert granule to date"""
-    return pd.to_datetime(granule.split("_")[5])
+    return pd.to_datetime(granule.split("_")[idx_date])
 
 
 def unzip_file(output_dir, file_name, remove_zip=True, overwrite=False):
