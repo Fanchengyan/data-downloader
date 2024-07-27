@@ -37,4 +37,7 @@ pip install git+hhttps://github.com/Fanchengyan/data-downloader.git
 ```
 ## Usage
 
-The detailed documentation is available at: <https://data-downloader.readthedocs.io/en/latest/>
+The detailed documentation is available at: <https://data-downloader.readthedocs.io/en/latest/>. 
+
+> [!TIP]
+> We provide some examples to help you get started quickly : <https://data-downloader.readthedocs.io/en/latest/Tutorials/index.html>
