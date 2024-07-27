@@ -41,7 +41,7 @@ Replace ``your_username`` and ``your_password`` in the code below with your own 
     from data_downloader import downloader
 
     netrc = downloader.Netrc()
-    netrc.add('scihub.copernicus.eu','your_username','your_password')
+    netrc.add('urs.earthdata.nasa.gov', 'your_username', 'your_password')
 
 
 After execution, a ``.netrc`` file will be created in the user's directory. 
@@ -52,7 +52,7 @@ After execution, a ``.netrc`` file will be created in the user's directory.
 
     .. code-block:: python
 
-        netrc.add('scihub.copernicus.eu', 'your_username','your_password', overwrite=True)
+        netrc.add('urs.earthdata.nasa.gov', 'your_username', 'your_password', overwrite=True)
 
 
 2.2 Bulk Download
