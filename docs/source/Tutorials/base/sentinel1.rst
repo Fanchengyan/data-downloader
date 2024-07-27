@@ -92,6 +92,6 @@ Create a Python file, copy the code below, and modify the ``folder_out`` and ``a
     # Download data
     downloader.download_datas(urls, folder_out)
 
-.. image:: https://i-blog.csdnimg.cn/blog_migrate/2b3d941fcf6c35c5b1d9c21dd9bef72e.png
+.. image:: /_static/images/sentinel2/download.png
     :width: 95%
     :align: center

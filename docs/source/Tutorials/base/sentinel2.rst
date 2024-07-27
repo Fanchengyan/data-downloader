@@ -18,7 +18,7 @@ Go to the Sentinel official website: <https://scihub.copernicus.eu/dhus/#/home>,
 
 Open the cart, do not select any acquisition, and click on the download icon in the bottom right corner. This will download a ``products.meta4`` file containing the download links.
 
-.. image:: https://i-blog.csdnimg.cn/blog_migrate/c447e3fdb66d63766a93456108ac0e99.png
+.. image:: /_static/images/sentinel2/cart.png
     :width: 500px
     :align: center
 
@@ -77,6 +77,6 @@ Create a Python file, copy the code below, and modify the ``folder_out`` and ``u
     # Download data
     downloader.download_datas(urls, folder_out)
 
-.. image:: https://i-blog.csdnimg.cn/blog_migrate/2b3d941fcf6c35c5b1d9c21dd9bef72e.png
+.. image:: /_static/images/sentinel2/download.png
     :width: 95%
     :align: center
