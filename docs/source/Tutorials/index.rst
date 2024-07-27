@@ -1,15 +1,18 @@
-#################
-Service Tutorials
-#################
+########
+Examples
+########
 
-We designed a series of classes to interact with various online services, to make it easier for users to access and download data.
-These tutorials provide a comprehensive guide on how to utilize various online services.
+Here, we provide a series of example scripts to demonstrate how to use the ``DataDownloader`` package to download files from the internet.
+
+There are two main sections in this tutorial:
+
+1. Basic Examples: demonstrate how to download files from the internet using basic functions.
+2. Service Examples: demonstrate how to interact with various well-known online services, such as ``HyP3``, ``LiCSAR``, and Sentinel-1 orbit data with corresponding classes.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Examples
 
-   hyp3_InSAR_job
-   licsar
-   s1orbit
+   base/index
+   service/index
 

@@ -64,7 +64,7 @@ DataDownloader has several features to make retrieving files easy, including:
     :caption: Contents of Documentation
 
     install
-    quick_start
+    user_guide/index
     Tutorials/index
     API Reference <api/index>
     changelog
