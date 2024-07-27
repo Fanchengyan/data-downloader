@@ -1,5 +1,6 @@
 import datetime as dt
 from pathlib import Path
+from typing import Literal
 
 import pandas as pd
 
@@ -51,7 +52,10 @@ class SentinelOrbit:
         self.home_aux_cal = home_aux_cal
         self.home_preorb = home_preorb
 
-    def cal_urls(self, platform="all"):
+    def cal_urls(
+        self,
+        platform: Literal["S1A", "S1B", "all"] = "all",
+    ):
         """filter files from urls of aux_cal by platform.
 
         Parameters
@@ -77,7 +81,7 @@ class SentinelOrbit:
         self,
         date_start: str,
         date_end: str,
-        platform: str = "all",
+        platform: Literal["S1A", "S1B", "all"] = "all",
     ):
         """filter files from urls of aux_poeorb (precise orbit) by date and platform.
 
