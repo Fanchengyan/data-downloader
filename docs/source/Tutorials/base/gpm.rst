@@ -7,15 +7,15 @@ GPM Data Download Tutorial
 
 You can find and download data on GES DISC: https://disc.gsfc.nasa.gov/datasets?keywords=GPM&page=1
 
-Many datasets are now available on the GPM official website. To quickly locate data, we can use ``Spatial Resolution`` filtering.
+Many datasets are now available on the GPM official website. To quickly locate data, we can use filtering options such as ``Measurement``, ``Project``, ``Spatial Resolution``, etc.
 
-.. image:: https://i-blog.csdnimg.cn/blog_migrate/5970333a310f536702c6cd1a1d034986.png
+.. image:: /_static/images/gpm/filter.png
     :width: 90%
     :align: center
 
 Select the dataset with the desired temporal and spatial resolution, then click ``Subset/Get Data``.
 
-.. image:: https://i-blog.csdnimg.cn/blog_migrate/c2899587d357f01581f91be754288f13.png
+.. image:: /_static/images/gpm/subset.png
     :width: 90%
     :align: center
 
@@ -24,19 +24,16 @@ Choose the desired time range, spatial range (West, South, East, North), variabl
 .. note::
     
     - The first method can only download data in the global range.
-    - The second/third methods can download data in a specific region.
+    - The second methods can download data in a specific region.
 
-.. image:: https://i-blog.csdnimg.cn/blog_migrate/8257e3e8b3d5c46272c8a97feaa3d0e2.png
+.. image:: /_static/images/gpm/meth_option.png
     :width: 90%
     :align: center
 
-.. image:: https://i-blog.csdnimg.cn/blog_migrate/6538b20430fa928805f5bf702fe689b9.png
-    :width: 90%
-    :align: center
 
 In the pop-up interface, click ``Download links list`` to download the file containing image URLs.
 
-.. image:: https://i-blog.csdnimg.cn/blog_migrate/bb4871c133cef39f66f6f9c31dc0c705.png
+.. image:: /_static/images/gpm/link_list.png
     :width: 90%
     :align: center
 
@@ -46,10 +43,8 @@ In the pop-up interface, click ``Download links list`` to download the file cont
 2.1. Authorization
 ^^^^^^^^^^^^^^^^^^
 
-Downloading GPM data requires a NASA account. If you don't have one, please register on the NASA official website first.
-
-.. note::
-    **GPM uses NASA accounts that require authorization.** Please follow the official tutorial for authorization: https://disc.gsfc.nasa.gov/earthdata-login
+Downloading GPM data requires a NASA account. If you don't have one, please register at the https://urs.earthdata.nasa.gov/users/new. 
+**GPM uses NASA accounts that require authorization.** Please follow the official tutorial for authorization: https://disc.gsfc.nasa.gov/earthdata-login
 
 
 .. tip::
