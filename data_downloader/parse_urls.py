@@ -11,8 +11,10 @@ from bs4 import BeautifulSoup
 from data_downloader.downloader import get_netrc_auth, get_url_host
 
 
-def from_urls_file(url_file: str) -> list:
+def from_file(url_file: str | Path) -> list:
     """parse urls from a file which only contains urls
+
+    .. versionadded:: 1.2
 
     Parameters:
     -----------
@@ -28,7 +30,27 @@ def from_urls_file(url_file: str) -> list:
     return urls
 
 
-def from_sentinel_meta4(url_file: str) -> list:
+def from_urls_file(url_file: str | Path) -> list:
+    """parse urls from a file which only contains urls
+
+    .. warning::
+        This function will be deprecated in the future. Please use :func:`from_file` instead.
+
+    .. seealso:: :func:`from_file`
+
+    Parameters:
+    -----------
+    url_file: str
+        path to file which only contains urls
+
+    Return:
+    -------
+    a list contains urls
+    """
+    return from_file(url_file)
+
+
+def from_sentinel_meta4(url_file: str | Path) -> list:
     """parse urls from sentinel `products.meta4` file downloaded from
     https://scihub.copernicus.eu/dhus
 
