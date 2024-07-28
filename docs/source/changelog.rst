@@ -2,6 +2,14 @@
 Change Log
 ==========
 
+
+Version 1.2 (2024-07-28)
+------------------------
+
+- Refine the documentation
+- API change: from_urls_file -> from_file
+
+
 Version 1.1 (2024-04-14)
 ------------------------
 

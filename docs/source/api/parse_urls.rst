@@ -12,11 +12,13 @@ parse_urls
 Functions
 ---------
 
-.. autofunction:: data_downloader.parse_urls.from_urls_file
+.. autofunction:: data_downloader.parse_urls.from_file
 
 .. autofunction:: data_downloader.parse_urls.from_html
 
 .. autofunction:: data_downloader.parse_urls.from_sentinel_meta4
 
 .. autofunction:: data_downloader.parse_urls.from_EarthExplorer_order
+
+.. autofunction:: data_downloader.parse_urls.from_urls_file
 

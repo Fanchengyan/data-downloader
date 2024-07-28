@@ -14,4 +14,4 @@ This is a quick start guide to get you started with ``DataDownloader``. You will
 
    netrc
    download
-   parse_url
+   parse_urls

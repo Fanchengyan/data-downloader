@@ -1,3 +1,5 @@
+.. _gpm_example:
+
 ==========================
 GPM Data Download Tutorial
 ==========================
@@ -5,7 +7,7 @@ GPM Data Download Tutorial
 1. Finding Data
 ---------------
 
-You can find and download data on GES DISC: https://disc.gsfc.nasa.gov/datasets?keywords=GPM&page=1
+You can find and download GPM data on GES DISC: https://disc.gsfc.nasa.gov/datasets?keywords=GPM&page=1
 
 Many datasets are now available on the GPM official website. To quickly locate data, we can use filtering options such as ``Measurement``, ``Project``, ``Spatial Resolution``, etc.
 
@@ -92,5 +94,5 @@ Create a Python file, copy the code below, change the ``folder_out`` and ``url_f
     # Path of the file containing URLs
     url_file = "/media/fancy/gpm/subset_GPM_3IMERGM_06_20200513_134318.txt"
 
-    urls = parse_urls.from_urls_file(url_file)
+    urls = parse_urls.from_file(url_file)
     downloader.download_datas(urls, folder_out)

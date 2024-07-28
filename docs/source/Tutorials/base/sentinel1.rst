@@ -75,10 +75,8 @@ Create a Python file, copy the code below, and modify the ``folder_out`` and ``a
 
 .. code-block:: python
 
-    import pandas as pd
     import geopandas as gpd
-    import faninsar as fis
-    from data_downloader import services
+    from data_downloader import downloader
 
     # Specify the folder to save the data
     folder_out = "/Volumes/Data/sentinel1"
@@ -92,6 +90,41 @@ Create a Python file, copy the code below, and modify the ``folder_out`` and ``a
     # Download data
     downloader.download_datas(urls, folder_out)
 
-.. image:: /_static/images/sentinel2/download.png
-    :width: 95%
-    :align: center
+.. image:: /_static/images/sentinel1/download.png
+    :width: 100%
+
+2.3 Retry Download
+------------------
+
+If your download is frequently interrupted, you can use the following code to automatically retry the download:
+
+
+.. code-block:: python
+
+    from pathlib import Path
+    import geopandas as gpd
+    from data_downloader import downloader
+
+    # Specify the folder to save the data
+    folder_out = Path("/Volumes/Data/sentinel1")
+    # Load the ASF metadata 
+    asf_file = "/Volumes/Data/asf-datapool-results-2024-03-29_11-24-18.geojson"
+
+    # get the sentinel-1 urls from the ASF metadata
+    df_asf = gpd.read_file(asf_file)
+    urls = df_asf.url
+
+    # Download data
+    while True:
+        try:
+            downloader.download_datas(urls, folder_out)
+
+            # check if the download is completed
+            files_local = list(folder_out.glob("*.zip"))
+            if len(files_local) >= len(urls):
+                print("Download completed.")
+                break
+        except Exception as e:
+            print(e)
+            print("Retry download...")
+            continue
