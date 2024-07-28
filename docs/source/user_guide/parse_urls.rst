@@ -23,7 +23,7 @@ This function parses URLs from a given file, which only contains URLs.
 
 .. tip::
 
-   this function is only useful when the file only contains URLs (one column). 
+   This function is only useful when the file only contains URLs (one column). 
    If the file contains multiple columns, you are suggested to use ``pandas`` 
    to read the file.
 
@@ -61,3 +61,11 @@ Example:
 
    Found 357 urls, 2903 urls in total
 
+.. currentmodule:: data_downloader.services
+
+
+.. tip::
+
+   This function is used to parse URLs for the :class:`LiCSARService` and 
+   :class:`SentinelOrbit` services. For more details, you can refer to the 
+   source code of these services.
