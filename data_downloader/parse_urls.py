@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import Optional, Union
 from urllib.parse import urljoin
@@ -47,6 +48,10 @@ def from_urls_file(url_file: str | Path) -> list:
     -------
     a list contains urls
     """
+    warnings.warn(
+        "from_urls_file will be deprecated in the future. Please use from_file instead.",
+        DeprecationWarning,
+    )
     return from_file(url_file)
 
 
