@@ -227,9 +227,11 @@ def _handle_status(r, url, local_size, file_name, file_path):
         tqdm.write(f">>> Waring: the website has redirected to {url_new}")
         return False, url_new
     elif r.status_code == 401:
+        netrc_file = Path("~/.netrc").expanduser()
         tqdm.write(
-            ">>> Authorization failed! Please check your username and password in Netrc "
-            "Or authorizing by browser and set the parameter `authorize_from_browser` to `True`"
+            f">>> Authorization failed! Please check your username and password in {netrc_file}. "
+            "More details about .netrc file: https://data-downloader.readthedocs.io/en/latest/user_guide/netrc.html"
+            "\n Or authorizing by browser and set the parameter `authorize_from_browser` to `True`"
         )
         return False, ""
     elif r.status_code == 403:
