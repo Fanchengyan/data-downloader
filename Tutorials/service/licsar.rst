@@ -1,5 +1,3 @@
-.. _example_licsar:
-
 ======================================
 LiCSAR Interferogram Download Tutorial
 ======================================

@@ -1,5 +1,3 @@
-.. _example_s1orbit:
-
 =======================================
 Sentinel-1 Orbit Data Download Tutorial
 =======================================

@@ -13,6 +13,27 @@ release = "v1.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
+from pathlib import Path
+
+from myst_sphinx_gallery import (
+    GalleryConfig,
+    GridItemCard,
+    generate_gallery,
+)
+
+myst_gallery_grid_item = GridItemCard()
+myst_gallery_grid_item.add_option("class-item", "myst-gallery-grid-item")
+
+generate_gallery(
+    GalleryConfig(
+        examples_dirs="../../Tutorials",
+        gallery_dirs="./Tutorials",
+        root_dir=Path(__file__).parent,
+        notebook_thumbnail_strategy="code",
+        thumbnail_strategy="first",
+        grid_item_card=myst_gallery_grid_item,
+    )
+)
 
 extensions = [
     "sphinx.ext.autodoc",
@@ -41,9 +62,10 @@ exclude_patterns = []
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_static_path = ["_static"]
-
+html_css_files = ["css/custom.css", "css/gallery.css"]
 html_theme = "pydata_sphinx_theme"
 html_logo = "_static/logo/logo.png"
+html_favicon = "_static/logo/icon_square.svg"
 html_theme_options = {
     "show_toc_level": 3,
     "show_nav_level": 2,

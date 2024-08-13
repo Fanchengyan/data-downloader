@@ -1,5 +1,3 @@
-.. _example_sentinel2:
-
 =================================
 Sentinel-2 Data Download Tutorial
 =================================

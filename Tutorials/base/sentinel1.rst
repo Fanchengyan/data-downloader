@@ -1,5 +1,3 @@
-.. _example_sentinel1:
-
 ============================
 Download Sentinel-1 from ASF 
 ============================
