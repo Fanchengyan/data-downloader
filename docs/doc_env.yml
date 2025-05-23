@@ -1,0 +1,26 @@
+name: docDataDownloader
+channels:
+  - conda-forge
+
+dependencies:
+
+  - python =3.12
+
+  # --------------for building the docs
+  - recommonmark
+  - sphinx>=7
+  - myst-nb
+  - sphinx-copybutton
+  - sphinx-design
+  - pydata_sphinx_theme
+  - Jinja2
+  - pandas
+  - hyp3_sdk
+  - myst_sphinx_gallery
+
+
+  # install minimal dependencies to import DataDownloader
+  - pip
+  - pip:
+    - ../.
+    - ipywidgets  # for widgets docs
