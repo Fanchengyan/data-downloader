@@ -4,6 +4,8 @@
 Sentinel-1 Orbit Data Download Tutorial
 =======================================
 
+This tutorial demonstrates how to download Sentinel-1 orbit data from the ASF DAAC.
+
 :class:`~data_downloader.services.SentinelOrbit` is a class used to download Sentinel-1 orbit data from the ASF DAAC. It provides two methods to get the download links of the auxiliary calibration data and precise orbit data, respectively:
 
 - :meth:`~data_downloader.services.SentinelOrbit.cal_urls` for retrieval of the auxiliary calibration data links.

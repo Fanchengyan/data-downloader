@@ -1,10 +1,8 @@
-.. _example_gpm:
-
-.. _gpm_example:
-
 ==========================
 GPM Data Download Tutorial
 ==========================
+
+This tutorial demonstrates how to download GPM data from the GES DISC website.
 
 1. Finding Data
 ---------------
