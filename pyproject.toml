@@ -27,7 +27,8 @@ dependencies = [
     "python-dateutil",
     "browser-cookie3",
     "hyp3_sdk",
-    "pandas"
+    "pandas",
+    "colorlog"
 ]
 
 [project.urls]
