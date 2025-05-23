@@ -4,6 +4,8 @@
 LiCSAR Interferogram Download Tutorial
 ======================================
 
+This tutorial demonstrates how to download LiCSAR interferograms from the LiCSAR online service.
+
 :class:`LiCSARService <data_downloader.services.LiCSARService>` provides a simple interface to the LiCSAR online service for the retrieval of Sentinel-1 interferograms. The service is provided by Centre for the Observation and Modelling of Earthquakes, Volcanoes and Tectonics (COMET) and is available at: https://comet.nerc.ac.uk/COMET-LiCS-portal/
 
 Following is a simple example of how to use the service to retrieve interferograms for a given frame "106D_05248_131313".

@@ -1,6 +1,9 @@
 from __future__ import annotations
+
 import asyncio
 import datetime as dt
+import json
+import logging
 import multiprocessing as mp
 import os
 import selectors
@@ -11,13 +14,52 @@ from typing import Optional, Union
 from urllib.parse import urlparse
 
 import browser_cookie3 as bc
+import colorlog
 import httpx
-import nest_asyncio
 import requests
 from dateutil.parser import parse
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
-nest_asyncio.apply()
+
+class _TqdmLoggingHandler(logging.StreamHandler):
+    """A logging handler that works with tqdm"""
+
+    def __init__(self, tqdm_class=tqdm):
+        super().__init__()
+        self.tqdm_class = tqdm_class
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            self.tqdm_class.write(msg, file=self.stream)
+            self.flush()
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:  # noqa pylint: disable=bare-except
+            self.handleError(record)
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+tqdm_handler = _TqdmLoggingHandler()
+# tqdm_handler = logging.StreamHandler()
+tqdm_handler.setLevel(logging.INFO)
+tqdm_handler.setFormatter(
+    colorlog.ColoredFormatter(
+        "%(log_color)s%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+        datefmt="%Y-%d-%d %H:%M:%S",
+        log_colors={
+            "DEBUG": "cyan",
+            "INFO": "white",
+            "SUCCESS:": "green",
+            "WARNING": "yellow",
+            "ERROR": "red",
+            "CRITICAL": "red,bg_white",
+        },
+    )
+)
+logger.addHandler(tqdm_handler)
 
 
 def get_url_host(url):
@@ -72,7 +114,7 @@ class Netrc(netrc):
         Will do nothing if host exists in .netrc file unless set overwrite=True
         """
         if host in self.hosts and not overwrite:
-            tqdm.write(
+            logger.warning(
                 f">>> Warning: {host} existed, nothing will be done."
                 + " If you want to overwrite the existed record, set overwrite=True"
             )
@@ -129,7 +171,16 @@ def _new_file_from_web(r, file_path):
             os.path.getmtime(file_path), dt.timezone.utc
         )
         return time_remote > time_local
-    except:
+    except Exception as e:
+        msg = json.dumps(
+            {
+                "message": "Error for _new_file_from_web",
+                "url": file_path,
+                "error": str(e),
+            },
+            indent=4,
+        )
+        logger.debug(msg)
         return False
 
 
@@ -138,13 +189,19 @@ def _get_cookiejar(authorize_from_browser):
     if authorize_from_browser:
         try:
             cj = bc.load()
-        except:
-            raise EnvironmentError(
-                "Could not load cookie from browser. "
-                "Please login in website via browser before run this code"
-                "\n  So far the following browsers are supported: "
-                "Chrome,Firefox, Opera, Edge, Chromium"
+        except Exception as e:
+            msg = json.dumps(
+                {
+                    "message": "Error for _get_cookiejar",
+                    "error": str(e),
+                    "info": "Could not load cookie from browser. "
+                    "Please login in website via browser before run this code"
+                    "\n  So far the following browsers are supported: "
+                    "Chrome,Firefox, Opera, Edge, Chromium",
+                },
+                indent=4,
             )
+            logger.error(msg)
     return cj
 
 
@@ -162,9 +219,9 @@ def _handle_status(r, url, local_size, file_name, file_path):
 
         # init process bar
         if _new_file_from_web(r, file_path):
-            tqdm.write(
-                f"There is a new file from {url}"
-                f"{file_name} is ready to be downloaded again"
+            logger.info(
+                f"There is a new file from {url}. "
+                f"{Path(file_name).name} is ready to be downloaded again"
             )
             os.remove(file_path)
         elif local_size < remote_size:
@@ -177,7 +234,9 @@ def _handle_status(r, url, local_size, file_name, file_path):
                 desc=Path(file_name).name,
             )
         else:
-            tqdm.write(f"{file_name} was downloaded entirely. skiping download")
+            logger.info(
+                f"{Path(file_name).name} was downloaded entirely. skiping download"
+            )
             return True, ""
     elif r.status_code == 200:
         # know the total size, then delete the file that wasn't downloaded entirely and redownload it.
@@ -185,63 +244,67 @@ def _handle_status(r, url, local_size, file_name, file_path):
             remote_size = int(r.headers["Content-length"])
 
             if _new_file_from_web(r, file_path):
-                tqdm.write(
-                    f"There is a new file from {url}"
-                    f"{file_name} is ready to be downloaded again"
+                logger.info(
+                    f"There is a new file from {url}. "
+                    f"{Path(file_name).name} is ready to be downloaded again"
                 )
                 os.remove(file_path)
             elif 0 < local_size < remote_size:
-                tqdm.write(f"  Detect {file_name} wasn't downloaded entirely")
-                tqdm.write(
+                logger.info(
+                    f"  Detect {Path(file_name).name} wasn't downloaded entirely"
+                )
+                logger.info(
                     "  The website not supports resuming breakpoint."
                     " Prepare to remove the local file and redownload..."
                 )
                 os.remove(file_path)
             elif local_size > remote_size:
-                tqdm.write(
-                    "Detected the local file is larger than the server file. "
+                logger.info(
+                    f"Detected the local file ({Path(file_name).name}) is larger than the server file. "
                     " Prepare to remove local the file and redownload..."
                 )
                 os.remove(file_path)
             elif local_size == remote_size:
-                tqdm.write(f"{file_name} was downloaded entirely. skiping download")
+                logger.info(
+                    f"{Path(file_name).name} was downloaded entirely. skiping download"
+                )
                 return True, ""
         # don't know the total size, warning user if detect the file was downloaded.
         else:
             if os.path.exists(file_path):
-                tqdm.write(
-                    f">>> Warning: Detect the {file_name} was downloaded,"
+                logger.warning(
+                    f">>> Warning: Detect the {Path(file_name).name} was downloaded,"
                     " but can't parse the it's size from website\n"
                     f"    If you know it wasn't downloaded entirely, delete "
                     "it and redownload it again. skiping download..."
                 )
                 return True, ""
     elif r.status_code == 202:
-        tqdm.write(
+        logger.info(
             ">>> The server has accepted your request but has not yet processed it. "
             "Please redownload it later"
         )
         return False, ""
     elif r.status_code in [301, 302]:
         url_new = r.headers["Location"]
-        tqdm.write(f">>> Waring: the website has redirected to {url_new}")
+        logger.warning(f">>> Waring: the website has redirected to {url_new}")
         return False, url_new
     elif r.status_code == 401:
         netrc_file = Path("~/.netrc").expanduser()
-        tqdm.write(
+        logger.error(
             f">>> Authorization failed! Please check your username and password in {netrc_file}. "
             "More details about .netrc file: https://data-downloader.readthedocs.io/en/latest/user_guide/netrc.html"
             "\n Or authorizing by browser and set the parameter `authorize_from_browser` to `True`"
         )
         return False, ""
     elif r.status_code == 403:
-        tqdm.write(
+        logger.error(
             ">>> Forbidden! Access to the requested resource was denied by the server"
         )
         return False, ""
     else:
-        tqdm.write(
-            f'  Download file from "{url}" failed,'
+        logger.error(
+            f'  Download file from "{url}" failed, '
             f" The service returns the HTTP Status Code: {r.status_code}"
         )
         return False, ""
@@ -283,6 +346,20 @@ def _download_data_httpx(
     # init parameters
     global support_resume, pbar, remote_size
 
+    msg = json.dumps(
+        {
+            "message": "Key parameters for _download_data_httpx",
+            "url": url,
+            "folder": folder,
+            "file_name": file_name,
+            "follow_redirects": follow_redirects,
+            "retry": retry,
+            "authorize_from_browser": authorize_from_browser,
+        },
+        indent=4,
+    )
+    logger.debug(msg)
+
     support_resume = False
     headers = {"Range": "bytes=0-4"}
     if not client:
@@ -310,7 +387,7 @@ def _download_data_httpx(
         status, url_new = result
         if status:  # downloaded entirely
             return True
-        elif status == False:
+        elif not status:
             if url_new:  # 301,302
                 return _download_data_httpx(
                     url_new,
@@ -354,21 +431,20 @@ def _download_data_httpx(
                     time_span = time_end_realtime - time_start_realtime
                     if time_span > 1:
                         speed_realtime = size_add / time_span
-                        tqdm.write(
+                        logger.info(
                             "  Downloading {} [Speed: {} | Size: {}]".format(
-                                file_name,
+                                Path(file_name).name,
                                 _unit_formater(speed_realtime, "B/s"),
                                 _unit_formater(local_size, "B"),
-                            ),
-                            end="\r",
+                            )
                         )
                         time_start_realtime = time_end_realtime
             if not support_resume:
                 time_cost = time.time() - time_start
                 speed = local_size / time_cost if time_cost > 0 else 0
-                tqdm.write(
+                logger.info(
                     "  Finish downloading {} [Speed: {} | Total Size: {}]".format(
-                        file_name,
+                        Path(file_name).name,
                         _unit_formater(speed, "B/s"),
                         _unit_formater(local_size, "B"),
                     )
@@ -412,6 +488,17 @@ def _download_data_requests(
     # init parameters
     global support_resume, pbar, remote_size
 
+    msg = json.dumps(
+        {
+            "message": "Key parameters for _download_data_requests",
+            "url": url,
+            "folder": folder,
+            "file_name": file_name,
+        },
+        indent=4,
+    )
+    logger.debug(msg)
+
     support_resume = False
     headers = {"Range": "bytes=0-4"}
     if not client:
@@ -439,7 +526,7 @@ def _download_data_requests(
         status, url_new = result
         if status:  # downloaded entirely
             return True
-        elif status == False:
+        elif not status:
             if url_new:  # 301,302
                 return _download_data_requests(
                     url_new,
@@ -483,21 +570,20 @@ def _download_data_requests(
                 time_span = time_end_realtime - time_start_realtime
                 if time_span > 1:
                     speed_realtime = size_add / time_span
-                    tqdm.write(
+                    logger.info(
                         "  Downloading {} [Speed: {} | Size: {}]".format(
-                            file_name,
+                            Path(file_name).name,
                             _unit_formater(speed_realtime, "B/s"),
                             _unit_formater(local_size, "B"),
-                        ),
-                        end="\r",
+                        )
                     )
                     time_start_realtime = time_end_realtime
         if not support_resume:
             time_cost = time.time() - time_start
             speed = local_size / time_cost if time_cost > 0 else 0
-            tqdm.write(
+            logger.info(
                 "  Finish downloading {} [Speed: {} | Total Size: {}]".format(
-                    file_name,
+                    Path(file_name).name,
                     _unit_formater(speed, "B/s"),
                     _unit_formater(local_size, "B"),
                 )
@@ -565,7 +651,16 @@ def download_data(
             authorize_from_browser,
         )
     else:
-        raise ValueError('engine must be one of ["requests","httpx"]')
+        msg = json.dumps(
+            {
+                "message": "Invalid engine",
+                "engine used": engine,
+                "available engines": ["requests", "httpx"],
+            },
+            indent=4,
+        )
+        logger.error(msg)
+        raise ValueError(msg)
 
 
 def download_datas(
@@ -603,9 +698,9 @@ def download_datas(
     ---------
 
     >>> from data_downloader import downloader
-    
+
     specify the urls and folder
-    
+
     >>> urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_20141211.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150221/20141024_20150221.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.cc.tif',
@@ -614,9 +709,9 @@ def download_datas(
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif']
     >>> folder = 'D:\\data'
-    
+
     download data from urls and store them in folder
-    
+
     >>> downloader.download_datas(urls,folder)
     """
     if engine == "requests":
@@ -625,6 +720,19 @@ def download_datas(
         client = httpx.Client(timeout=None)
     else:
         raise ValueError('engine must be one of ["requests","httpx"]')
+
+    msg = json.dumps(
+        {
+            "message": "Key parameters for download_datas",
+            "urls": urls,
+            "folder": folder,
+            "file_names": file_names,
+            "engine": engine,
+            "authorize_from_browser": authorize_from_browser,
+        },
+        indent=4,
+    )
+    logger.info(msg)
 
     desc = ">>> Total | " + desc.title()
     for i, url in enumerate(tqdm(urls, unit="files", dynamic_ncols=True, desc=desc)):
@@ -694,7 +802,7 @@ def mp_download_datas(
     >>> from data_downloader import downloader
 
     specify the urls and folder
-    
+
     >>> urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_20141211.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150221/20141024_20150221.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.cc.tif',
@@ -703,16 +811,32 @@ def mp_download_datas(
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif']
     >>> folder = 'D:\\data'
-    
+
     download data from urls and store them in folder
-    
+
     >>> downloader.mp_download_datas(urls,folder)
     """
-    if ncore == None:
+    msg = json.dumps(
+        {
+            "message": "Key parameters for mp_download_datas",
+            "urls": urls,
+            "folder": folder,
+            "file_names": file_names,
+            "ncore": ncore,
+            "follow_redirects": follow_redirects,
+            "retry": retry,
+            "engine": engine,
+            "authorize_from_browser": authorize_from_browser,
+        },
+        indent=4,
+    )
+    logger.info(msg)
+
+    if ncore is None:
         ncore = os.cpu_count()
     else:
         ncore = int(ncore)
-    tqdm.write(f">>> {ncore} parallel downloading")
+    logger.info(f">>> {ncore} parallel downloading")
 
     desc = ">>> Total | " + desc.title()
     pbar = tqdm(total=len(urls), desc=desc, dynamic_ncols=True)
@@ -747,8 +871,9 @@ def mp_download_datas(
                 for i in range(len(urls))
             ]
 
-        for i in pool.imap_unordered(_mp_download_data, args):
+        for _ in pool.imap_unordered(_mp_download_data, args):
             pbar.update()
+    pbar.close()
 
 
 async def _download_data(
@@ -766,6 +891,18 @@ async def _download_data(
     support_resume = False
 
     cj = _get_cookiejar(authorize_from_browser)
+
+    msg = json.dumps(
+        {
+            "message": "Key parameters for _download_data (async)",
+            "url": url,
+            "folder": folder,
+            "file_name": file_name,
+        },
+        indent=4,
+    )
+    logger.debug(msg)
+
     # auth = get_netrc_auth(url)
 
     r = await client.get(
@@ -790,7 +927,7 @@ async def _download_data(
         status, url_new = result
         if status:  # downloaded entirely
             return True
-        elif status == False:
+        elif not status:
             if url_new:  # 301,302
                 return await _download_data(
                     client,
@@ -836,20 +973,19 @@ async def _download_data(
                     time_span = time_end_realtime - time_start_realtime
                     if time_span > 1:
                         speed_realtime = size_add / time_span
-                        tqdm.write(
+                        logger.info(
                             "Downloading {} [Speed: {} | Size: {}]".format(
-                                file_name,
+                                Path(file_name).name,
                                 _unit_formater(speed_realtime, "B/s"),
                                 _unit_formater(local_size, "B"),
-                            ),
-                            end="\r",
+                            )
                         )
                         time_start_realtime = time_end_realtime
             if not support_resume:
                 speed = local_size / (time.time() - time_start)
-                tqdm.write(
+                logger.info(
                     "Finish downloading {} [Speed: {} | Total Size: {}]".format(
-                        file_name,
+                        Path(file_name).name,
                         _unit_formater(speed, "B/s"),
                         _unit_formater(local_size, "B"),
                     )
@@ -904,8 +1040,10 @@ async def creat_tasks(
         tasks_iter = asyncio.as_completed(tasks)
         desc = ">>> Total | " + desc.title()
         pbar = tqdm(tasks_iter, total=len(urls), desc=desc, dynamic_ncols=True)
+
         for coroutine in pbar:
             await coroutine
+    pbar.close()
 
 
 def async_download_datas(
@@ -948,9 +1086,9 @@ def async_download_datas(
     ---------
 
     >>> from data_downloader import downloader
-    
+
     specify the urls and folder
-    
+
     >>> urls=['http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20141211/20141117_20141211.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150221/20141024_20150221.geo.unw.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141024_20150128/20141024_20150128.geo.cc.tif',
@@ -959,11 +1097,26 @@ def async_download_datas(
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif']
     >>> folder = 'D:\\data'
-    
+
     download data from urls and store them in folder
-    
+
     >>> downloader.async_download_datas(urls,folder,None,desc='interferograms')
     """
+    msg = json.dumps(
+        {
+            "message": "Key parameters for async_download_datas",
+            "urls": urls,
+            "folder": folder,
+            "file_names": file_names,
+            "limit": limit,
+            "desc": desc,
+            "follow_redirects": follow_redirects,
+            "retry": retry,
+            "authorize_from_browser": authorize_from_browser,
+        },
+        indent=4,
+    )
+    logger.info(msg)
     # solve the loop close  Error for python 3.8.x in windows platform
     selector = selectors.SelectSelector()
     loop = asyncio.SelectorEventLoop(selector)
@@ -993,7 +1146,16 @@ async def _is_response_staus_ok(client, url, authorize_from_browser, timeout):
             return True
         else:
             return False
-    except:
+    except Exception as e:
+        msg = json.dumps(
+            {
+                "message": "Error for _is_response_staus_ok",
+                "url": url,
+                "error": str(e),
+            },
+            indent=4,
+        )
+        logger.debug(msg)
         return False
 
 
@@ -1047,7 +1209,7 @@ def status_ok(urls, limit=200, authorize_from_browser=False, timeout=60):
 
     status_ok = downloader.status_ok(urls)
     urls_accessible = urls[status_ok]
-    tqdm.write(urls_accessible)
+    print(urls_accessible)
     ```
     """
     # solve the loop close  Error for python 3.8.x in windows platform

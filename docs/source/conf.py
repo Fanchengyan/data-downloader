@@ -15,25 +15,7 @@ release = "v1.0"
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 from pathlib import Path
 
-from myst_sphinx_gallery import (
-    GalleryConfig,
-    GridItemCard,
-    generate_gallery,
-)
 
-myst_gallery_grid_item = GridItemCard()
-myst_gallery_grid_item.add_option("class-item", "myst-gallery-grid-item")
-
-generate_gallery(
-    GalleryConfig(
-        examples_dirs="../../Tutorials",
-        gallery_dirs="./Tutorials",
-        root_dir=Path(__file__).parent,
-        notebook_thumbnail_strategy="code",
-        thumbnail_strategy="first",
-        grid_item_card=myst_gallery_grid_item,
-    )
-)
 
 extensions = [
     "sphinx.ext.autodoc",
@@ -44,11 +26,14 @@ extensions = [
     "myst_nb",
     "sphinx_copybutton",
     "sphinx_design",
+    "myst_sphinx_gallery",
 ]
 source_suffix = {
     ".rst": "restructuredtext",
-    ".md": "markdown",
+    ".md": "myst-nb",
+    ".myst": "myst-nb",
 }
+
 myst_enable_extensions = ["colon_fence"]
 myst_url_schemes = ["http", "https", "mailto"]
 suppress_warnings = ["mystnb.unknown_mime_type"]
