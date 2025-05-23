@@ -12,15 +12,15 @@ dependencies:
   - myst-nb
   - sphinx-copybutton
   - sphinx-design
-  - pydata_sphinx_theme
   - Jinja2
   - pandas
   - hyp3_sdk
-  - myst_sphinx_gallery
 
 
   # install minimal dependencies to import DataDownloader
   - pip
   - pip:
     - ../.
-    - ipywidgets  # for widgets docs
+    - ipywidgets  # for widgets docs  
+    - pydata_sphinx_theme
+    - myst_sphinx_gallery
