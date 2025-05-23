@@ -30,6 +30,7 @@ dependencies = [
     "colorlog"
 ]
 
+
 [project.optional-dependencies]
 dev = [
     "httpx >= 0.4.0",
