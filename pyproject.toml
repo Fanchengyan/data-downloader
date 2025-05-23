@@ -10,7 +10,7 @@ readme = "README.md"
 authors = [
     { name="fanchegyan", email="fanchy14@lzu.edu.cn" }
 ]
-license = { file = "LICENSE" }
+license-files = ["LICENSE"]
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
