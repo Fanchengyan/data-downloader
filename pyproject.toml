@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -10,11 +10,10 @@ readme = "README.md"
 authors = [
     { name="fanchegyan", email="fanchy14@lzu.edu.cn" }
 ]
-license = { file = "LICENSE" }
+license-files = ["LICENSE"]
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent"
 ]
 dependencies = [
@@ -31,5 +30,33 @@ dependencies = [
     "colorlog"
 ]
 
+
+[project.optional-dependencies]
+dev = [
+    "httpx >= 0.4.0",
+    "requests",
+    "tqdm",
+    "setuptools",
+    "beautifulsoup4",
+    "nest_asyncio",
+    "python-dateutil",
+    "browser-cookie3",
+    "hyp3_sdk",
+    "pandas",
+    "colorlog",
+    "recommonmark",
+    "sphinx>=7",
+    "myst-nb",
+    "sphinx-copybutton",
+    "sphinx-design",
+    "pydata_sphinx_theme",
+    "Jinja2",
+    "hyp3_sdk",
+    "myst_sphinx_gallery"
+]
+
 [project.urls]
-Homepage = "https://github.com/Fanchengyan/data_downloader" 
+Homepage = "https://github.com/Fanchengyan/data_downloader"
+
+[tool.setuptools]
+packages = ["data_downloader"] 
