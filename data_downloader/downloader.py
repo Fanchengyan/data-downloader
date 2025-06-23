@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import json
-import logging
 import multiprocessing as mp
 import os
 import selectors
@@ -14,52 +13,14 @@ from typing import Optional, Union
 from urllib.parse import urlparse
 
 import browser_cookie3 as bc
-import colorlog
 import httpx
 import requests
 from dateutil.parser import parse
 from tqdm import tqdm
 
+from .logging import setup_logger, tqdm_handler
 
-class _TqdmLoggingHandler(logging.StreamHandler):
-    """A logging handler that works with tqdm"""
-
-    def __init__(self, tqdm_class=tqdm):
-        super().__init__()
-        self.tqdm_class = tqdm_class
-
-    def emit(self, record):
-        try:
-            msg = self.format(record)
-            self.tqdm_class.write(msg, file=self.stream)
-            self.flush()
-        except (KeyboardInterrupt, SystemExit):
-            raise
-        except:  # noqa pylint: disable=bare-except
-            self.handleError(record)
-
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
-tqdm_handler = _TqdmLoggingHandler()
-# tqdm_handler = logging.StreamHandler()
-tqdm_handler.setLevel(logging.INFO)
-tqdm_handler.setFormatter(
-    colorlog.ColoredFormatter(
-        "%(log_color)s%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-        datefmt="%Y-%d-%d %H:%M:%S",
-        log_colors={
-            "DEBUG": "cyan",
-            "INFO": "white",
-            "SUCCESS:": "green",
-            "WARNING": "yellow",
-            "ERROR": "red",
-            "CRITICAL": "red,bg_white",
-        },
-    )
-)
-logger.addHandler(tqdm_handler)
+logger = setup_logger(__name__, handler=tqdm_handler)
 
 
 def get_url_host(url):

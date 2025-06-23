@@ -27,6 +27,7 @@ dependencies = [
     "browser-cookie3",
     "hyp3_sdk",
     "pandas",
+    "geopandas",
     "colorlog"
 ]
 
@@ -43,6 +44,7 @@ dev = [
     "browser-cookie3",
     "hyp3_sdk",
     "pandas",
+    "geopandas",
     "colorlog",
     "recommonmark",
     "sphinx>=7",
