@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import asf_search as asf
-from pandas._typing import ArrayLike
 from shapely.geometry import Point
 
 from data_downloader.logging import setup_logger
@@ -11,6 +10,9 @@ from data_downloader.logging import setup_logger
 from ..utils.baselines import Baselines
 from ..utils.pairs import Pairs
 from .asf_base import ASFScenesABC
+
+if TYPE_CHECKING:
+    import numpy as np
 
 logger = setup_logger(__name__)
 
@@ -49,51 +51,39 @@ class ARIAScenesSTD(ASFScenesABC):
     def __scene_repr__(self) -> str:
         return "ARIAScenesSTD"
 
-class ARIATileABC(ASFScenesABC):
-    """Abstract Base Class for ARIA scenes within a tile.
 
-    Scenes are searched based on the centroid point of the tile (spatial intersection).
-    Therefore, the flight direction should be specified to determine the direction
-    of the scenes.
-    """
+class ARIATileABC(ASFScenesABC):
+    """Abstract Base Class for ARIA scenes within a tile."""
 
     @property
     def pairs(self) -> Pairs:
-        """faninsar.Pairs corresponding to ASF scenes."""
+        """Pairs corresponding to ASF interferogram scenes."""
+
         if len(self.gdf) == 0:
             logger.warning("No scenes found for this frame.")
-            return Pairs([])
-        try:
-            from faninsar import Pairs
-        except ImportError:
-            msg = "faninsar is not installed. Please install it to use ARIAFrame.pairs."
-            logger.error(msg, stacklevel=2)
-            raise ImportError(msg)
-        return Pairs.from_names(self.gdf.fileID.apply(lambda x: x.split("-")[6]))
+            names = []
+        else:
+            names = self.gdf.fileID.apply(lambda x: x.split("-")[6]).tolist()
+        return Pairs.from_names(names)
 
     @property
-    def perpendicular_baselines(self) -> ArrayLike:
+    def perpendicular_baselines(self) -> np.ndarray:
         """Perpendicular baselines corresponding to ASF scenes."""
-        return self.gdf.perpendicularBaseline.values
+        return self.gdf.perpendicularBaseline.to_numpy()
 
     @property
     def baselines(self) -> Baselines:
-        """faninsar.Baselines corresponding to ASF scenes."""
-        try:
-            from faninsar import Baselines
-        except ImportError:
-            msg = "faninsar is not installed. Please install it to use ARIAFrame.baselines."
-            logger.error(msg, stacklevel=2)
-            raise ImportError(msg)
+        """Baselines corresponding to ASF interferogram scenes."""
+
         return Baselines.from_pair_wise(self.pairs, self.perpendicular_baselines)
 
 
-class ARIASpatialTile(ARIATileABC):
+class ARIATileCentroidPoint(ARIATileABC):
     """Class for ARIAS scenes within a spatial tile.
 
-    Scenes are searched based on the centroid point of the tile (spatial intersection).
-    Therefore, the flight direction should be specified to determine the direction
-    of the scenes.
+    Scenes are searched based on the centroid point of the tile (spatial
+    intersection). The flight direction should be specified to determine
+    the direction of scenes.
     """
 
     def __init__(
@@ -138,7 +128,7 @@ class ARIASpatialTile(ARIATileABC):
         )
 
     def __scene_repr__(self) -> str:
-        return f"ARIASpatialTile_{self.flightDirection}_{self.centroid})"
+        return f"ARIATileCentroidPoint_{self.flightDirection}_{self.centroid})"
 
     @property
     def centroid(self) -> str:

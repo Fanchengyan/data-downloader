@@ -57,9 +57,9 @@ class Baselines:
         return len(self.values)
 
     @property
-    def dataframe(self) -> pd.DataFrame:
-        """Return the DataFrame of the baselines."""
-        return pd.DataFrame({"dates": self.dates, "values": self.values})
+    def series(self) -> pd.Series:
+        """Return the Series of the baselines."""
+        return pd.Series(self.values, index=self.dates)
 
     @property
     def values(self) -> np.ndarray:
@@ -88,19 +88,12 @@ class Baselines:
             The Baselines object.
 
         """
-        try:
-            from faninsar.NSBAS import LinearModel, NSBASInversion, NSBASMatrixFactory
-        except ImportError:
-            msg = (
-                "faninsar is not installed. Please install it to use "
-                "Baselines.from_pair_wise."
-            )
-            logger.error(msg, stacklevel=2)
-            raise ImportError(msg)
+        from .inversion import NSBASInversion, NSBASMatrixFactory
+        from .tsmodels import LinearModel
 
         model_bs = LinearModel(pairs.dates)
         mf = NSBASMatrixFactory(values[:, None], pairs, model_bs)
-        incs, *_ = NSBASInversion(mf, verbose=False, device="cpu").inverse()
+        incs, *_ = NSBASInversion(mf, verbose=False).inverse()
 
         cum = np.cumsum(incs, axis=0)
         cum = np.insert(cum, 0, 0, axis=0)
@@ -120,10 +113,7 @@ class Baselines:
             The values of the baselines.
 
         """
-        baselines = (
-            self.dataframe[pairs.secondary].values
-            - self.dataframe[pairs.primary].values
-        )
+        baselines = self.series[pairs.secondary] - self.series[pairs.primary]
         bs = pd.Series(baselines, index=pairs.to_names())
         bs.index.name = "pairs"
         bs.name = "baseline"
@@ -198,11 +188,11 @@ class Baselines:
         if ax is None:
             ax = plt.gca()
 
-        _pairs_kwargs = {"c": "tab:blue", "alpha": 0.5, "ls": "-"}
-        _pairs_removed_kwargs = {"c": "r", "alpha": 0.3, "ls": "--"}
+        pairs_kwargs = {"c": "tab:blue", "alpha": 0.5, "ls": "-"}
+        pairs_removed_kwargs = {"c": "r", "alpha": 0.3, "ls": "--"}
 
-        _pairs_kwargs.update(pairs_kwargs)
-        _pairs_removed_kwargs.update(pairs_removed_kwargs)
+        pairs_kwargs.update(pairs_kwargs)
+        pairs_removed_kwargs.update(pairs_removed_kwargs)
 
         pairs_valid = pairs
         if pairs_removed is not None:
@@ -216,8 +206,8 @@ class Baselines:
             start, end = pair.primary, pair.secondary
             line_valid = ax.plot(
                 [start, end],
-                [self.dataframe[start], self.dataframe[end]],
-                **_pairs_kwargs,
+                [self.series[start], self.series[end]],
+                **pairs_kwargs,
             )[0]
         # plot removed pairs
         if pairs_removed is not None:
@@ -225,13 +215,13 @@ class Baselines:
                 start, end = pair.primary, pair.secondary
                 line_removed = ax.plot(
                     [start, end],
-                    [self.dataframe[start], self.dataframe[end]],
-                    **_pairs_removed_kwargs,
+                    [self.series[start], self.series[end]],
+                    **pairs_removed_kwargs,
                 )[0]
         # plot acquisitions
-        _pairs_kwargs = {"c": "tab:blue", "marker": "o", "ls": "", "alpha": 0.5}
-        _pairs_kwargs.update(acq_kwargs)
-        acq = ax.plot(self.dates, self.values, **_pairs_kwargs)[0]
+        pairs_kwargs = {"c": "tab:blue", "marker": "o", "ls": "", "alpha": 0.5}
+        pairs_kwargs.update(acq_kwargs)
+        acq = ax.plot(self.dates, self.values, **pairs_kwargs)[0]
 
         # plot gaps
         if plot_gaps:
@@ -240,12 +230,12 @@ class Baselines:
             gaps = gaps - pd.Timedelta(offset, "D")
 
             dates_valid = np.setdiff1d(pairs.dates, gaps)
-            vals = self.dataframe[dates_valid]
+            vals = self.series[dates_valid]
             margin = vals.std() / 3
             ymin, ymax = vals.min() - margin, vals.max() + margin
-            _gaps_kwargs = {"color": "k", "ls": "--", "alpha": 0.5}
-            _gaps_kwargs.update(gaps_kwargs)
-            line_gaps = ax.vlines(gaps, ymin=ymin, ymax=ymax, **_gaps_kwargs)
+            gaps_kwargs_ = {"color": "k", "ls": "--", "alpha": 0.5}
+            gaps_kwargs_.update(gaps_kwargs)
+            line_gaps = ax.vlines(gaps, ymin=ymin, ymax=ymax, **gaps_kwargs_)
 
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)

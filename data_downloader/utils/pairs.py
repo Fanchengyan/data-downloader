@@ -1,21 +1,28 @@
-"""This module provides the Pair and Pairs classes to handle pairs of InSAR data.
-``Pair`` and ``Pairs`` class are modified from the FanInSAR package.
+"""Pair and Pairs classes to handle pairs of InSAR data.
+
+This module is a modified copy of the faninsar.Pairs module.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, overload
+from typing import TYPE_CHECKING, Callable, Literal, overload
 
 import numpy as np
 import pandas as pd
-from numpy.typing import NDArray
+import xarray as xr
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from numpy.typing import NDArray
+
+    from .baselines import Baselines
 
 from ..logging import setup_logger
 
 if TYPE_CHECKING:
-    from numpy.typing import DTypeLike, NDArray
+    from numpy.typing import ArrayLike, DTypeLike, NDArray
 
 logger = setup_logger(__name__)
 
@@ -31,7 +38,7 @@ class Pair:
 
     def __init__(
         self,
-        pair: Sequence[datetime, datetime],
+        pair: ArrayLike,
     ) -> None:
         """Initialize the Pair class.
 
@@ -267,17 +274,32 @@ class Pairs:
         This function is used to make sure the primary date is earlier than the
         secondary date.
         """
+        # Handle empty array case
+        if values.size == 0:
+            return values.reshape(0, 2)
+
         if values.ndim == 1:
             values = values.reshape(-1, 2)
-        idx = values[:, 0] > values[:, 1]
-        values[idx] = values[idx, ::-1]
+
+        # Handle case where we have pairs to process
+        if values.shape[0] > 0:
+            idx = values[:, 0] > values[:, 1]
+            values[idx] = values[idx, ::-1]
+
         return values
 
     def _parse_pair_meta(self) -> None:
-        self._dates = np.unique(self._values.flatten())
-        self._length = self._values.shape[0]
-        self._edge_index = np.searchsorted(self._dates, self._values)
-        self._names = self.to_names()
+        # Handle empty pairs case
+        if self._values.size == 0:
+            self._dates = np.array([], dtype="datetime64[D]")
+            self._length = 0
+            self._edge_index = np.array([], dtype=np.int64).reshape(0, 2)
+            self._names = np.array([], dtype=np.str_)
+        else:
+            self._dates = np.unique(self._values.flatten())
+            self._length = self._values.shape[0]
+            self._edge_index = np.searchsorted(self._dates, self._values)
+            self._names = self.to_names()
 
     def __len__(self) -> int:
         """Return the number of pairs."""
@@ -290,10 +312,6 @@ class Pairs:
     def __repr__(self) -> str:
         """Return the representation of the pairs."""
         return self._to_frame().__repr__()
-
-    def _repr_html_(self) -> str:
-        """Return the HTML representation of the pairs."""
-        return formatting_html.pairs_repr(self)
 
     def __eq__(self, other: Pairs) -> bool:
         """Compare the pairs with another pairs."""
@@ -316,9 +334,9 @@ class Pairs:
     @overload
     def __getitem__(self, index: slice) -> Pairs | None: ...
 
-    def __getitem__(  # noqa: PLR0911, PLR0912
+    def __getitem__(  # noqa: PLR0911
         self,
-        index: int | slice | datetime | str | PairLike | Iterable,
+        index: int | slice | datetime | str | Pairs | Iterable,
     ) -> Pair | Pairs | None:
         """Return the pair or pairs by index or slice."""
         if isinstance(index, slice):
@@ -344,9 +362,17 @@ class Pairs:
                 if isinstance(stop, str):
                     stop = DateManager.ensure_datetime(stop)
                 if start is None:
-                    start = self._dates[0]
+                    start = (
+                        self._dates[0]
+                        if len(self._dates) > 0
+                        else np.datetime64("1970-01-01")
+                    )
                 if stop is None:
-                    stop = self._dates[-1]
+                    stop = (
+                        self._dates[-1]
+                        if len(self._dates) > 0
+                        else np.datetime64("1970-01-01")
+                    )
 
                 start, stop = (np.datetime64(start, "s"), np.datetime64(stop, "s"))
 
@@ -458,70 +484,31 @@ class Pairs:
         return self._names
 
     @property
-    def dates(self) -> Acquisition:
+    def dates(self) -> pd.DatetimeIndex:
         """The sorted dates array of all pairs in type of np.datetime64[D]."""
-        return Acquisition(pd.to_datetime(self._dates))
+        return pd.to_datetime(self._dates)
 
     @property
-    def days(self) -> DaySpan:
+    def days(self) -> pd.Index:
         """The time span of all pairs in days."""
+        if len(self._values) == 0:
+            return pd.Index(np.array([], dtype=np.int32))
         days = (self._values[:, 1] - self._values[:, 0]).astype(int)
-        return DaySpan(days, dtype=np.int32)
+        return pd.Index(days, dtype=np.int32)
 
     @property
-    def primary(self) -> Acquisition:
+    def primary(self) -> pd.Index:
         """The primary dates of all pairs."""
         if len(self._values) == 0:
-            return Acquisition([])
-        return Acquisition(pd.to_datetime(self._values[:, 0]))
+            return pd.DatetimeIndex([])
+        return pd.to_datetime(self._values[:, 0])
 
     @property
-    def secondary(self) -> Acquisition:
+    def secondary(self) -> pd.Index:
         """The secondary dates of all pairs."""
         if len(self._values) == 0:
-            return Acquisition([])
-        return Acquisition(pd.to_datetime(self._values[:, 1]))
-
-    @property
-    def xindexes(self) -> Indexes:
-        """The xarray indexes of the pairs."""
-        indexes = {
-            "primary": self.primary,
-            "secondary": self.secondary,
-            "days": self.days,
-            "dates": self.dates,
-        }
-        variables = {
-            "primary": self.primary.to_xarray(),
-            "secondary": self.secondary.to_xarray(),
-            "days": self.days.to_xarray(),
-            "dates": self.dates.to_xarray(),
-        }
-        return Indexes(indexes=indexes, variables=variables, index_type=pd.Index)
-
-    def primary_string(self, date_format: str = "%Y%m%d") -> pd.Index:
-        """Return the primary dates of all pairs in string format.
-
-        Parameters
-        ----------
-        date_format: str
-            Format of the date string. Default is '%Y%m%d'. See more at
-            `strftime Format Codes <https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes>`_.
-
-        """
-        return self.primary.strftime(date_format)
-
-    def secondary_string(self, date_format: str = "%Y%m%d") -> pd.Index:
-        """Return the secondary dates of all pairs in string format.
-
-        Parameters
-        ----------
-        date_format: str
-            Format of the date string. Default is '%Y%m%d'. See more at
-            `strftime Format Codes <https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes>`_.
-
-        """
-        return self.secondary.strftime(date_format)
+            return pd.DatetimeIndex([])
+        return pd.to_datetime(self._values[:, 1])
 
     @property
     def edge_index(self) -> NDArray[np.int64]:
@@ -572,9 +559,6 @@ class Pairs:
         if date_args is None:
             date_args = {}
         pairs = []
-        # No names in list
-        if len(names) == 0:
-            return cls(pairs)
         # Parse the names
         for name in names:
             pair = Pair.from_name(name, parse_function, date_args)
@@ -609,7 +593,7 @@ class Pairs:
             con = np.where(con)[0]
         return con
 
-    def intersect(self, pairs: PairLike) -> Pairs | None:
+    def intersect(self, pairs: Pairs) -> Pairs | None:
         """Return the intersection of the pairs.
 
         The pairs both in self and input pairs.
@@ -637,7 +621,7 @@ class Pairs:
         pairs = self._ensure_pairs(pairs)
         return self + pairs
 
-    def difference(self, pairs: PairsLike) -> Pairs | None:
+    def difference(self, pairs: Pairs) -> Pairs | None:
         """Return the difference of the pairs.
 
         The pairs in self but not in pairs. Same as subtraction.
@@ -657,7 +641,7 @@ class Pairs:
 
     def sort(
         self,
-        order: PairsOrder = "pairs",
+        order: Literal["pairs", "primary", "secondary", "days"] | list[str] = "pairs",
         ascending: bool = True,
         inplace: bool = True,
     ) -> tuple[Pairs, NDArray[np.int64]] | None:
@@ -687,14 +671,14 @@ class Pairs:
         if len(self) == 0:
             if inplace:
                 return None
-            return self
+            return self, np.arange(len(self))
 
         # for valid pairs
         item_map = {
             "pairs": self._values,
             "primary": self._values[:, 0],
             "secondary": self._values[:, 1],
-            "days": self.days.data,
+            "days": self.days.to_numpy(),
         }
         if isinstance(order, str):
             order = [order]
@@ -732,6 +716,9 @@ class Pairs:
             Pairs names string with format of '%Y%m%d_%Y%m%d'.
 
         """
+        if len(self._values) == 0:
+            return np.array([], dtype=np.str_)
+
         names = (
             pd.DatetimeIndex(self.primary).strftime("%Y%m%d")
             + "_"
@@ -746,7 +733,7 @@ class Pairs:
         """Return the pairs as a numpy array."""
         return np.asarray(self._values, dtype=dtype)
 
-    def to_frame(self) -> pd.DataFrame:
+    def to_dataframe(self) -> pd.DataFrame:
         """Return the pairs as a DataFrame."""
         frame = pd.DataFrame()
         frame["primary"] = self.primary
@@ -754,99 +741,9 @@ class Pairs:
         frame["days"] = self.days
         return frame
 
-    def to_xarray(self) -> pd.DataFrame:
+    def to_xarray(self) -> xr.Variable:
         """Return the pairs as a xarray DataArray."""
         return xr.Variable(dims=["pairs", "primary-secondary"], data=self._values)
-
-    def to_triplet_loops(self) -> TripletLoops:
-        """Return all possible triplet loops from the pairs."""
-        from faninsar import TripletLoops
-
-        loops = []
-        for i, pair12 in enumerate(self._values):
-            for pair23 in self._values[i + 1 :]:
-                if pair12[1] == pair23[0] and Pair([pair12[0], pair23[1]]) in self:
-                    loops.append([pair12[0], pair12[1], pair23[1]])  # noqa: PERF401
-        return TripletLoops(loops)
-
-    def to_loops(
-        self,
-        max_acquisition: int = 5,
-        max_days: int | None = None,
-        edge_pairs: Pairs | None = None,
-        edge_days: int | None = None,
-    ) -> Loops:
-        r"""Return all possible loops from the pairs.
-
-        .. important::
-            The pairs in the loops may be fewer than the input pairs. You can use
-            the :meth:`Pairs.where` method to get the index/mask of the pairs
-            in the loops from the input pairs.
-
-            **Example**:
-
-            >>> loops = pairs.to_loops()
-            >>> mask = pairs.where(loops.pairs, return_type="mask")
-
-        Parameters
-        ----------
-        max_acquisition: int
-            The maximum number of acquisitions in the loops. It should be at least 3.
-
-            .. note::
-                The number of acquisitions is equal to the number of intervals + 1
-                :math:`n (acquisition) = n (edge\ pairs) + 1 (diagonal\ pair) =
-                n (intervals) + 1`.
-        max_days: int, optional
-            The maximum number of days for the pairs in the loops. If None, all
-            available pairs will be used. Default is None.
-        edge_pairs: Pairs, optional
-            The edge pairs to form loops. If None, ``edge_days`` must be provided.
-        edge_days: int, optional
-            The maximum number of days used to identify the edge pairs. If None,
-            ``edge_pairs`` must be provided. Default is None.
-
-            .. note::
-                This parameter will be ignored if ``edge_pairs`` is provided.
-
-        """
-        # a list containing all loops
-        loops = []
-        if edge_pairs is None:
-            if edge_days is None:
-                msg = "Either edge_days or edge_pairs should be provided."
-                raise ValueError(msg)
-            edge_pairs = self[self.days <= edge_days]
-        # find valid diagonal pairs
-        for i in self - edge_pairs:
-            if max_days is not None and i.days > max_days:
-                continue
-            if not valid_diagonal_pair(i, self, edge_pairs):
-                continue
-            start_date, end_date = i.values[0], i.values[1]
-
-            # find valid primary pairs
-            mask_primaries = (self.primary == start_date) & (self.secondary < end_date)
-            if not mask_primaries.any():
-                continue
-            pairs_primary = self[mask_primaries]
-
-            # initialize a loop with the primary acquisition
-            loop = [start_date]
-
-            # find all loops for all primary acquisitions
-            find_loops(
-                self,
-                loops,
-                loop,
-                pairs_primary,
-                end_date,
-                edge_pairs,
-                max_acquisition,
-            )
-        from faninsar import Loops
-
-        return Loops(loops)
 
     def to_matrix(self, dtype: DTypeLike = None) -> NDArray[np.number]:
         """Return the SBAS matrix.
@@ -860,14 +757,19 @@ class Pairs:
             Data type of the matrix. Default is None.
 
         """
-        matrix = np.zeros((len(self), len(self.dates) - 1), dtype=dtype)
-        col_idxs = self.edge_index.copy()
-        for row_idx, col_idx in enumerate(col_idxs):
-            matrix[row_idx, col_idx[0] : col_idx[1]] = 1
+        n_dates = len(self.dates)
+        if n_dates == 0:
+            return np.zeros((0, 0), dtype=dtype)
+
+        matrix = np.zeros((len(self), n_dates - 1), dtype=dtype)
+        if len(self) > 0:
+            col_idxs = self.edge_index.copy()
+            for row_idx, col_idx in enumerate(col_idxs):
+                matrix[row_idx, col_idx[0] : col_idx[1]] = 1
 
         return matrix
 
-    def parse_gaps(self, pairs_removed: Pairs | None = None) -> pd.DatetimeIndex:
+    def parse_gaps(self, pairs_removed: Pairs | None = None) -> np.ndarray:
         """Parse network gaps where the acquisitions are not connected by pairs.
 
         The gaps are detected by the dates that are not present in the secondary
@@ -890,11 +792,309 @@ class Pairs:
             Acquisition/date gaps that are not covered by any pairs.
 
         """
+        if len(self.dates) <= 1:
+            return np.array([], dtype="datetime64[D]")
+
         dates = self.dates[1:]
         pairs_valid = self - pairs_removed if pairs_removed is not None else self
 
+        if len(pairs_valid) == 0:
+            return dates.to_numpy(dtype="datetime64[D]")
+
         dates_secondary = np.unique(pairs_valid.secondary)
         return np.setdiff1d(dates, dates_secondary)
+
+    def plot(
+        self,
+        baseline: Baselines | None = None,
+        ax: Axes | None = None,
+        **kwargs,
+    ) -> Axes:
+        """Plot the pairs."""
+        if baseline is None:
+            from .baselines import Baselines
+
+            vals = np.random.randn(len(self)) * 1000
+            baseline = Baselines.from_pair_wise(self, vals)
+        return baseline.plot(self, ax=ax, **kwargs)
+
+
+class PairsFactory:
+    """A class used to generate interferometric pairs for InSAR processing."""
+
+    def __init__(self, dates: Sequence, **kwargs) -> None:
+        """Initialize the PairGenerator class.
+
+        Parameters
+        ----------
+        dates: Sequence
+            Sequence object that contains the dates. Can be any object that
+            accepted by :func:`pd.to_datetime`
+        kwargs: dict, optional
+            Keyword arguments passed to :func:`pd.to_datetime`
+
+        """
+        self.dates = pd.to_datetime(dates, **kwargs).unique().sort_values()
+
+    def from_interval(self, max_interval: int = 2, max_day: int = 180) -> Pairs:
+        """Generate interferometric pairs by SAR acquisition interval.
+
+        SAR acquisition interval is defined as the number of SAR acquisitions
+        between two SAR acquisitions.
+
+        .. admonition:: Example
+
+            If the SAR acquisition interval is 2, then the interferometric pairs
+            will be generated between SAR acquisitions with interval of 1 and 2.
+            This will be useful to generate interferometric pairs with different
+            temporal baselines.
+
+        Parameters
+        ----------
+        max_interval: int
+            max interval between two SAR acquisitions for interferometric pair.
+            interval is defined as the number of SAR acquisitions between two SAR
+            acquisitions.
+        max_day:int
+            max day between two SAR acquisitions for interferometric pair
+
+        Returns
+        -------
+        pairs: Pairs object
+
+        """
+        num = len(self.dates)
+        _pairs = []
+        for i, date in enumerate(self.dates):
+            n_interval = 1
+            while n_interval <= max_interval:
+                if i + n_interval < num:
+                    if (self.dates[i + n_interval] - date).days < max_day:
+                        pair = (date, self.dates[i + n_interval])
+                        _pairs.append(pair)
+                        n_interval += 1
+                    else:
+                        break
+                else:
+                    break
+
+        return Pairs(_pairs)
+
+    def linking_winter(
+        self,
+        winter_start: str = "0101",
+        winter_end: str = "0331",
+        n_per_winter: int = 5,
+        max_winter_interval: int = 1,
+    ) -> Pairs:
+        """Generate interferometric pairs linking winter in each year.
+
+        winter is defined by month and day for each year. For instance,
+        winter_start='0101', winter_end='0331' means the winter is from Jan 1 to
+        Mar 31 for each year in the time series. This will be useful to add pairs
+        for completely frozen period across years in permafrost region.
+
+        Parameters
+        ----------
+        winter_start, winter_end:  str
+            start and end date for the winter which expressed as month and day
+            with format '%m%d'
+        n_per_winter: int
+            how many dates will be used for each winter. Those dates will be
+            selected randomly in each winter. Default is 5
+        max_winter_interval: int
+            max interval between winters for interferometric pair. If
+            max_winter_interval=1, hen the interferometric pairs will be generated
+            between neighboring winters.
+
+        Returns
+        -------
+        pairs: Pairs object
+
+        """
+        years = sorted(set(self.dates.year))
+        df_dates = pd.Series(self.dates, index=self.dates)
+
+        # check if period_start and period_end are in the same year. If not,
+        # the period_end should be in the next year
+        same_year = int(winter_start) < int(winter_end)
+
+        # randomly select n_per_period dates in each period/year
+        date_years = []
+        for year in years:
+            start = pd.to_datetime(f"{year}{winter_start}", format="%Y%m%d")
+            if same_year:
+                end = pd.to_datetime(f"{year}{winter_end}", format="%Y%m%d")
+            else:
+                end = pd.to_datetime(f"{year + 1}{winter_end}", format="%Y%m%d")
+
+            dt_year = df_dates[start:end]
+            if len(dt_year) > 0:
+                np.random.default_rng().shuffle(dt_year)
+                date_years.append(dt_year[:n_per_winter].to_list())
+
+        n_years = len(date_years)
+
+        _pairs = []
+        for i, date_year in enumerate(date_years):
+            # primary/reference dates
+            for date_primary in date_year:
+                # secondary dates
+                for j in range(1, max_winter_interval + 1):
+                    if i + j < n_years:
+                        for date_secondary in date_years[i + j]:
+                            _pairs.append((date_primary, date_secondary))  # noqa: PERF401
+        return Pairs(_pairs)
+
+    def from_period(
+        self,
+        period_start: str = "0101",
+        period_end: str = "0331",
+        n_per_period: int | None = None,
+        n_primary_period: str | None = None,
+        primary_years: list[int] | None = None,
+    ) -> Pairs:
+        """Generate interferometric pairs between periods for all years.
+
+        period is defined by month and day for each year. For example,
+        period_start='0101', period_end='0331' means the period is from Dec 1
+        to Mar 31 for each year in the time series. This function will randomly
+        select n_per_period dates in each period and generate interferometric
+        pairs between those dates. This will be useful to mitigate the temporal
+        cumulative bias.
+
+        Parameters
+        ----------
+        period_start, period_end:  str
+            start and end date for the period which expressed as month and day
+            with format '%m%d'
+        n_per_period: int | None
+            how many dates will be used for each period. Those dates will be
+            selected randomly in each period. If None, all dates in the period
+            will be used. Default is None.
+        n_primary_period: int, optional
+            how many periods/years used as primary date of ifg. For example, if
+            n_primary_period=2, then the interferometric pairs will be generated
+            between the first two periods and the rest periods. If None, all
+            periods will be used. Default is None.
+        primary_years: list, optional
+            years used as primary date of ifg. If None, all years in the time
+            series will be used. Default is None.
+
+        Returns
+        -------
+        pairs: Pairs object
+
+        """
+        years = sorted(set(self.dates.year))
+        df_dates = pd.Series(self.dates, index=self.dates)
+
+        # check if period_start and period_end are in the same year. If not,
+        # the period_end should be in the next year
+        same_year = int(period_start) < int(period_end)
+
+        # randomly select n_per_period dates in each period/year
+        date_years = []
+        for year in years:
+            start = pd.to_datetime(f"{year}{period_start}", format="%Y%m%d")
+            if same_year:
+                end = pd.to_datetime(f"{year}{period_end}", format="%Y%m%d")
+            else:
+                end = pd.to_datetime(f"{year + 1}{period_end}", format="%Y%m%d")
+
+            dt_year = df_dates[start:end]
+            if (n_year := len(dt_year)) > 0:
+                n = n_year if n_per_period is None else n_per_period
+                np.random.default_rng().shuffle(dt_year)
+                date_years.append(dt_year[:n].to_list())
+
+        # generate interferometric pairs between primary period and the rest periods
+        _pairs = []
+        for i, date_year in enumerate(date_years):
+            # only generate pairs for n_primary_period
+            if n_primary_period is not None and i + 1 > n_primary_period:
+                break
+            if primary_years is not None and years[i] not in primary_years:
+                continue
+            for date_primary in date_year:
+                # all rest periods
+                for date_year1 in date_years[i + 1 :]:
+                    for date_secondary in date_year1:
+                        pair = (date_primary, date_secondary)
+                        _pairs.append(pair)
+
+        return Pairs(_pairs)
+
+    def from_summer_winter(
+        self,
+        summer_start: str = "0801",
+        summer_end: str = "1001",
+        winter_start: str = "1201",
+        winter_end: str = "0331",
+    ) -> Pairs:
+        """Generate interferometric pairs between summer and winter in each year.
+
+        summer and winter are defined by month and day for each year. For example,
+        summer_start='0801', summer_end='1001' means the summer is from Aug 1to
+        Oct 1 for each year in the time series. This will be useful to add pairs
+        for whole thawing and freezing process.
+
+        Parameters
+        ----------
+        summer_start, summer_end:  str
+            start and end date for the summer which expressed as month and day
+            with format '%m%d'
+        winter_start, winter_end:  str
+            start and end date for the winter which expressed as month and day
+            with format '%m%d'
+
+        Returns
+        -------
+        Pairs object
+
+        """
+        years = sorted(set(self.dates.year))
+        df_dates = pd.Series(self.dates.strftime("%Y%m%d"), index=self.dates)
+
+        _pairs = []
+        for year in years:
+            s_start = pd.to_datetime(f"{year}{summer_start}", format="%Y%m%d")
+            s_end = pd.to_datetime(f"{year}{summer_end}", format="%Y%m%d")
+
+            if int(winter_start) > int(summer_end):
+                w_start1 = pd.to_datetime(f"{year - 1}{winter_start}", format="%Y%m%d")
+                w_start2 = pd.to_datetime(f"{year}{winter_start}", format="%Y%m%d")
+                if int(winter_end) > int(summer_end):
+                    w_end1 = pd.to_datetime(f"{year - 1}{winter_end}", format="%Y%m%d")
+                    w_end2 = pd.to_datetime(f"{year}{winter_end}", format="%Y%m%d")
+                else:
+                    w_end1 = pd.to_datetime(f"{year}{winter_end}", format="%Y%m%d")
+                    w_end2 = pd.to_datetime(f"{year + 1}{winter_end}", format="%Y%m%d")
+            else:
+                w_start1 = pd.to_datetime(f"{year}{winter_start}", format="%Y%m%d")
+                w_start2 = pd.to_datetime(f"{year + 1}{winter_start}", format="%Y%m%d")
+
+                w_end1 = pd.to_datetime(f"{year}{winter_end}", format="%Y%m%d")
+                w_end2 = pd.to_datetime(f"{year + 1}{winter_end}", format="%Y%m%d")
+
+            dt_winter1 = df_dates[w_start1:w_end1].to_list()
+            dt_summer = df_dates[s_start:s_end].to_list()
+            dt_winter2 = df_dates[w_start2:w_end2].to_list()
+
+            # thawing process
+            if len(dt_winter1) > 0 and len(dt_summer) > 0:
+                for dt_w1 in dt_winter1:
+                    for dt_s in dt_summer:
+                        pair = (dt_w1, dt_s)
+                        _pairs.append(pair)
+            # freezing process
+            if len(dt_winter2) > 0 and len(dt_summer) > 0:
+                for dt_w2 in dt_winter2:
+                    for dt_s in dt_summer:
+                        pair = (dt_s, dt_w2)
+                        _pairs.append(pair)
+
+        return Pairs(_pairs)
 
 
 class DateManager:
@@ -951,10 +1151,10 @@ class DateManager:
     @staticmethod
     def str_to_dates(
         date_str: str,
-        length: Optional[int] = 2,
+        length: int = 2,
         parse_function: Optional[Callable] = None,
         date_args: dict = {},
-    ):
+    ) -> list[pd.Timestamp]:
         """convert date string to dates
 
         Parameters
@@ -974,7 +1174,7 @@ class DateManager:
             Default is {}.
         """
         if parse_function is not None:
-            dates = parse_function(date_str)
+            dates: list = parse_function(date_str)
         else:
             items = date_str.split("_")
             if len(items) >= length:
@@ -984,10 +1184,12 @@ class DateManager:
                     f"The number of dates in {date_str} is less than {length}."
                 )
 
-        date_args.update({"errors": "raise"})
-        try:
-            dates = [pd.to_datetime(i, **date_args) for i in dates_ls]
-        except:
-            raise ValueError(f"Dates in {date_str} not recognized.")
+            date_args.update({"errors": "raise"})
+            try:
+                dates = [pd.to_datetime(i, **date_args) for i in dates_ls]
+            except Exception as e:
+                msg = f"Dates in {date_str} not recognized.\n{e}"
+                logger.error(msg, stacklevel=2)
+                raise ValueError(msg)
 
-        return tuple(dates)
+        return list(dates)

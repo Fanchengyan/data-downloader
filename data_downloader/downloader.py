@@ -58,7 +58,7 @@ class Netrc(netrc):
         if not file.exists():
             open(self.file, "w").close()
 
-        netrc.__init__(self, file)
+        super().__init__(file)
 
     def _info_to_file(self):
         rep = self.__repr__()
