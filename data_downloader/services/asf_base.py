@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import geopandas as gpd
 import pandas as pd
 
 from data_downloader import downloader
 from data_downloader.logging import setup_logger
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from os import PathLike
@@ -54,13 +54,31 @@ class ASFScenesABC(ABC):
     def gdf(self) -> gpd.GeoDataFrame:
         """geopandas.GeoDataFrame representation of Scenes."""
         gdf = gpd.GeoDataFrame.from_features(self.geojson["features"])
-        gdf.set_crs(epsg=4326, inplace=True)
         return gdf
 
     @property
     def url(self) -> pd.Series:
         """List of URLs for downloading Scenes."""
-        return self.gdf["url"]
+        return self.gdf.loc[:, "url"]
+
+    def to_gdf(self, crs: int | str | None = None) -> gpd.GeoDataFrame:
+        """Convert the GeoJSON to a geopandas.GeoDataFrame.
+
+        Parameters
+        ----------
+        crs : int, str, or None, optional
+            The CRS to set for the GeoDataFrame. If None, the CRS will not be
+            set. Default is None.
+
+        Returns
+        -------
+        gpd.GeoDataFrame
+            The GeoDataFrame representation of the Scenes.
+        """
+        gdf = self.gdf
+        if crs is not None:
+            gdf.set_crs(crs=crs, inplace=True)
+        return gdf
 
     def save_boundaries(
         self,
