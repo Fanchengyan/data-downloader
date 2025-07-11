@@ -9,7 +9,7 @@ from dateutil.parser import parse as parse_date
 
 from data_downloader.logging import setup_logger
 
-from .constants import JOB_TYPE, STATUS_CODE
+from ...enums import JobStatus, JobType
 
 logger = setup_logger(__name__)
 
@@ -317,8 +317,8 @@ class Jobs:
     def sel(
         self,
         name: str | None = None,
-        job_type: str | None = None,
-        status_code: str | None = None,
+        job_type: JobType | None = None,
+        status_code: JobStatus | None = None,
         request_time: datetime | str | slice | None = None,
     ) -> "Jobs":
         """Select jobs based on job type and status code
@@ -327,20 +327,20 @@ class Jobs:
         ----------
         name : str | None
             Name of the job to filter by
-        job_type : JOB_TYPE | None
+        job_type : JobType | None
             Job type to filter by
-        status_code : STATUS_CODE | None
+        status_code : JobStatus | None
             Status code to filter by
         request_time : datetime | str | slice | None
             Request time to filter by. Can be a datetime object, a string, or a slice object. If a slice object is used, the start must be a string or a datetime object, and the stop can be None, a string, or a datetime object. If a string is used, it must be in the format that can be converted to a datetime object using pd.to_datetime. by default None
         """
-        if job_type is not None and not hasattr(JOB_TYPE, job_type):
+        if job_type is not None and not hasattr(JobType, job_type):
             raise ValueError(
-                f"Invalid job type: {job_type}. Valid job types are: {JOB_TYPE.variables()}"
+                f"Invalid job type: {job_type}. Valid job types are: {JobType.variables()}"
             )
-        if status_code is not None and not hasattr(STATUS_CODE, status_code):
+        if status_code is not None and not hasattr(JobStatus, status_code):
             raise ValueError(
-                f"Invalid status code: {status_code}. Valid status codes are: {STATUS_CODE.variables()}"
+                f"Invalid status code: {status_code}. Valid status codes are: {JobStatus.variables()}"
             )
 
         mask = np.ones(len(self.frame), dtype=bool)
@@ -375,19 +375,19 @@ class Jobs:
     @property
     def succeeded(self) -> "Jobs":
         """all succeeded jobs (not expired by default)"""
-        return self.sel(status_code=STATUS_CODE.SUCCEEDED)
+        return self.sel(status_code=JobStatus.SUCCEEDED)
 
     @property
     def failed(self) -> "Jobs":
         """all failed jobs (not expired by default)"""
-        return self.sel(status_code=STATUS_CODE.FAILED)
+        return self.sel(status_code=JobStatus.FAILED)
 
     @property
     def pending(self) -> "Jobs":
         """all pending jobs (not expired by default)"""
-        return self.sel(status_code=STATUS_CODE.PENDING)
+        return self.sel(status_code=JobStatus.PENDING)
 
     @property
     def running(self) -> "Jobs":
         """all running jobs (not expired by default)"""
-        return self.sel(status_code=STATUS_CODE.RUNNING)
+        return self.sel(status_code=JobStatus.RUNNING)

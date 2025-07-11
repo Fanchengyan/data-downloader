@@ -15,7 +15,7 @@ from data_downloader import downloader
 from data_downloader.logging import setup_logger
 from data_downloader.utils import Pairs
 
-from .constants import JOB_TYPE
+from ...enums import JobType
 
 if TYPE_CHECKING:
     from os import PathLike
@@ -128,14 +128,14 @@ class HyP3Service:
 class HyP3JobsDownloader:
     """Class to download HyP3 jobs"""
 
-    def __init__(self, service: HyP3Service, job_type: str) -> None:
+    def __init__(self, service: HyP3Service, job_type: JobType) -> None:
         """Initialize the HyP3JobsDownloader.
 
         Parameters
         ----------
         service : HyP3Service
             The HyP3 service
-        job_type : str
+        job_type : JobType
             The job type to download. e.g. INSAR_GAMMA, INSAR_ISCE_BURST
         """
         self.service = service
@@ -250,7 +250,7 @@ class HyP3JobsDownloader:
 class HyP3Jobs(HyP3JobsDownloader):
     """Abstract class to manage HyP3 jobs"""
 
-    _job_type: str
+    _job_type: JobType
     """The job type. e.g. INSAR_GAMMA, INSAR_ISCE_BURST"""
     date_idx: int
     """The index of the date in the granule name"""
@@ -282,7 +282,7 @@ class HyP3Jobs(HyP3JobsDownloader):
             Arguments to be passed to the job, by default {}.
 
             .. hint::
-                - You can still modify job parameters after initialization by 
+                - You can still modify job parameters after initialization by
                 resetting the ``job_parameters`` attribute.
                 - You can use the ``show_parameters`` method to view all available submission parameters.
         """
@@ -414,7 +414,7 @@ class HyP3JobsGAMMA(HyP3Jobs):
     ``INSAR_GAMMA`` jobs from HyP3.
     """
 
-    _job_type = JOB_TYPE.INSAR_GAMMA
+    _job_type = JobType.INSAR_GAMMA
     date_idx = 5
     _submit_func = sdk.HyP3.submit_insar_job
 
@@ -426,7 +426,7 @@ class HyP3JobsBurst(HyP3Jobs):
     ``INSAR_ISCE_BURST`` jobs from HyP3.
     """
 
-    _job_type = JOB_TYPE.INSAR_ISCE_BURST
+    _job_type = JobType.INSAR_ISCE_BURST
     date_idx = 3
     _submit_func = sdk.HyP3.submit_insar_isce_burst_job
 
