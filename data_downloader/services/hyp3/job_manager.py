@@ -12,10 +12,9 @@ import pandas as pd
 from tqdm import tqdm
 
 from data_downloader import downloader
+from data_downloader.enums.hyp3 import JobType
 from data_downloader.logging import setup_logger
 from data_downloader.utils import Pairs
-
-from ...enums import JobType
 
 if TYPE_CHECKING:
     from os import PathLike
@@ -188,9 +187,9 @@ class HyP3JobsDownloader:
         unzip: bool = True,
         remove_zip: bool = True,
         overwrite: bool = False,
-        wait_running=True,
+        wait_until_finished=True,
         wait_minutes=60,
-        retry=3,
+        retry=10,
     ) -> None:
         """Download jobs from HyP3.
 
@@ -201,11 +200,10 @@ class HyP3JobsDownloader:
         name : str, optional
             Name of submitted jobs to filter by, by default None
         request_time : datetime | str | slice, optional
-            Request time of submitted jobs to filter by. Can be a datetime object,
-            a string, or a slice object. If a slice object is used, the start
-            must be a string or a datetime object, and the stop can be None, a
-            string. If a string is used, it must be in the format that can be
-            converted to a datetime
+            Request time of submitted jobs to filter by. Can be a datetime, a string,
+            or a slice object. If a slice object is used, the start must be a string
+            or a datetime, and the stop can be None, a string. If a string is used,
+            it must be in the format that can be converted to a datetime.
         unzip : bool, optional
             Whether to unzip the files, by default True
         remove_zip : bool, optional
@@ -214,13 +212,24 @@ class HyP3JobsDownloader:
             Whether to overwrite the existing files when unzipping. If False, The
             interferogram folders that are already unzipped will not be downloaded
             again, by default False.
-        wait_running : bool, optional
-            Whether to wait for the jobs that are still running, by default True
+        wait_until_finished : bool, optional
+            Whether to wait for the jobs that are still running or pending to finish,
+            by default True.
+
+            .. note::
+
+                If the jobs are still running, the download will be retried for
+                ``retry`` times. The download will be retried every ``wait_minutes``
+                minutes. The download will be retried until the jobs are finished.
+
         wait_minutes : int, optional
-            Time to wait for the jobs to finish, by default 60 (1 hour)
+            Minutes to wait for the jobs still running or pending to finish, by
+            default 60 (1 hour)
         retry : int, optional
-            Number of times to retry the download, by default 3
+            Number of times to retry the download if the jobs are still running or
+            pending, by default 10
         """
+        wait_minutes = int(wait_minutes)
         count = 0
         while True:
             self._download_jobs(
@@ -228,22 +237,36 @@ class HyP3JobsDownloader:
             )
             count += 1
             if count >= retry:
+                msg = (
+                    "Downloading stopped with some jobs still running or pending"
+                    f" due to {count}th retries exceeded (retry={retry})."
+                )
+                logger.warning(msg)
                 break
             # check if there are still running jobs
             jobs = self.jobs_on_service.sel(name=name, request_time=request_time)
-            if len(jobs.running) == 0:
-                break
-            if not wait_running:
-                logger.warning(
-                    "Some jobs are still running. You may need to download them later."
+            if len(jobs.running) == 0 and len(jobs.pending) == 0:
+                msg = (
+                    "All jobs are downloaded without pending or running jobs. "
+                    "Downloading finished."
                 )
+                logger.info(msg)
                 break
-            wait_minutes = int(wait_minutes)
-            tqdm.write(
-                "Downloading jobs finished. But some jobs are still running."
-                f"\nA new download will be attempted in {wait_minutes} minutes."
-                "\nYou can stop the process by pressing Ctrl+C."
+            if not wait_until_finished:
+                msg = (
+                    "Downloading stopped with some jobs still running or pending"
+                    " due to 'wait_until_finished' is set to False."
+                    " You need to re-download them later if all jobs are required to"
+                    " be downloaded."
+                )
+                logger.warning(msg)
+                break
+            msg = (
+                f"A {count}th retry will be attempted in {wait_minutes} minutes"
+                f" due to there are still {len(jobs.running)} running and"
+                f" {len(jobs.pending)} pending jobs."
             )
+            logger.warning(msg)
             sleep(wait_minutes * 60)
 
 
