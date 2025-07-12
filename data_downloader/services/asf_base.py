@@ -122,11 +122,15 @@ class ASFScenesABC(ABC):
              List of URLs to download. If None, all URLs will be used.
         """
         folder = Path(folder)
-        urls = self.url.tolist() if urls is None else urls
-        if len(urls) == 0:
+        if urls is None:
+            urls = self.url.tolist()
+            msg = f"No URLs provided, using all URLs for {self.repr}"
+            logger.info(msg, stacklevel=2)
+        if not urls or len(urls) == 0:
             msg = f"No URLs found for {self.repr}, skipping."
             logger.warning(msg, stacklevel=2)
             return
+
         out_dir = folder / self.repr
         if not out_dir.exists():
             out_dir.mkdir(parents=True, exist_ok=True)
@@ -134,3 +138,5 @@ class ASFScenesABC(ABC):
 
         self.save_boundaries(folder=out_dir, filename=self.boundary_file)
         downloader.download_datas(urls, folder=out_dir)
+        msg = f"Successfully downloaded {self.repr} to {out_dir}"
+        logger.success(msg, stacklevel=2)

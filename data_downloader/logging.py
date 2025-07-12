@@ -103,7 +103,7 @@ def setup_logger(
     handler: logging.Handler | list[logging.Handler] = stream_handler,
     log_file: str | None = None,
     level: int = logging.DEBUG,
-) -> logging.Logger:
+) -> EnhancedLogger:
     """Set up logging for the data_downloader module.
 
     Examples
@@ -154,7 +154,7 @@ def setup_logger(
         Configured logger instance.
 
     """
-    logger = logging.getLogger(name)
+    logger: EnhancedLogger = logging.getLogger(name)  # type: ignore
     logger.setLevel(level)
 
     handlers_to_add = []
