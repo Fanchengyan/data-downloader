@@ -79,7 +79,7 @@ class ARIATileABC(ASFScenesABC):
 
 
 class ARIATileCentroidPoint(ARIATileABC):
-    """Class for ARIAS scenes within a spatial tile.
+    """Class for ARIAS scenes within a spatial tile based on the centroid point.
 
     Scenes are searched based on the centroid point of the tile (spatial
     intersection). The flight direction should be specified to determine

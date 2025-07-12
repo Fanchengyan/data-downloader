@@ -1,5 +1,3 @@
-from ...enums import JobStatus as JobStatus
-from ...enums import JobType as JobType
 from .job_manager import HyP3Jobs as HyP3Jobs
 from .job_manager import HyP3JobsBurst as HyP3JobsBurst
 from .job_manager import HyP3JobsDownloader as HyP3JobsDownloader

@@ -38,16 +38,3 @@ class BaseConstants(StrEnum):
         """all available variables"""
         return list(cls.__members__.keys())
 
-
-class JobType(BaseConstants):
-    AUTORIFT = auto()
-    RTC_GAMMA = auto()
-    INSAR_GAMMA = auto()
-    INSAR_ISCE_BURST = auto()
-
-
-class JobStatus(BaseConstants):
-    SUCCEEDED = auto()
-    FAILED = auto()
-    RUNNING = auto()
-    PENDING = auto()

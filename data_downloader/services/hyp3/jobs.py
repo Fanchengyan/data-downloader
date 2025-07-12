@@ -9,7 +9,7 @@ from dateutil.parser import parse as parse_date
 
 from data_downloader.logging import setup_logger
 
-from ...enums import JobStatus, JobType
+from data_downloader.enums.hyp3 import JobStatus, JobType
 
 logger = setup_logger(__name__)
 
