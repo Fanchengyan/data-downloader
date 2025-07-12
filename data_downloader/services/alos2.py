@@ -29,7 +29,7 @@ class ALOS2Scenes(ASFScenesABC):
             relativeOrbit=self.path,
             maxResults=maxResults,
         )
-        msg = f"{len(results)} results found for frame {self.frame}, path {self.path}"
+        msg = f"{len(results)} results found for (frame={self.frame}, path={self.path})"
         logger.info(msg, stacklevel=2)
         
         super().__init__(geojson=results.geojson())
