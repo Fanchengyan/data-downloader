@@ -21,6 +21,7 @@ __all__ = [
     "tqdm_handler",
     "SUCCESS",
     "file_formatter",
+    "EnhancedLogger",
 ]
 
 # formatters
@@ -150,7 +151,7 @@ def setup_logger(
 
     Returns
     -------
-    logging.Logger
+    EnhancedLogger
         Configured logger instance.
 
     """
