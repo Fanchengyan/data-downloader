@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
-import json
 import multiprocessing as mp
 import os
 import selectors
 import time
 from netrc import netrc
 from pathlib import Path
-from typing import Optional, Union
+from pprint import pformat
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import browser_cookie3 as bc
@@ -18,9 +18,14 @@ import requests
 from dateutil.parser import parse
 from tqdm import tqdm
 
+from .utils import safe_repr
 from .logging import setup_logger, tqdm_handler
 
+if TYPE_CHECKING:
+    from os import PathLike
+
 logger = setup_logger(__name__, handler=tqdm_handler)
+
 
 
 def get_url_host(url):
@@ -49,7 +54,7 @@ def get_netrc_auth(url):
 class Netrc(netrc):
     """a class managing records in .netrc file"""
 
-    def __init__(self, file: Optional[Union[str, Path]] = None):
+    def __init__(self, file: str | PathLike | None = None):
         if file is None:
             file = Path("~/.netrc").expanduser()
         else:
@@ -133,14 +138,12 @@ def _new_file_from_web(r, file_path):
         )
         return time_remote > time_local
     except Exception as e:
-        msg = json.dumps(
-            {
-                "message": "Error for _new_file_from_web",
-                "url": file_path,
-                "error": str(e),
-            },
-            indent=4,
-        )
+        params = {
+            "message": "Error for _new_file_from_web",
+            "url": file_path,
+            "error": str(e),
+        }
+        msg = pformat(safe_repr(params), indent=4)
         logger.debug(msg)
         return False
 
@@ -151,17 +154,15 @@ def _get_cookiejar(authorize_from_browser):
         try:
             cj = bc.load()
         except Exception as e:
-            msg = json.dumps(
-                {
-                    "message": "Error for _get_cookiejar",
-                    "error": str(e),
-                    "info": "Could not load cookie from browser. "
-                    "Please login in website via browser before run this code"
-                    "\n  So far the following browsers are supported: "
-                    "Chrome,Firefox, Opera, Edge, Chromium",
-                },
-                indent=4,
-            )
+            params = {
+                "message": "Error for _get_cookiejar",
+                "error": str(e),
+                "info": "Could not load cookie from browser. "
+                "Please login in website via browser before run this code"
+                "\n  So far the following browsers are supported: "
+                "Chrome,Firefox, Opera, Edge, Chromium",
+            }
+            msg = pformat(safe_repr(params), indent=4)
             logger.error(msg)
     return cj
 
@@ -307,18 +308,16 @@ def _download_data_httpx(
     # init parameters
     global support_resume, pbar, remote_size
 
-    msg = json.dumps(
-        {
-            "message": "Key parameters for _download_data_httpx",
-            "url": url,
-            "folder": folder,
-            "file_name": file_name,
-            "follow_redirects": follow_redirects,
-            "retry": retry,
-            "authorize_from_browser": authorize_from_browser,
-        },
-        indent=4,
-    )
+    params = {
+        "message": "Key parameters for _download_data_httpx",
+        "url": url,
+        "folder": folder,
+        "file_name": file_name,
+        "follow_redirects": follow_redirects,
+        "retry": retry,
+        "authorize_from_browser": authorize_from_browser,
+    }
+    msg = pformat(safe_repr(params), indent=4)
     logger.debug(msg)
 
     support_resume = False
@@ -449,15 +448,13 @@ def _download_data_requests(
     # init parameters
     global support_resume, pbar, remote_size
 
-    msg = json.dumps(
-        {
-            "message": "Key parameters for _download_data_requests",
-            "url": url,
-            "folder": folder,
-            "file_name": file_name,
-        },
-        indent=4,
-    )
+    params = {
+        "message": "Key parameters for _download_data_requests",
+        "url": url,
+        "folder": folder,
+        "file_name": file_name,
+    }
+    msg = pformat(safe_repr(params), indent=4)
     logger.debug(msg)
 
     support_resume = False
@@ -612,14 +609,12 @@ def download_data(
             authorize_from_browser,
         )
     else:
-        msg = json.dumps(
-            {
-                "message": "Invalid engine",
-                "engine used": engine,
-                "available engines": ["requests", "httpx"],
-            },
-            indent=4,
-        )
+        params = {
+            "message": "Invalid engine",
+            "engine used": engine,
+            "available engines": ["requests", "httpx"],
+        }
+        msg = pformat(safe_repr(params), indent=4)
         logger.error(msg)
         raise ValueError(msg)
 
@@ -682,17 +677,15 @@ def download_datas(
     else:
         raise ValueError('engine must be one of ["requests","httpx"]')
 
-    msg = json.dumps(
-        {
-            "message": "Key parameters for download_datas",
-            "urls": urls,
-            "folder": folder,
-            "file_names": file_names,
-            "engine": engine,
-            "authorize_from_browser": authorize_from_browser,
-        },
-        indent=4,
-    )
+    params = {
+        "message": "Key parameters for download_datas",
+        "urls": urls,
+        "folder": folder,
+        "file_names": file_names,
+        "engine": engine,
+        "authorize_from_browser": authorize_from_browser,
+    }
+    msg = pformat(safe_repr(params), indent=4)
     logger.info(msg)
 
     desc = ">>> Total | " + desc.title()
@@ -777,20 +770,18 @@ def mp_download_datas(
 
     >>> downloader.mp_download_datas(urls,folder)
     """
-    msg = json.dumps(
-        {
-            "message": "Key parameters for mp_download_datas",
-            "urls": urls,
-            "folder": folder,
-            "file_names": file_names,
-            "ncore": ncore,
-            "follow_redirects": follow_redirects,
-            "retry": retry,
-            "engine": engine,
-            "authorize_from_browser": authorize_from_browser,
-        },
-        indent=4,
-    )
+    params = {
+        "message": "Key parameters for mp_download_datas",
+        "urls": urls,
+        "folder": folder,
+        "file_names": file_names,
+        "ncore": ncore,
+        "follow_redirects": follow_redirects,
+        "retry": retry,
+        "engine": engine,
+        "authorize_from_browser": authorize_from_browser,
+    }
+    msg = pformat(safe_repr(params), indent=4)
     logger.info(msg)
 
     if ncore is None:
@@ -853,15 +844,13 @@ async def _download_data(
 
     cj = _get_cookiejar(authorize_from_browser)
 
-    msg = json.dumps(
-        {
-            "message": "Key parameters for _download_data (async)",
-            "url": url,
-            "folder": folder,
-            "file_name": file_name,
-        },
-        indent=4,
-    )
+    params = {
+        "message": "Key parameters for _download_data (async)",
+        "url": url,
+        "folder": folder,
+        "file_name": file_name,
+    }
+    msg = pformat(safe_repr(params), indent=4)
     logger.debug(msg)
 
     # auth = get_netrc_auth(url)
@@ -1063,20 +1052,18 @@ def async_download_datas(
 
     >>> downloader.async_download_datas(urls,folder,None,desc='interferograms')
     """
-    msg = json.dumps(
-        {
-            "message": "Key parameters for async_download_datas",
-            "urls": urls,
-            "folder": folder,
-            "file_names": file_names,
-            "limit": limit,
-            "desc": desc,
-            "follow_redirects": follow_redirects,
-            "retry": retry,
-            "authorize_from_browser": authorize_from_browser,
-        },
-        indent=4,
-    )
+    params = {
+        "message": "Key parameters for async_download_datas",
+        "urls": urls,
+        "folder": folder,
+        "file_names": file_names,
+        "limit": limit,
+        "desc": desc,
+        "follow_redirects": follow_redirects,
+        "retry": retry,
+        "authorize_from_browser": authorize_from_browser,
+    }
+    msg = pformat(safe_repr(params), indent=4)
     logger.info(msg)
     # solve the loop close  Error for python 3.8.x in windows platform
     selector = selectors.SelectSelector()
@@ -1108,14 +1095,12 @@ async def _is_response_staus_ok(client, url, authorize_from_browser, timeout):
         else:
             return False
     except Exception as e:
-        msg = json.dumps(
-            {
-                "message": "Error for _is_response_staus_ok",
-                "url": url,
-                "error": str(e),
-            },
-            indent=4,
-        )
+        params = {
+            "message": "Error for _is_response_staus_ok",
+            "url": url,
+            "error": str(e),
+        }
+        msg = pformat(safe_repr(params), indent=4)
         logger.debug(msg)
         return False
 
