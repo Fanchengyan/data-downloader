@@ -16,10 +16,11 @@ from data_downloader.enums.hyp3 import JobType
 from data_downloader.logging import setup_logger
 from data_downloader.utils import Pairs
 
+from .jobs import Jobs
+
 if TYPE_CHECKING:
     from os import PathLike
 
-    from .jobs import Jobs
 
 logger = setup_logger(__name__)
 
@@ -277,7 +278,7 @@ class HyP3Jobs(HyP3JobsDownloader):
     """The job type. e.g. INSAR_GAMMA, INSAR_ISCE_BURST"""
     date_idx: int
     """The index of the date in the granule name"""
-    _submit_func: Callable
+    submit_func: Callable
     """The function to submit the job"""
 
     _job_parameters: dict = {}
@@ -367,23 +368,19 @@ class HyP3Jobs(HyP3JobsDownloader):
             pairs.append(pair)
         return Pairs(pairs)
 
-    def _get_remain_pairs(self, pairs: Pairs, skip_existing: bool = True):
+    def _get_remain_pairs(self, pairs: Pairs, skip_existing: bool = True) -> Pairs:
         """Get the remaining pairs to submit"""
         if not skip_existing:
             return pairs
 
         pairs_exclude = self.jobs_to_pairs(self.jobs_on_service)
-        if pairs_exclude is None:
+        if pairs_exclude is None or len(pairs_exclude) == 0:
             return pairs
-        warnings.warn(
-            f"Skipping {len(pairs_exclude)} existing pairs already submitted."
-        )
+
+        msg = f"Skipping {len(pairs_exclude)} existing pairs already submitted."
+        logger.info(msg)
         pairs_remain = pairs - pairs_exclude
         return pairs_remain
-
-    def show_parameters(self) -> None:
-        """Show the all available parameters for submitting the job"""
-        print(self._submit_func.__doc__)
 
     def _submit_job(
         self,
@@ -391,7 +388,7 @@ class HyP3Jobs(HyP3JobsDownloader):
         secondary,
     ) -> None:
         """Submit the job to HyP3"""
-        self.batch += self._submit_func(reference, secondary, **self.job_parameters)
+        self.batch += self.submit_func(reference, secondary, **self.job_parameters)
 
     def submit_jobs(self, pairs: Pairs, skip_existing: bool = True):
         """Submit the job to HyP3
@@ -439,7 +436,7 @@ class HyP3JobsGAMMA(HyP3Jobs):
 
     _job_type = JobType.INSAR_GAMMA
     date_idx = 5
-    _submit_func = sdk.HyP3.submit_insar_job
+    submit_func = sdk.HyP3().submit_insar_job
 
 
 class HyP3JobsBurst(HyP3Jobs):
@@ -451,7 +448,7 @@ class HyP3JobsBurst(HyP3Jobs):
 
     _job_type = JobType.INSAR_ISCE_BURST
     date_idx = 3
-    _submit_func = sdk.HyP3.submit_insar_isce_burst_job
+    submit_func = sdk.HyP3().submit_insar_isce_burst_job
 
 
 def granule_to_date(granule: str, idx_date):
