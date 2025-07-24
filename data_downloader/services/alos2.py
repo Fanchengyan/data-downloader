@@ -5,10 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import asf_search as asf
+import pandas as pd
 
 from data_downloader.logging import setup_logger
 
-from .asf_base import ASFScenesABC
+from .asf_base import ASFTileScenesTimeseries
 
 if TYPE_CHECKING:
     pass
@@ -16,32 +17,24 @@ if TYPE_CHECKING:
 logger = setup_logger(__name__)
 
 
-class ALOS2Scenes(ASFScenesABC):
+class ALOS2TileScenes(ASFTileScenesTimeseries):
     """Class for handling ALOS-2 scenes from ASF."""
 
-    def __init__(self, frame: int, path: int, maxResults=1000) -> None:
-        """Initialize ALOS2Scenes with given frame and path."""
-        self.frame = frame
-        self.path = path
+    def __scenes_repr__(self) -> str:
+        return f"ALOS2_{self.path}_{self.frame}"
+
+    @classmethod
+    def from_path_frame(cls, path: int, frame: int, maxResults=1000) -> ALOS2TileScenes:
+        """Create an ALOS2TileScenes instance from a path and frame."""
+        cls._path = path
+        cls._frame = frame
+
         results = asf.search(
-            platform="ALOS-2",
-            asfFrame=self.frame,
-            relativeOrbit=self.path,
+            platform=asf.PLATFORM.ALOS2,
+            relativeOrbit=cls.path,
+            asfFrame=cls.frame,
             maxResults=maxResults,
         )
-        msg = f"{len(results)} results found for (frame={self.frame}, path={self.path})"
+        msg = f"{len(results)} results found for (frame={cls.frame}, path={cls.path})"
         logger.info(msg, stacklevel=2)
-        
-        super().__init__(geojson=results.geojson())
-
-
-    def __repr__(self) -> str:
-        """Return a string representation of the ALOS2Scenes instance."""
-        return f"ALOS2Scenes(frame={self.frame}, path={self.path})"
-
-    def __str__(self) -> str:
-        """Return a string representation of the ALOS2Scenes instance."""
-        return self.repr
-
-    def __scene_repr__(self) -> str:
-        return f"ALOS2_{self.frame}_{self.path}"
+        return cls(geojson=results.geojson())
