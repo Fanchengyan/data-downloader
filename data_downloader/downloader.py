@@ -18,7 +18,7 @@ import requests
 from dateutil.parser import parse
 from tqdm import tqdm
 
-from .utils import safe_repr
+from .utils.tools import safe_repr
 from .logging import setup_logger, tqdm_handler
 
 if TYPE_CHECKING:
