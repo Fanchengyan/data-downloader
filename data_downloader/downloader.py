@@ -18,14 +18,13 @@ import requests
 from dateutil.parser import parse
 from tqdm import tqdm
 
-from .utils.tools import safe_repr
 from .logging import setup_logger, tqdm_handler
+from .utils.tools import safe_repr
 
 if TYPE_CHECKING:
     from os import PathLike
 
 logger = setup_logger(__name__, handler=tqdm_handler)
-
 
 
 def get_url_host(url):
@@ -132,6 +131,8 @@ def _unit_formater(size, suffix):
 def _new_file_from_web(r, file_path):
     """whether have new file from the website"""
     try:
+        if not Path(file_path).exists():
+            return False
         time_remote = parse(r.headers.get("Last-Modified"))
         time_local = dt.datetime.fromtimestamp(
             os.path.getmtime(file_path), dt.timezone.utc
@@ -181,10 +182,11 @@ def _handle_status(r, url, local_size, file_name, file_path):
 
         # init process bar
         if _new_file_from_web(r, file_path):
-            logger.info(
+            msg = (
                 f"There is a new file from {url}. "
                 f"{Path(file_name).name} is ready to be downloaded again"
             )
+            logger.info(msg)
             os.remove(file_path)
         elif local_size < remote_size:
             pbar = tqdm(
@@ -196,9 +198,8 @@ def _handle_status(r, url, local_size, file_name, file_path):
                 desc=Path(file_name).name,
             )
         else:
-            logger.info(
-                f"{Path(file_name).name} was downloaded entirely. skiping download"
-            )
+            msg = f"{Path(file_name).name} was downloaded entirely. skiping download"
+            logger.info(msg)
             return True, ""
     elif r.status_code == 200:
         # know the total size, then delete the file that wasn't downloaded entirely and redownload it.
@@ -212,63 +213,66 @@ def _handle_status(r, url, local_size, file_name, file_path):
                 )
                 os.remove(file_path)
             elif 0 < local_size < remote_size:
-                logger.info(
+                msg = (
                     f"  Detect {Path(file_name).name} wasn't downloaded entirely"
+                    " Prepare to remove the local file and redownload since the "
+                    "server not supports resuming breakpoint"
                 )
-                logger.info(
-                    "  The website not supports resuming breakpoint."
-                    " Prepare to remove the local file and redownload..."
-                )
+                logger.info(msg)
                 os.remove(file_path)
             elif local_size > remote_size:
-                logger.info(
+                msg = (
                     f"Detected the local file ({Path(file_name).name}) is larger than the server file. "
                     " Prepare to remove local the file and redownload..."
                 )
+                logger.info(msg)
                 os.remove(file_path)
             elif local_size == remote_size:
-                logger.info(
-                    f"{Path(file_name).name} was downloaded entirely. skiping download"
-                )
+                msg = f"{Path(file_name).name} was downloaded entirely. skiping download"
+                logger.info(msg)
                 return True, ""
         # don't know the total size, warning user if detect the file was downloaded.
         else:
             if os.path.exists(file_path):
-                logger.warning(
+                msg = (
                     f">>> Warning: Detect the {Path(file_name).name} was downloaded,"
                     " but can't parse the it's size from website\n"
                     f"    If you know it wasn't downloaded entirely, delete "
                     "it and redownload it again. skiping download..."
                 )
+                logger.warning(msg)
                 return True, ""
     elif r.status_code == 202:
-        logger.info(
+        msg = (
             ">>> The server has accepted your request but has not yet processed it. "
             "Please redownload it later"
         )
+        logger.info(msg)
         return False, ""
     elif r.status_code in [301, 302]:
         url_new = r.headers["Location"]
-        logger.warning(f">>> Waring: the website has redirected to {url_new}")
+        msg = f">>> Waring: the website has redirected to {url_new}"
+        logger.warning(msg)
         return False, url_new
     elif r.status_code == 401:
         netrc_file = Path("~/.netrc").expanduser()
-        logger.error(
+        msg = (
             f">>> Authorization failed! Please check your username and password in {netrc_file}. "
             "More details about .netrc file: https://data-downloader.readthedocs.io/en/latest/user_guide/netrc.html"
             "\n Or authorizing by browser and set the parameter `authorize_from_browser` to `True`"
         )
+        logger.error(msg)
         return False, ""
     elif r.status_code == 403:
-        logger.error(
-            ">>> Forbidden! Access to the requested resource was denied by the server"
-        )
+        msg = ">>> Forbidden! Access to the requested resource was denied by the server"
+        logger.error(msg)
         return False, ""
     else:
-        logger.error(
+        msg = (
             f'  Download file from "{url}" failed, '
             f" The service returns the HTTP Status Code: {r.status_code}"
         )
+        logger.error(msg)
         return False, ""
 
 
@@ -309,7 +313,7 @@ def _download_data_httpx(
     global support_resume, pbar, remote_size
 
     params = {
-        "message": "Key parameters for _download_data_httpx",
+        "message": "downloading data with httpx",
         "url": url,
         "folder": folder,
         "file_name": file_name,
@@ -449,7 +453,7 @@ def _download_data_requests(
     global support_resume, pbar, remote_size
 
     params = {
-        "message": "Key parameters for _download_data_requests",
+        "message": "downloading data with requests",
         "url": url,
         "folder": folder,
         "file_name": file_name,

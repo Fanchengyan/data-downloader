@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
 from time import sleep
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import hyp3_sdk as sdk
 import pandas as pd
@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from data_downloader import downloader
 from data_downloader.enums.hyp3 import JobType
-from data_downloader.logging import setup_logger
+from data_downloader.logging import setup_logger, tqdm_handler
 from data_downloader.utils import Pairs
 
 from .jobs import Jobs
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from os import PathLike
 
 
-logger = setup_logger(__name__)
+logger = setup_logger(__name__, handlers=[tqdm_handler])
 
 
 class HyP3Service:
@@ -168,22 +168,30 @@ class HyP3JobsDownloader:
         if not output_dir.exists():
             output_dir.mkdir(parents=True, exist_ok=True)
             logger.info(f"Created directory {output_dir}")
+        logger.info(f"Downloading jobs from HyP3 service to {output_dir}")
+
+        local_ifgs = self._scan_interferograms(output_dir)
+        logger.info(f"Found {len(local_ifgs)} interferograms in {output_dir}")
+
         jobs = self.jobs_on_service.sel(name=name, request_time=request_time).succeeded
+        logger.info(f"Found {len(jobs)} succeeded jobs on HyP3 service")
+        
         for file_name, url in tqdm(
             zip(jobs.file_names, jobs.file_urls),
             desc="Downloading jobs",
             total=len(jobs),
         ):
-            local_ifgs = self._scan_interferograms(output_dir)
             if Path(file_name).stem in local_ifgs and not overwrite:
-                tqdm.write(f"Interferogram {file_name} already exists. Skipping.")
+                msg = f"Interferogram {file_name} already exists. Skipped."
+                logger.info(msg)
                 continue
             try:
                 downloader.download_data(url, output_dir, file_name)
                 if unzip:
                     unzip_file(output_dir, file_name, remove_zip, overwrite)
             except Exception as e:
-                tqdm.write(f"Failed to download file {file_name}. {e}")
+                msg = f"Failed to download file {file_name}. {e}"
+                logger.error(msg)
 
     def download_jobs(
         self,
@@ -420,7 +428,8 @@ class HyP3Jobs(HyP3JobsDownloader, ABC):
             reference, secondary = self.granules[ref], self.granules[sec]
 
             if reference is None or secondary is None:
-                tqdm.write(f"Granule not found for pair {pair}. Skipping.")
+                msg = f"Granule not found for pair {pair}. Skipping."
+                logger.warning(msg)
                 self._pairs_failed.append(pair)
                 continue
 
@@ -436,7 +445,7 @@ class HyP3Jobs(HyP3JobsDownloader, ABC):
                     f"Failed to submit job for pair {pair}. Job parameters: {params}."
                     f"Error: {e}"
                 )
-                tqdm.write(msg)
+                logger.error(msg)
                 self._pairs_failed.append(pair)
 
 
@@ -487,16 +496,17 @@ def unzip_file(output_dir, file_name, remove_zip=True, overwrite=False):
             zip_file.unlink()
     except Exception as e:
         msg = f"Error in unzipping {zip_file}\n{e}"
-        logger.warning(msg)
+        logger.error(msg)
         raise Exception(msg)
 
 
 def _ensure_granules(granule: pd.Series | str, pair: Pairs) -> str:
     """Remove the duplicate pairs"""
     if isinstance(granule, pd.Series):
-        tqdm.write(
+        msg = (
             f"Multiple granules found for pair {pair}: {[i for i in granule]}."
             "First one will be used."
         )
+        logger.warning(msg)
         granule = granule[0]
     return str(granule)
