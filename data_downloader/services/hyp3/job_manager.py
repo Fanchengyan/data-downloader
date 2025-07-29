@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import warnings
 import zipfile
+from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
 from time import sleep
@@ -275,15 +276,13 @@ class HyP3JobsDownloader:
             sleep(wait_minutes * 60)
 
 
-class HyP3Jobs(HyP3JobsDownloader):
+class HyP3Jobs(HyP3JobsDownloader, ABC):
     """Abstract class to manage HyP3 jobs"""
 
     _job_type: JobType
     """The job type. e.g. INSAR_GAMMA, INSAR_ISCE_BURST"""
     date_idx: int
     """The index of the date in the granule name"""
-    submit_func: Callable
-    """The function to submit the job"""
 
     _job_parameters: dict = {}
     """Job parameters"""
@@ -321,6 +320,16 @@ class HyP3Jobs(HyP3JobsDownloader):
         # initialize the batch
         self.batch = sdk.Batch()
         super().__init__(service, self._job_type)
+        self._init_submit_func()
+
+    @abstractmethod
+    def _init_submit_func(self):
+        """Initialize the ``submit_func`` function of ``hyp3_sdk.HyP3``
+
+        .. hint::
+            You can use ``self.service.hyp3`` to get the ``hyp3_sdk.HyP3`` instance.
+        """
+        pass
 
     @property
     def jobs_on_service(self) -> Jobs:
@@ -440,7 +449,9 @@ class HyP3JobsGAMMA(HyP3Jobs):
 
     _job_type = JobType.INSAR_GAMMA
     date_idx = 5
-    submit_func = sdk.HyP3().submit_insar_job
+
+    def _init_submit_func(self):
+        self.submit_func = self.service.hyp3.submit_insar_job
 
 
 class HyP3JobsBurst(HyP3Jobs):
@@ -452,7 +463,9 @@ class HyP3JobsBurst(HyP3Jobs):
 
     _job_type = JobType.INSAR_ISCE_BURST
     date_idx = 3
-    submit_func = sdk.HyP3().submit_insar_isce_burst_job
+
+    def _init_submit_func(self):
+        self.submit_func = self.service.hyp3.submit_insar_isce_burst_job
 
 
 def granule_to_date(granule: str, idx_date):

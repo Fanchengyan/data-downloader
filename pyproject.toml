@@ -7,14 +7,12 @@ name = "data_downloader"
 version = "1.2"
 description = "Make downloading scientific data much easier"
 readme = "README.md"
-authors = [
-    { name="fanchegyan", email="fanchy14@lzu.edu.cn" }
-]
+authors = [{ name = "fanchegyan", email = "fanchy14@lzu.edu.cn" }]
 license-files = ["LICENSE"]
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent"
+    "Operating System :: OS Independent",
 ]
 dependencies = [
     "httpx >= 0.4.0",
@@ -28,7 +26,11 @@ dependencies = [
     "hyp3_sdk",
     "pandas",
     "geopandas",
-    "colorlog"
+    "matplotlib",
+    "xarray",
+    "psutil",
+    "asf_search",
+    "colorlog",
 ]
 
 
@@ -54,11 +56,15 @@ dev = [
     "pydata_sphinx_theme",
     "Jinja2",
     "hyp3_sdk",
-    "myst_sphinx_gallery"
+    "myst_sphinx_gallery",
 ]
 
 [project.urls]
 Homepage = "https://github.com/Fanchengyan/data_downloader"
 
-[tool.setuptools]
-packages = ["data_downloader"] 
+[tool.setuptools.packages.find]
+where = ["."] # list of folders that contain the packages (["."] by default)
+include = [
+  "data_downloader*",
+] # package names should match these glob patterns (["*"] by default)
+namespaces = true # allow scanning PEP 420 namespaces (true by default)
