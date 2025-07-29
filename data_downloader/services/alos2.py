@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import asf_search as asf
-import pandas as pd
 
 from data_downloader.logging import setup_logger
 

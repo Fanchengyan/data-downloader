@@ -163,6 +163,10 @@ class HyP3JobsDownloader:
         overwrite: bool = False,
     ) -> None:
         """Download the jobs from HyP3"""
+        output_dir = Path(output_dir)
+        if not output_dir.exists():
+            output_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Created directory {output_dir}")
         jobs = self.jobs_on_service.sel(name=name, request_time=request_time).succeeded
         for file_name, url in tqdm(
             zip(jobs.file_names, jobs.file_urls),
@@ -190,7 +194,7 @@ class HyP3JobsDownloader:
         overwrite: bool = False,
         wait_until_finished=True,
         wait_minutes=60,
-        retry=10,
+        retry=30,
     ) -> None:
         """Download jobs from HyP3.
 

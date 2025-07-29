@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asf_search as asf
-import pandas as pd
 
 from data_downloader.logging import setup_logger
 from data_downloader.services.asf_base import ASFTileScenesTimeseries
@@ -28,4 +27,3 @@ class Sentinel1TileScenes(ASFTileScenesTimeseries):
         msg = f"{len(results)} results found for (frame={cls.frame}, path={cls.path})"
         logger.info(msg, stacklevel=2)
         return cls(geojson=results.geojson(), path=path, frame=frame)
-
