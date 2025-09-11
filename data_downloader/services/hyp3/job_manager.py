@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from os import PathLike
 
 
-logger = setup_logger(__name__, handlers=[tqdm_handler])
+logger = setup_logger(__name__, handler=[tqdm_handler])
 
 
 class HyP3Service:

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Iterator, Literal
 
 import geopandas as gpd
 import pandas as pd
+import asf_search as asf
 
 from data_downloader import downloader
 from data_downloader.logging import setup_logger
@@ -16,6 +17,8 @@ from data_downloader.utils.pairs import Pairs
 
 if TYPE_CHECKING:
     from os import PathLike
+    from typing_extensions import Self
+
 
 logger = setup_logger(__name__)
 
@@ -23,7 +26,6 @@ logger = setup_logger(__name__)
 class ASFScenesABC(ABC):
     """Abstract Base Class handling ASF scenes."""
 
-    @abstractmethod
     def __init__(self, geojson: dict) -> None:
         """Initialize ASFScenes with given GeoJSON."""
         self._geojson = geojson
@@ -265,9 +267,17 @@ class ASFTileScenesTimeseries(ASFTileScenesABC):
         return self._parse_datetime()
 
     @property
-    def granules(self) -> list[str]:
+    def granules(self) -> pd.Series:
         """Return the granules of the scenes."""
         return pd.Series(self.gdf.sceneName.values, index=self.datetime)
+    
+    @classmethod
+    def from_reference_granule(cls, granule:str)->Self:
+        scenes = asf.baseline_search.stack_from_id(granule)
+        return cls(scenes.geojson())
+        
+        
+
 
 
 class ASFTileScenesPairs(ASFTileScenesABC):

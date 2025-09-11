@@ -31,6 +31,7 @@ dependencies = [
     "psutil",
     "asf_search",
     "colorlog",
+    "typing_extensions",
 ]
 
 
@@ -48,6 +49,7 @@ dev = [
     "pandas",
     "geopandas",
     "colorlog",
+    "typing_extensions",
     "recommonmark",
     "sphinx>=7",
     "myst-nb",
