@@ -7,7 +7,9 @@ name = "data_downloader"
 version = "1.2"
 description = "Make downloading scientific data much easier"
 readme = "README.md"
+
 authors = [{ name = "fanchegyan", email = "fanchy14@lzu.edu.cn" }]
+
 license-files = ["LICENSE"]
 requires-python = ">=3.8"
 classifiers = [
@@ -61,6 +63,31 @@ dev = [
     "myst_sphinx_gallery",
 ]
 
+
+[project.optional-dependencies]
+dev = [
+    "httpx >= 0.4.0",
+    "requests",
+    "tqdm",
+    "setuptools",
+    "beautifulsoup4",
+    "nest_asyncio",
+    "python-dateutil",
+    "browser-cookie3",
+    "hyp3_sdk",
+    "pandas",
+    "colorlog",
+    "recommonmark",
+    "sphinx>=7",
+    "myst-nb",
+    "sphinx-copybutton",
+    "sphinx-design",
+    "pydata_sphinx_theme",
+    "Jinja2",
+    "hyp3_sdk",
+    "myst_sphinx_gallery"
+]
+
 [project.urls]
 Homepage = "https://github.com/Fanchengyan/data_downloader"
 
@@ -70,3 +97,4 @@ include = [
   "data_downloader*",
 ] # package names should match these glob patterns (["*"] by default)
 namespaces = true # allow scanning PEP 420 namespaces (true by default)
+
