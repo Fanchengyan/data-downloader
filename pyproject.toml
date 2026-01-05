@@ -39,19 +39,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "httpx >= 0.4.0",
-    "requests",
-    "tqdm",
-    "setuptools",
-    "beautifulsoup4",
-    "nest_asyncio",
-    "python-dateutil",
-    "browser-cookie3",
-    "hyp3_sdk",
-    "pandas",
-    "geopandas",
-    "colorlog",
-    "typing_extensions",
+    "data_downloader",  # all base dependencies
     "recommonmark",
     "sphinx>=7",
     "myst-nb",
@@ -59,33 +47,7 @@ dev = [
     "sphinx-design",
     "pydata_sphinx_theme",
     "Jinja2",
-    "hyp3_sdk",
     "myst_sphinx_gallery",
-]
-
-
-[project.optional-dependencies]
-dev = [
-    "httpx >= 0.4.0",
-    "requests",
-    "tqdm",
-    "setuptools",
-    "beautifulsoup4",
-    "nest_asyncio",
-    "python-dateutil",
-    "browser-cookie3",
-    "hyp3_sdk",
-    "pandas",
-    "colorlog",
-    "recommonmark",
-    "sphinx>=7",
-    "myst-nb",
-    "sphinx-copybutton",
-    "sphinx-design",
-    "pydata_sphinx_theme",
-    "Jinja2",
-    "hyp3_sdk",
-    "myst_sphinx_gallery"
 ]
 
 [project.urls]

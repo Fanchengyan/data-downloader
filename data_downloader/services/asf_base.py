@@ -51,6 +51,15 @@ class ASFScenesABC(ABC):
         """String representation of the ASFScenes instance."""
         return self.__repr__()
 
+    def __scenes_repr__(self) -> str:
+        """Return a string representation of the ASFScenes instance."""
+        return self.__class__.__name__
+
+    @property
+    def scenes_repr(self) -> str:
+        """String representation of the ASFScenes instance."""
+        return self.__scenes_repr__()
+
     @property
     def boundary_file(self) -> str:
         """Boundary file name for saving downloaded scenes."""
@@ -137,19 +146,19 @@ class ASFScenesABC(ABC):
             urls = self.url.tolist()
             msg = f"No URLs provided, using all URLs for {self.repr}"
             logger.info(msg, stacklevel=2)
-        if not urls or len(urls) == 0:
-            msg = f"No URLs found for {self.repr}, skipping."
+        if urls is not None and len(urls) == 0:
+            msg = f"No URLs found for {self.scenes_repr}, skipping."
             logger.warning(msg, stacklevel=2)
             return
 
-        out_dir = folder / self.repr
+        out_dir = folder / self.scenes_repr
         if not out_dir.exists():
             out_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Saving {self.repr} to {out_dir}")
+        logger.info(f"Saving {self.scenes_repr} to {out_dir}")
 
         self.save_boundaries(folder=out_dir, filename=self.boundary_file)
         downloader.download_datas(urls, folder=out_dir)
-        msg = f"Successfully downloaded {self.repr} to {out_dir}"
+        msg = f"Successfully downloaded {self.scenes_repr} to {out_dir}"
         logger.success(msg, stacklevel=2)
 
 

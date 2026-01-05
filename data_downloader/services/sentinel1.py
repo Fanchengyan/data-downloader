@@ -22,11 +22,13 @@ class Sentinel1TileScenes(ASFTileScenesTimeseries):
             platform=asf.PLATFORM.SENTINEL1,
             relativeOrbit=path,
             asfFrame=frame,
+            processingLevel="SLC",
             maxResults=maxResults,
         )
         msg = f"{len(results)} results found for (frame={frame}, path={path})"
         logger.info(msg, stacklevel=2)
         return cls(geojson=results.geojson(), path=path, frame=frame)
+
 
 class Sentinel1BurstTileScenes(ASFTileScenesTimeseries):
     """Class for handling Sentinel-1 stackable scenes from ASF."""
