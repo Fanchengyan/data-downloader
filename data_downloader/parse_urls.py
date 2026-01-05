@@ -10,6 +10,9 @@ import requests
 from bs4 import BeautifulSoup
 
 from data_downloader.downloader import get_netrc_auth, get_url_host
+from data_downloader.logging import setup_logger
+
+logger = setup_logger(__name__)
 
 
 def from_file(url_file: str | Path) -> list:
@@ -68,14 +71,14 @@ def from_sentinel_meta4(url_file: str | Path) -> list:
     -------
     a list contains urls
     """
-    data = parse(url_file).documentElement
+    data = parse(str(url_file)).documentElement
     urls = [i.childNodes[0].nodeValue for i in data.getElementsByTagName("url")]
     return urls
 
 
 def from_html(
     url: str,
-    suffix: Optional[str] = None,
+    suffix: list[str] | None = None,
     suffix_depth: int = 0,
     url_depth: int = 0,
 ) -> list:
@@ -85,7 +88,7 @@ def from_html(
     -----------
     url: str
         the website contains data
-    suffix: list, optional
+    suffix: list[str] | None, optional
         data format. suffix should be a list contains multipart.
         if suffix_depth is 0, all '.' will parsed.
         Examples:
@@ -115,13 +118,6 @@ def from_html(
     >>> print(len(urls_all)-len(urls))
     """
 
-    def match_suffix(href, suffix):
-        if suffix:
-            sf = Path(href).suffixes[-suffix_depth:]
-            return suffix == sf
-        else:
-            return True
-
     r_h = requests.head(url)
     if "text/html" in r_h.headers["Content-Type"]:
         r = requests.get(url)
@@ -129,7 +125,7 @@ def from_html(
 
         a = soup.find_all("a")
         urls_all = [urljoin(url, i["href"]) for i in a if i.has_attr("href")]
-        urls = [i for i in urls_all if match_suffix(i, suffix)]
+        urls = [i for i in urls_all if match_suffix(i, suffix, suffix_depth)]
         if url_depth > 0:
             urls_notdata = sorted(set(urls_all) - set(urls))
             urls_depth = [
@@ -142,6 +138,10 @@ def from_html(
                     urls.extend(u)
 
         return sorted(set(urls))
+    else:
+        msg = f"URL {url} is not a HTML page"
+        logger.warning(msg)
+        return []
 
 
 def _retrieve_all_orders(url_host, email, auth):
@@ -228,8 +228,7 @@ def from_EarthExplorer_order(
     auth = get_netrc_auth(host)
     if (auth == username) or (auth == passwd):
         raise ValueError(
-            "username and passwd neither be found in netrc or"
-            " be assigned in parameter"
+            "username and passwd neither be found in netrc or be assigned in parameter"
         )
     elif not auth:
         auth = (username, passwd)
@@ -257,3 +256,17 @@ def from_EarthExplorer_order(
                 " Please reorder it again if you want to use it anymore"
             )
     return urls_info
+
+
+def match_suffix(href: str, suffix: list[str] | None, suffix_depth: int) -> bool:
+    """Match the suffix of the href with the suffix.
+
+    Parameters
+    ----------
+    href : str
+    """
+    if suffix is not None:
+        sf = Path(href).suffixes[-suffix_depth:]
+        return suffix == sf
+    else:
+        return True
