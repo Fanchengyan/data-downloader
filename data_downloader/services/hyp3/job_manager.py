@@ -175,7 +175,7 @@ class HyP3JobsDownloader:
 
         jobs = self.jobs_on_service.sel(name=name, request_time=request_time).succeeded
         logger.info(f"Found {len(jobs)} succeeded jobs on HyP3 service")
-        
+
         for file_name, url in tqdm(
             zip(jobs.file_names, jobs.file_urls),
             desc="Downloading jobs",

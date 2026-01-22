@@ -103,7 +103,7 @@ class TestTqdmLoggingHandler:
         mock_tqdm = Mock()
         handler = _TqdmLoggingHandler(tqdm_class=mock_tqdm)
         handler.setFormatter(formatter)
-        
+
         record = logging.LogRecord(
             name="test",
             level=logging.INFO,
@@ -113,7 +113,7 @@ class TestTqdmLoggingHandler:
             args=(),
             exc_info=None,
         )
-        
+
         handler.emit(record)
         mock_tqdm.write.assert_called_once()
 
@@ -122,7 +122,7 @@ class TestTqdmLoggingHandler:
         mock_tqdm = Mock()
         mock_tqdm.write.side_effect = KeyboardInterrupt()
         handler = _TqdmLoggingHandler(tqdm_class=mock_tqdm)
-        
+
         record = logging.LogRecord(
             name="test",
             level=logging.INFO,
@@ -132,7 +132,7 @@ class TestTqdmLoggingHandler:
             args=(),
             exc_info=None,
         )
-        
+
         with pytest.raises(KeyboardInterrupt):
             handler.emit(record)
 
@@ -141,7 +141,7 @@ class TestTqdmLoggingHandler:
         mock_tqdm = Mock()
         mock_tqdm.write.side_effect = SystemExit()
         handler = _TqdmLoggingHandler(tqdm_class=mock_tqdm)
-        
+
         record = logging.LogRecord(
             name="test",
             level=logging.INFO,
@@ -151,7 +151,7 @@ class TestTqdmLoggingHandler:
             args=(),
             exc_info=None,
         )
-        
+
         with pytest.raises(SystemExit):
             handler.emit(record)
 
@@ -160,8 +160,8 @@ class TestTqdmLoggingHandler:
         mock_tqdm = Mock()
         mock_tqdm.write.side_effect = Exception("Test error")
         handler = _TqdmLoggingHandler(tqdm_class=mock_tqdm)
-        
-        with patch.object(handler, 'handleError') as mock_handle_error:
+
+        with patch.object(handler, "handleError") as mock_handle_error:
             record = logging.LogRecord(
                 name="test",
                 level=logging.INFO,
@@ -171,7 +171,7 @@ class TestTqdmLoggingHandler:
                 args=(),
                 exc_info=None,
             )
-            
+
             handler.emit(record)
             mock_handle_error.assert_called_once_with(record)
 
@@ -183,15 +183,15 @@ class TestEnhancedLogger:
         """Test success method."""
         logger = EnhancedLogger("test")
         logger.setLevel(logging.DEBUG)
-        
+
         # Capture log output
         stream = io.StringIO()
         handler = logging.StreamHandler(stream)
         handler.setFormatter(formatter)
         logger.addHandler(handler)
-        
+
         logger.success("Success message")
-        
+
         output = stream.getvalue()
         assert "SUCCESS" in output
         assert "Success message" in output
@@ -200,14 +200,14 @@ class TestEnhancedLogger:
         """Test success method with arguments."""
         logger = EnhancedLogger("test")
         logger.setLevel(logging.DEBUG)
-        
+
         stream = io.StringIO()
         handler = logging.StreamHandler(stream)
         handler.setFormatter(formatter)
         logger.addHandler(handler)
-        
+
         logger.success("Success %s", "test")
-        
+
         output = stream.getvalue()
         assert "SUCCESS" in output
         assert "Success test" in output
@@ -216,14 +216,14 @@ class TestEnhancedLogger:
         """Test success method respects log level."""
         logger = EnhancedLogger("test")
         logger.setLevel(logging.ERROR)  # Higher than SUCCESS
-        
+
         stream = io.StringIO()
         handler = logging.StreamHandler(stream)
         handler.setFormatter(formatter)
         logger.addHandler(handler)
-        
+
         logger.success("Success message")
-        
+
         output = stream.getvalue()
         assert output == ""  # No output because level is too high
 
@@ -257,7 +257,7 @@ class TestSetupLogger:
     def test_default_setup(self):
         """Test default logger setup."""
         logger = setup_logger("test_logger")
-        
+
         assert isinstance(logger, EnhancedLogger)
         assert logger.name == "test_logger"
         assert logger.level == logging.DEBUG
@@ -278,7 +278,7 @@ class TestSetupLogger:
         """Test logger setup with single handler."""
         custom_handler = logging.StreamHandler()
         logger = setup_logger("test_logger", handler=custom_handler)
-        
+
         assert custom_handler in logger.handlers
 
     def test_multiple_handlers(self):
@@ -286,7 +286,7 @@ class TestSetupLogger:
         handler1 = logging.StreamHandler()
         handler2 = logging.StreamHandler()
         logger = setup_logger("test_logger", handler=[handler1, handler2])
-        
+
         assert handler1 in logger.handlers
         assert handler2 in logger.handlers
 
@@ -294,18 +294,18 @@ class TestSetupLogger:
         """Test logger setup with log file."""
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             log_file = tmp_file.name
-        
+
         try:
             logger = setup_logger("test_logger", log_file=log_file)
-            
+
             # Should have both stream handler and file handler
             assert len(logger.handlers) == 2
-            
+
             # Test that logging works
             logger.info("Test message")
-            
+
             # Check file content
-            with open(log_file, 'r') as f:
+            with open(log_file, "r") as f:
                 content = f.read()
                 assert "Test message" in content
                 assert "INFO" in content
@@ -316,10 +316,10 @@ class TestSetupLogger:
         """Test backward compatibility for loggers without success method."""
         # Create a regular logger first
         regular_logger = logging.getLogger("backward_compat_test")
-        
+
         # Now setup with our function
         logger = setup_logger("backward_compat_test")
-        
+
         # Should have success method
         assert hasattr(logger, "success")
         assert callable(logger.success)
@@ -327,15 +327,15 @@ class TestSetupLogger:
     def test_success_method_functionality(self):
         """Test that the success method works correctly."""
         logger = setup_logger("test_success")
-        
+
         stream = io.StringIO()
         handler = logging.StreamHandler(stream)
         handler.setFormatter(formatter)
         logger.handlers.clear()  # Remove default handlers
         logger.addHandler(handler)
-        
+
         logger.success("Test success message")
-        
+
         output = stream.getvalue()
         assert "SUCCESS" in output
         assert "Test success message" in output

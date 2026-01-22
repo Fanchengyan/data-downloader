@@ -16,7 +16,9 @@ class SentinelOrbit:
     >>> from pathlib import Path
 
     >>> folder_cal = Path("/media/data/aux_cal")  # specify the folder to save aux_cal
-    >>> folder_preorb = Path("/media/data/poeorb")  # specify the folder to save aux_poeorb
+    >>> folder_preorb = Path(
+    ...     "/media/data/poeorb"
+    ... )  # specify the folder to save aux_poeorb
 
     init SentinelOrbit:
 
@@ -24,7 +26,7 @@ class SentinelOrbit:
 
     Get all aux_cal data links of S1A and S1B and download them:
 
-    >>> urls_cal = s1_orbit.cal_urls(platform='all')
+    >>> urls_cal = s1_orbit.cal_urls(platform="all")
     >>> downloader.async_download_datas(urls_cal, folder=folder_cal)
 
     Get all precise orbit data links of S1A during 20210101-20220301 and download them:

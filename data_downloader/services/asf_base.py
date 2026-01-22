@@ -279,14 +279,11 @@ class ASFTileScenesTimeseries(ASFTileScenesABC):
     def granules(self) -> pd.Series:
         """Return the granules of the scenes."""
         return pd.Series(self.gdf.sceneName.values, index=self.datetime)
-    
+
     @classmethod
-    def from_reference_granule(cls, granule:str)->Self:
+    def from_reference_granule(cls, granule: str) -> Self:
         scenes = asf.baseline_search.stack_from_id(granule)
         return cls(scenes.geojson())
-        
-        
-
 
 
 class ASFTileScenesPairs(ASFTileScenesABC):

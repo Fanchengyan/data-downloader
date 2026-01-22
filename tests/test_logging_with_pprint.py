@@ -211,7 +211,9 @@ class TestLoggingWithPprint:
             # set new handler to capture output
             captured_output = StringIO()
             handler = logging.StreamHandler(captured_output)
-            handler.setFormatter(logging.Formatter("%(message)s"))  # only output message
+            handler.setFormatter(
+                logging.Formatter("%(message)s")
+            )  # only output message
             logger.addHandler(handler)
 
             # Ensure logger level is set correctly

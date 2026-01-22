@@ -27,12 +27,20 @@ class LiCSARService:
     generate mask data by primary_dates, secondary_dates and day span
 
     >>> pairs = licsar.pairs
-    >>> mask = (pairs.primary>pd.to_datetime("2019-01-01")) & (pairs.primary<pd.to_datetime("2019-12-31")) & (pairs.days < 12 * 5 + 1)
+    >>> mask = (
+    ...     (pairs.primary > pd.to_datetime("2019-01-01"))
+    ...     & (pairs.primary < pd.to_datetime("2019-12-31"))
+    ...     & (pairs.days < 12 * 5 + 1)
+    ... )
 
     download interferograms and coherence files filtered by mask
 
-    >>> downloader.download_datas(licsar.ifg_urls[mask].values, folder=pair_dir, desc="Interferogram")
-    >>> downloader.download_datas(licsar.coh_urls[mask], folder=pair_dir, desc="Coherence")
+    >>> downloader.download_datas(
+    ...     licsar.ifg_urls[mask].values, folder=pair_dir, desc="Interferogram"
+    ... )
+    >>> downloader.download_datas(
+    ...     licsar.coh_urls[mask], folder=pair_dir, desc="Coherence"
+    ... )
     """
 
     def __init__(

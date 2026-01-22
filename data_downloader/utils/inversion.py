@@ -547,4 +547,3 @@ def censored_lstsq(
     X[:, m] = X_solved  # noqa: N806
 
     return X
-

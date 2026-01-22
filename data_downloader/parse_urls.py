@@ -112,10 +112,12 @@ def from_html(
     --------
     >>> from downloader import parse_urls
 
-    >>> url = 'https://cds-espri.ipsl.upmc.fr/espri/pubipsl/iasib_CH4_2014_uk.jsp'
-    >>> urls = parse_urls.from_html(url, suffix=['.nc'], suffix_depth=1)
-    >>> urls_all = parse_urls.from_html(url, suffix=['.nc'], suffix_depth=1, url_depth=1)
-    >>> print(len(urls_all)-len(urls))
+    >>> url = "https://cds-espri.ipsl.upmc.fr/espri/pubipsl/iasib_CH4_2014_uk.jsp"
+    >>> urls = parse_urls.from_html(url, suffix=[".nc"], suffix_depth=1)
+    >>> urls_all = parse_urls.from_html(
+    ...     url, suffix=[".nc"], suffix_depth=1, url_depth=1
+    ... )
+    >>> print(len(urls_all) - len(urls))
     """
 
     r_h = requests.head(url)
@@ -210,8 +212,8 @@ def from_EarthExplorer_order(
     --------
     >>> from pathlib import Path
     >>> from data_downloader import downloader, parse_urls
-    >>> folder_out = Path('D:\\data')
-    >>> urls_info = parse_urls.from_EarthExplorer_order('your username', 'your passwd')
+    >>> folder_out = Path("D:\\data")
+    >>> urls_info = parse_urls.from_EarthExplorer_order("your username", "your passwd")
     >>> for odr in urls_info.keys():
     >>>     folder = folder_out.joinpath(odr)
     >>>     if not folder.exists():

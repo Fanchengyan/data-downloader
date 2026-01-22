@@ -37,4 +37,3 @@ class BaseConstants(StrEnum):
     def variables(cls) -> list[str]:
         """all available variables"""
         return list(cls.__members__.keys())
-
