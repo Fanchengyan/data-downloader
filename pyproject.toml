@@ -41,8 +41,12 @@ dependencies = [
 
 
 [project.optional-dependencies]
-dev = [
-    "data_downloader",  # all base dependencies
+tests = [
+    "pytest>=6.0.0",
+    "pytest-cov>=2.10.0",
+    "pytest-mock>=3.0.0",
+]
+docs = [
     "recommonmark",
     "sphinx>=7",
     "myst-nb",
@@ -52,6 +56,8 @@ dev = [
     "Jinja2",
     "myst_sphinx_gallery",
 ]
+
+dev = ["data_downloader[tests, docs]"]
 
 [tool.setuptools.packages.find]
 where = ["."] # list of folders that contain the packages (["."] by default)
