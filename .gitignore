@@ -8,3 +8,5 @@ docs/build/*
 .github/*
 .DS_Store
 **/generated/*
+.download_meta/
+*.part*
