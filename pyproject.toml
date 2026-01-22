@@ -4,13 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "data_downloader"
-version = "1.2"
 description = "Make downloading scientific data much easier"
 readme = "README.md"
-
-authors = [{ name = "fanchegyan", email = "fanchy14@lzu.edu.cn" }]
-
+authors = [{ name = "Chengyan (Fancy) Fan", email = "fanchengyan@outlook.com" }]
 license-files = ["LICENSE"]
+dynamic = ["version"]
+
+urls.Documentation = "https://data-downloader.readthedocs.io/en/latest/"
+urls.Source = "https://github.com/Fanchengyan/data-downloader"
+
 requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -51,9 +53,6 @@ dev = [
     "myst_sphinx_gallery",
 ]
 
-[project.urls]
-Homepage = "https://github.com/Fanchengyan/data_downloader"
-
 [tool.setuptools.packages.find]
 where = ["."] # list of folders that contain the packages (["."] by default)
 include = [
@@ -61,3 +60,227 @@ include = [
 ] # package names should match these glob patterns (["*"] by default)
 namespaces = true # allow scanning PEP 420 namespaces (true by default)
 
+[tool.setuptools.dynamic]
+version = {attr = "data_downloader.__version__"}
+
+[tool.pytest.ini_options]
+addopts = [
+  "--color=yes",
+  "--cov-report=",
+  "--cov=myst_sphinx_gallery",
+  "--durations=5",
+  "-r a",
+  "--tb=short",
+]
+testpaths = ["tests"]
+norecursedirs = "build _build"
+filterwarnings = [
+  # "ignore:node class .* is already registered.*:",
+  # "ignore:node.Node.* is obsoleted by Node.*:",
+  "ignore:.* Unknown directive type \"toctree\".",
+]
+
+markers = ["slow: marks tests as slow"]
+
+[tool.ruff]
+line-length = 88
+fix = true
+exclude = [
+  # commonly ignored directories.
+  ".bzr",
+  ".direnv",
+  ".eggs",
+  ".git",
+  ".git-rewrite",
+  ".hg",
+  ".ipynb_checkpoints",
+  ".mypy_cache",
+  ".nox",
+  ".pants.d",
+  ".pyenv",
+  ".pytest_cache",
+  ".pytype",
+  ".ruff_cache",
+  ".svn",
+  ".tox",
+  ".venv",
+  ".vscode",
+  "__pypackages__",
+  "_build",
+  "buck-out",
+  "build",
+  "dist",
+  "node_modules",
+  "site-packages",
+  "venv",
+  # faninsar ignored directories.
+  "build",
+  "dist",
+  "docs",
+  "notebooks",
+  "tests",
+  "examples",
+  "data",
+  "faninsar.egg-info",
+]
+
+[tool.ruff.lint]
+select = [
+  # pyflakes
+  "F",
+  # pycodestyle
+  "E",
+  "W",
+  # isort
+  "I",
+  # flake8-simplify
+  "SIM",
+  # pyupgrade
+  "UP",
+  # pep8-naming
+  "N",
+  # pydocstyle
+  "D",
+  # flake8-2020
+  "YTT",
+  # flake8-annotations
+  "ANN",
+  # flake8-builtins
+  "A",
+  # flake8-commas
+  "COM",
+  # flake8-datetimez (DTZ)
+  "DTZ",
+  # flake8-errmsg (EM)
+  "EM",
+  # flake8-bugbear
+  "B",
+  # flake8-quotes
+  "Q",
+  # flake8-debugger
+  "T10",
+  # flake8-gettext
+  "INT",
+  # pylint
+  "PL",
+  # flake8-pytest-style
+  "PT",
+  # misc lints
+  "PIE",
+  # flake8-pyi
+  "PYI",
+  # tidy imports
+  "TID",
+  # implicit string concatenation
+  "ISC",
+  # type-checking imports
+  "TCH",
+  # flake8-import-conventions (ICN)
+  "ICN",
+  # lake8-logging (LOG)
+  "LOG",
+  # flake8-no-pep420 (INP)
+  "INP",
+  # flake8-print (T20)
+  "T20",
+  # comprehensions
+  "C4",
+  # pygrep-hooks
+  "PGH",
+  # Ruff-specific rules
+  "RUF",
+  # flake8-bandit: exec-builtin
+  "S102",
+  # numpy-legacy-random
+  "NPY002",
+  # Perflint
+  "PERF",
+  # flynt
+  "FLY",
+  # flake8-logging-format
+  "G",
+  # flake8-future-annotations
+  "FA",
+  # unconventional-import-alias
+  "ICN001",
+  # flake8-slots
+  "SLOT",
+  # flake8-raise
+  "RSE",
+  # flake8-return (RET)
+  "RET",
+  # flake8-self (SLF)
+  "SLF",
+  # flake8-unused-arguments (ARG)
+  "ARG",
+  # flake8-use-pathlib (PTH)
+  "PTH",
+  # pandas-vet (PD)
+  # "PD",
+  # tryceratops (TRY)
+  "TRY",
+  # NumPy-specific rules (NPY)
+  "NPY",
+  # refurb (FURB)
+  "FURB",
+]
+ignore = [
+  # missing-type-args (ANN002): don't checks that function *args
+  "ANN002",
+  # missing-type-kwargs (ANN003): don't checks that function **kwargs
+  "ANN003",
+  # any-type (ANN401)
+  "ANN401",
+  # magic-value-comparison
+  "PLR2004",
+  # undocumented-public-package
+  "D104",
+  # too-many-arguments
+  "PLR0913",
+  # missing-type-kwargs
+  "ANN003",
+  # pandas-use-of-dot-values
+  "PD011",
+  # super-call-with-parameters (UP008)
+  "UP008",
+  # missing-trailing-comma (COM812)
+  "COM812",
+  # private-member-access (SLF001)#
+  "SLF001",
+  # pandas-df-variable-name (PD901)
+  "PD901",
+  # incorrect-blank-line-before-class (D203)
+  "D203",
+  # multi-line-summary-second-line (D213)
+  "D213",
+  # too-many-public-methods (PLR0904)
+  "PLR0904",
+  # too-many-positional-arguments (PLR0917)
+  "PLR0917",
+  # too-many-branches (PLR0912)
+  "PLR0912",
+  # too-many-statements (PLR0915)
+  "PLR0915",
+  # invalid-argument-name (N803)
+  "N803",
+  # non-augmented-assignment (PLR6104)
+  "PLR6104",
+  # import-outside-top-level (PLC0415)
+  "PLC0415",
+]
+# 4. Ignore `E402` (import violations) in all `__init__.py` files, and in selected subdirectories.
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402", "F401"]
+"*.pyi" = ["N815"]
+"**/{tests,docs,tools}/*" = ["E402", "F401"]
+
+[tool.ruff.lint.pep8-naming]
+extend-ignore-names = ["test_*", "to_*"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+
+[tool.doc8]
+ignore = ["D001"]
+allow-long-titles = true
