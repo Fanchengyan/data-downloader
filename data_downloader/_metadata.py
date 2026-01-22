@@ -38,6 +38,7 @@ class _ChunkedDownloadMetadata:
         Hidden directory for metadata (.download_meta)
     meta_file : Path
         Path to metadata JSON file
+
     """
 
     def __init__(
@@ -66,15 +67,13 @@ class _ChunkedDownloadMetadata:
         for i in range(chunks):
             start = i * chunk_size
             end = file_size - 1 if i == chunks - 1 else (i + 1) * chunk_size - 1
-            self.parts.append(
-                {
-                    "index": i,
-                    "start": start,
-                    "end": end,
-                    "status": "pending",
-                    "size": 0,
-                }
-            )
+            self.parts.append({
+                "index": i,
+                "start": start,
+                "end": end,
+                "status": "pending",
+                "size": 0,
+            })
 
         self.status = "pending"
         self.checksum = None
@@ -101,7 +100,7 @@ class _ChunkedDownloadMetadata:
             "checksum": self.checksum,
         }
 
-        with open(self.meta_file, "w") as f:
+        with Path(self.meta_file).open("w") as f:
             json.dump(data, f, indent=2)
 
     @classmethod
@@ -117,6 +116,7 @@ class _ChunkedDownloadMetadata:
         -------
         _ChunkedDownloadMetadata | None
             Loaded metadata object or None if not found
+
         """
         meta_dir = file_path.parent / ".download_meta"
         meta_file = meta_dir / f"{file_path.name}.json"
@@ -125,7 +125,7 @@ class _ChunkedDownloadMetadata:
             return None
 
         try:
-            with open(meta_file) as f:
+            with Path(meta_file).open() as f:
                 data = json.load(f)
 
             # Create instance
@@ -165,6 +165,7 @@ class _ChunkedDownloadMetadata:
         -------
         bool
             True if compatible (can resume), False otherwise
+
         """
         # URL must match
         if new_url != self.url:
@@ -189,12 +190,12 @@ class _ChunkedDownloadMetadata:
         -------
         Path
             Path to part file (e.g., file.zip.part0)
+
         """
         if self.chunks == 1:
             # Single chunk uses the target file directly
             return self.file_path
-        else:
-            return self.file_path.parent / f"{self.file_path.name}.part{part_index}"
+        return self.file_path.parent / f"{self.file_path.name}.part{part_index}"
 
     def mark_part_completed(self, part_index: int) -> None:
         """Mark a part as completed.
@@ -203,6 +204,7 @@ class _ChunkedDownloadMetadata:
         ----------
         part_index : int
             Part index
+
         """
         self.parts[part_index]["status"] = "completed"
         part_path = self.get_part_path(part_index)
@@ -217,6 +219,7 @@ class _ChunkedDownloadMetadata:
         ----------
         part_index : int
             Part index
+
         """
         part_path = self.get_part_path(part_index)
         if part_path.exists():
@@ -237,6 +240,7 @@ class _ChunkedDownloadMetadata:
                 "total_downloaded": bytes,
                 "progress_percent": 0-100
             }
+
         """
         completed = []
         partial = []
@@ -269,6 +273,7 @@ class _ChunkedDownloadMetadata:
         ----------
         keep_parts : bool
             If True, keep part files (only remove metadata)
+
         """
         # Remove metadata file
         if self.meta_file.exists():

@@ -744,6 +744,361 @@ def _download_data_requests(
     return True
 
 
+async def _download_data_async(
+    url: str,
+    folder: str | None = None,
+    file_name: str | None = None,
+    client=None,
+    engine: str = "httpx",
+    follow_redirects: bool = True,
+    retry: int = 10,
+    authorize_from_browser: bool = False,
+    chunks: int | None = None,
+    force_restart: bool = False,
+    verify_checksum: bool | Literal["strict"] = False,
+    checksum_url: str | None = None,
+    expected_checksum: str | None = None,
+) -> bool:
+    """Async implementation of download with chunking and resume support.
+
+    Parameters
+    ----------
+    See download_data() for parameter descriptions
+
+    Returns
+    -------
+    bool
+        True if download succeeded
+    """
+    # Create client if not provided
+    client_created = False
+    if client is None:
+        client_created = True
+        if engine == "httpx":
+            client = httpx.AsyncClient(timeout=None, verify=False)
+        elif engine == "aiohttp":
+            client = aiohttp.ClientSession()
+        else:
+            raise ValueError(f"Invalid async engine: {engine}")
+
+    try:
+        # Get file size and check server support
+        cj = _get_cookiejar(authorize_from_browser)
+
+        if engine == "httpx":
+            r = await client.head(url, follow_redirects=follow_redirects, cookies=cj)
+            headers = r.headers
+        else:  # aiohttp
+            async with client.head(
+                url, allow_redirects=follow_redirects, cookies=cj
+            ) as r:
+                headers = r.headers
+
+        # Extract file info
+        file_size = int(headers.get("content-length", 0))
+        supports_range = "accept-ranges" in headers or "content-range" in headers
+
+        # Parse file name if not provided
+        if file_name is None:
+            if engine == "httpx":
+                file_name = _parse_file_name(r)
+            else:  # aiohttp
+                # For aiohttp, parse from URL
+                file_name = os.path.basename(urlparse(url).path)
+                if not file_name:
+                    file_name = "downloaded_file"
+
+        # Determine file path
+        if folder is not None:
+            os.makedirs(folder, exist_ok=True)
+            file_path = Path(folder) / file_name
+        else:
+            file_path = Path(file_name).absolute()
+
+        # Force restart: delete metadata and part files
+        if force_restart:
+            metadata = _ChunkedDownloadMetadata.load(file_path)
+            if metadata:
+                logger.info(
+                    f"Force restart: cleaning up existing download for {file_name}"
+                )
+                metadata.cleanup(keep_parts=False)
+
+        # Check for resume
+        if file_size > 0 and supports_range:
+            actual_chunks, metadata = await _detect_and_resume_download(
+                url=url,
+                file_path=file_path,
+                file_size=file_size,
+                chunks=chunks,
+                engine=engine,
+                supports_range=supports_range,
+            )
+        else:
+            # No size info or no range support
+            actual_chunks = 1
+            metadata = None
+            if chunks and chunks > 1:
+                logger.warning(
+                    "Server doesn't support range requests or file size unknown. "
+                    "Using sequential download."
+                )
+
+        # Download file
+        if actual_chunks == 1:
+            # Sequential download (single chunk)
+            if metadata:
+                # Resume single-chunk download
+                logger.info(f"Resuming single-chunk download for {file_name}")
+
+            # Use existing sequential download functions
+            if engine == "httpx":
+                success = await _download_single_file_httpx(
+                    client=client,
+                    url=url,
+                    folder=folder,
+                    file_name=file_name,
+                    follow_redirects=follow_redirects,
+                    retry=retry,
+                    authorize_from_browser=authorize_from_browser,
+                )
+            else:  # aiohttp
+                success = await _download_single_file_aiohttp(
+                    client=client,
+                    url=url,
+                    folder=folder,
+                    file_name=file_name,
+                    follow_redirects=follow_redirects,
+                    retry=retry,
+                    authorize_from_browser=authorize_from_browser,
+                )
+        else:
+            # Chunked download
+            if engine == "httpx":
+                success = await _download_data_chunked_httpx(
+                    client=client,
+                    url=url,
+                    file_path=file_path,
+                    chunks=actual_chunks,
+                    file_size=file_size,
+                    retry=retry,
+                    metadata=metadata,
+                    authorize_from_browser=authorize_from_browser,
+                )
+            else:  # aiohttp
+                success = await _download_data_chunked_aiohttp(
+                    session=client,
+                    url=url,
+                    file_path=file_path,
+                    chunks=actual_chunks,
+                    file_size=file_size,
+                    retry=retry,
+                    metadata=metadata,
+                    authorize_from_browser=authorize_from_browser,
+                )
+
+        if not success:
+            return False
+
+        # Verify checksum if requested
+        if verify_checksum:
+            checksum_info = None
+
+            # Try to get checksum from expected_checksum parameter
+            if expected_checksum:
+                parts = expected_checksum.split(":", 1)
+                if len(parts) == 2:
+                    checksum_info = {
+                        "type": parts[0],
+                        "value": parts[1],
+                        "reliable": True,
+                    }
+
+            # Try to download external checksum file
+            if not checksum_info and checksum_url:
+                checksum_info = await _download_checksum_file(client, checksum_url)
+
+            # Try to extract from response headers
+            if not checksum_info:
+                checksum_info = _extract_checksum_from_headers(headers)
+
+            # Verify
+            if checksum_info:
+                is_valid = _verify_file_checksum(
+                    file_path,
+                    checksum_info,
+                    verify_unreliable=(verify_checksum == "strict"),
+                )
+
+                if not is_valid and verify_checksum == "strict":
+                    logger.error("Strict checksum verification failed. Deleting file.")
+                    file_path.unlink()
+                    return False
+
+        return True
+
+    finally:
+        # Close client if we created it
+        if client_created:
+            if engine == "httpx":
+                await client.aclose()
+            else:  # aiohttp
+                await client.close()
+
+
+# Wrapper functions for single-file async downloads
+async def _download_single_file_httpx(
+    client: httpx.AsyncClient,
+    url: str,
+    folder: str | None,
+    file_name: str | None,
+    follow_redirects: bool,
+    retry: int,
+    authorize_from_browser: bool,
+) -> bool:
+    """Download single file using httpx (adapter for existing _download_data)."""
+    # Use existing async httpx download function
+    return await _download_data(
+        client=client,
+        url=url,
+        folder=folder,
+        file_name=file_name,
+        follow_redirects=follow_redirects,
+        retry=retry,
+        authorize_from_browser=authorize_from_browser,
+    )
+
+
+async def _download_single_file_aiohttp(
+    client: aiohttp.ClientSession,
+    url: str,
+    folder: str | None,
+    file_name: str | None,
+    follow_redirects: bool,
+    retry: int,
+    authorize_from_browser: bool,
+) -> bool:
+    """Download single file using aiohttp.
+
+    This implements sequential download similar to _download_data (httpx version).
+    """
+    global support_resume, pbar, remote_size
+
+    headers = {"Range": "bytes=0-4"}
+    support_resume = False
+
+    cj = _get_cookiejar(authorize_from_browser)
+
+    params = {
+        "message": "downloading data with aiohttp",
+        "url": url,
+        "folder": folder,
+        "file_name": file_name,
+    }
+    msg = pformat(safe_repr(params), indent=4)
+    logger.debug(msg)
+
+    # Check if server supports resume
+    async with client.get(
+        url, headers=headers, allow_redirects=follow_redirects, cookies=cj
+    ) as r:
+        if file_name is None:
+            # Parse from URL
+            file_name = os.path.basename(urlparse(url).path)
+            if not file_name:
+                file_name = "downloaded_file"
+
+        if folder is not None:
+            file_path = os.path.join(folder, file_name)
+        else:
+            file_path = os.path.abspath(file_name)
+
+        local_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
+
+        # Handle status
+        result = _handle_status(r, url, local_size, file_name, file_path)
+        if result:
+            status, extra = result
+            if status is True:
+                return True
+            elif status is False:
+                if extra:  # redirect
+                    return await _download_single_file_aiohttp(
+                        client,
+                        extra,
+                        folder=folder,
+                        file_name=file_name,
+                        follow_redirects=True,
+                        retry=retry,
+                        authorize_from_browser=authorize_from_browser,
+                    )
+                else:
+                    return False
+            elif status is None:  # retryable
+                status_code = extra
+                if retry > 0:
+                    wait_time = _get_retry_wait_time(r, status_code)
+                    await asyncio.sleep(wait_time)
+                    return await _download_single_file_aiohttp(
+                        client,
+                        url,
+                        folder=folder,
+                        file_name=file_name,
+                        follow_redirects=follow_redirects,
+                        retry=retry - 1,
+                        authorize_from_browser=authorize_from_browser,
+                    )
+                else:
+                    logger.error(f">>> Max retries exceeded for {url}")
+                    return False
+
+    # Begin download
+    if support_resume:
+        headers["Range"] = f"bytes={local_size}-{remote_size}"
+    else:
+        headers = {}
+
+    async with client.get(url, headers=headers, cookies=cj) as r:
+        with open(file_path, "ab") as f:
+            time_start_realtime = time_start = time.time()
+
+            async for chunk in r.content.iter_any():
+                if chunk:
+                    size_add = len(chunk)
+                    local_size += size_add
+                    f.write(chunk)
+                    f.flush()
+
+                if support_resume:
+                    pbar.update(size_add)
+                else:
+                    time_end_realtime = time.time()
+                    time_span = time_end_realtime - time_start_realtime
+                    if time_span > 1:
+                        speed_realtime = size_add / time_span
+                        logger.info(
+                            "  Downloading {} [Speed: {} | Size: {}]".format(
+                                Path(file_name).name,
+                                _unit_formater(speed_realtime, "B/s"),
+                                _unit_formater(local_size, "B"),
+                            )
+                        )
+                        time_start_realtime = time_end_realtime
+
+            if not support_resume:
+                time_cost = time.time() - time_start
+                speed = local_size / time_cost if time_cost > 0 else 0
+                logger.info(
+                    "  Finish downloading {} [Speed: {} | Total Size: {}]".format(
+                        Path(file_name).name,
+                        _unit_formater(speed, "B/s"),
+                        _unit_formater(local_size, "B"),
+                    )
+                )
+
+    return True
+
+
 def download_data(
     url,
     folder=None,
@@ -753,36 +1108,90 @@ def download_data(
     follow_redirects=True,
     retry=10,
     authorize_from_browser=False,
+    chunks: int | None = None,
+    force_restart: bool = False,
+    verify_checksum: bool | Literal["strict"] = False,
+    checksum_url: str | None = None,
+    expected_checksum: str | None = None,
 ):
-    """Download a single file.
+    """Download a single file with optional chunked download and resume support.
 
-    Parameters:
-    -----------
-    url: str
-        url of web file
-    folder: str
-        the folder to store output files. Default current folder.
-    file_name: str
-        the file name. If None, will parse from web response or url.
+    Parameters
+    ----------
+    url : str
+        URL of web file
+    folder : str, optional
+        The folder to store output files. Default current folder.
+    file_name : str, optional
+        The file name. If None, will parse from web response or url.
         file_name can be the absolute path if folder is None.
-    client: requests.Session() for `requests` engine or httpx.Client() for `httpx` engine
-        client maintaining connection. Default None
-    engine: one of ["requests","httpx"]
-        engine for downloading
-    follow_redirects: bool
-        Enables or disables HTTP redirects
-    retry: int
-        number of retries for transient errors (202, 408, 429, 5xx). Default is 10.
-    authorize_from_browser: bool
+    client : requests.Session | httpx.Client | httpx.AsyncClient | aiohttp.ClientSession, optional
+        Client maintaining connection. Default None
+    engine : {"requests", "httpx", "aiohttp"}
+        Download engine. Default "requests"
+    follow_redirects : bool
+        Enables or disables HTTP redirects. Default True
+    retry : int
+        Number of retries for transient errors (202, 408, 429, 5xx). Default 10
+    authorize_from_browser : bool
         Whether to load cookies used by your web browser for authorization.
-        This means you can use python to download data by logging in to website
-        via browser (So far the following browsers are supported: Chrome,Firefox,
-        Opera, Edge, Chromium"). It will be very useful when website doesn't support
-        "HTTP Basic Auth". Default is False.
-    """
+        Supports Chrome, Firefox, Opera, Edge, Chromium. Default False
+    chunks : int | None, optional
+        Number of chunks for parallel download (httpx/aiohttp only).
+        - None: auto-detect based on file size
+        - 1: no chunking (sequential download)
+        - >1: download with specified chunks
+        Note: requests engine ignores this parameter
+    force_restart : bool
+        If True, delete existing metadata and restart download. Default False
+    verify_checksum : bool | Literal["strict"]
+        Checksum verification mode:
+        - False: no verification (default)
+        - True: verify reliable checksums if available
+        - "strict": verify all checksums, fail if mismatch
+    checksum_url : str | None
+        URL to external checksum file (.md5, .sha256, etc.)
+    expected_checksum : str | None
+        Expected checksum value (format: "sha256:abc..." or "md5:def...")
 
+    Returns
+    -------
+    bool
+        True if download succeeded, False otherwise
+
+    Examples
+    --------
+    Basic download:
+    >>> download_data("https://example.com/file.zip", folder="/data")
+
+    Chunked download with 8 chunks:
+    >>> download_data(
+    ...     "https://example.com/large.zip", folder="/data", engine="httpx", chunks=8
+    ... )
+
+    Auto-resume interrupted download:
+    >>> download_data("https://example.com/file.zip", folder="/data")
+    # Interrupted...
+    >>> download_data("https://example.com/file.zip", folder="/data")
+    # Automatically resumes from where it left off
+
+    With checksum verification:
+    >>> download_data(
+    ...     "https://example.com/file.zip",
+    ...     folder="/data",
+    ...     verify_checksum=True,
+    ...     checksum_url="https://example.com/file.zip.sha256",
+    ... )
+    """
     if engine == "requests":
-        _download_data_requests(
+        # Requests engine doesn't support chunked downloads
+        if chunks and chunks > 1:
+            logger.warning(
+                f"Chunked download (chunks={chunks}) is not supported with 'requests' engine. "
+                "Using sequential download. Use engine='httpx' or 'aiohttp' for chunked downloads."
+            )
+
+        return _download_data_requests(
             url,
             folder,
             file_name,
@@ -791,21 +1200,44 @@ def download_data(
             retry,
             authorize_from_browser,
         )
-    elif engine == "httpx":
-        _download_data_httpx(
-            url,
-            folder,
-            file_name,
-            client,
-            follow_redirects,
-            retry,
-            authorize_from_browser,
-        )
+
+    elif engine in ["httpx", "aiohttp"]:
+        # Async engines support chunked downloads
+        # Run async function in event loop
+        import asyncio
+
+        try:
+            loop = asyncio.get_running_loop()
+            # Already in async context
+            raise RuntimeError(
+                "download_data() cannot be called from async context. "
+                "Use async version directly or call from sync code."
+            )
+        except RuntimeError:
+            # Not in async context, create new loop
+            return asyncio.run(
+                _download_data_async(
+                    url=url,
+                    folder=folder,
+                    file_name=file_name,
+                    client=client,
+                    engine=engine,
+                    follow_redirects=follow_redirects,
+                    retry=retry,
+                    authorize_from_browser=authorize_from_browser,
+                    chunks=chunks,
+                    force_restart=force_restart,
+                    verify_checksum=verify_checksum,
+                    checksum_url=checksum_url,
+                    expected_checksum=expected_checksum,
+                )
+            )
+
     else:
         params = {
             "message": "Invalid engine",
             "engine used": engine,
-            "available engines": ["requests", "httpx"],
+            "available engines": ["requests", "httpx", "aiohttp"],
         }
         msg = pformat(safe_repr(params), indent=4)
         logger.error(msg)

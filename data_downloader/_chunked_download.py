@@ -3,19 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-import time
 from pathlib import Path
-from pprint import pformat
 from typing import TYPE_CHECKING
 
-import aiohttp
-import httpx
-from tqdm import tqdm
-
 from .logging import setup_logger, tqdm_handler
-from .utils.tools import safe_repr
 
 if TYPE_CHECKING:
+    import aiohttp
+    import httpx
+
     from ._metadata import _ChunkedDownloadMetadata
 
 logger = setup_logger(__name__, handler=tqdm_handler)
@@ -61,6 +57,7 @@ async def _detect_and_resume_download(
     - If metadata exists and is compatible: resume with existing chunks
     - If metadata exists but incompatible: use existing chunks (compatibility mode)
     - If no metadata: use requested chunks or auto-detect
+
     """
     from ._metadata import _ChunkedDownloadMetadata
 
@@ -85,11 +82,9 @@ async def _detect_and_resume_download(
     if not metadata.is_compatible(chunks, url):
         # Incompatible: different URL
         if metadata.url != url:
-            logger.warning(
-                f"Found metadata for different URL. Starting fresh download."
-            )
+            logger.warning("Found metadata for different URL. Starting fresh download.")
             metadata.cleanup(keep_parts=False)
-            actual_chunks = chunks if chunks else 1
+            actual_chunks = chunks or 1
             return actual_chunks, None
 
         # Incompatible: different chunks (but same URL)
@@ -140,6 +135,7 @@ def _cleanup_orphaned_parts(file_path: Path) -> None:
     ----------
     file_path : Path
         Target file path
+
     """
     orphaned = []
     for part_file in file_path.parent.glob(f"{file_path.name}.part*"):
@@ -202,6 +198,7 @@ async def _download_range_httpx(
     -------
     bool
         True if successful
+
     """
     from . import downloader
 
@@ -213,12 +210,15 @@ async def _download_range_httpx(
         actual_start = start + current_size
         if actual_start > end:
             # Part already complete
-            logger.debug(f"Part {part_index} already complete")
+            logger.debug("Part %s already complete", part_index)
             return True
 
         logger.debug(
-            f"Resuming part {part_index} from byte {current_size} "
-            f"(range: {actual_start}-{end})"
+            "Resuming part %s from byte %s (range: %s-%s)",
+            part_index,
+            current_size,
+            actual_start,
+            end,
         )
     else:
         actual_start = start
@@ -232,7 +232,7 @@ async def _download_range_httpx(
 
             # Open file in append mode
             mode = "ab" if current_size > 0 else "wb"
-            with open(part_path, mode) as f:
+            with Path(part_path).open(mode) as f:
                 async for chunk in response.aiter_bytes():
                     f.write(chunk)
 
@@ -245,7 +245,7 @@ async def _download_range_httpx(
         return True
 
     except Exception as e:
-        logger.error(f"Error downloading part {part_index}: {e}")
+        logger.error("Error downloading part %s: %s", part_index, e)
         # Save current progress
         if part_path.exists():
             metadata.update_part_progress(part_index)
@@ -287,6 +287,7 @@ async def _download_data_chunked_httpx(
     -------
     bool
         True if successful
+
     """
     from ._metadata import _ChunkedDownloadMetadata
 
@@ -341,7 +342,7 @@ async def _download_data_chunked_httpx(
                 metadata.status = "failed"
                 metadata.save()
                 return False
-            elif not result:
+            if not result:
                 logger.error(f"Part {parts_to_download[i]} download failed")
                 metadata.status = "failed"
                 metadata.save()
@@ -404,6 +405,7 @@ async def _download_range_aiohttp(
     -------
     bool
         True if successful
+
     """
     from . import downloader
 
@@ -415,12 +417,15 @@ async def _download_range_aiohttp(
         actual_start = start + current_size
         if actual_start > end:
             # Part already complete
-            logger.debug(f"Part {part_index} already complete")
+            logger.debug("Part %s already complete", part_index)
             return True
 
         logger.debug(
-            f"Resuming part {part_index} from byte {current_size} "
-            f"(range: {actual_start}-{end})"
+            "Resuming part %s from byte %s (range: %s-%s)",
+            part_index,
+            current_size,
+            actual_start,
+            end,
         )
     else:
         actual_start = start
@@ -434,7 +439,7 @@ async def _download_range_aiohttp(
 
             # Open file in append mode
             mode = "ab" if current_size > 0 else "wb"
-            with open(part_path, mode) as f:
+            with Path(part_path).open(mode) as f:
                 async for chunk in response.content.iter_any():
                     f.write(chunk)
 
@@ -447,7 +452,7 @@ async def _download_range_aiohttp(
         return True
 
     except Exception as e:
-        logger.error(f"Error downloading part {part_index}: {e}")
+        logger.error("Error downloading part %s: %s", part_index, e)
         # Save current progress
         if part_path.exists():
             metadata.update_part_progress(part_index)
@@ -489,6 +494,7 @@ async def _download_data_chunked_aiohttp(
     -------
     bool
         True if successful
+
     """
     from ._metadata import _ChunkedDownloadMetadata
 
@@ -543,7 +549,7 @@ async def _download_data_chunked_aiohttp(
                 metadata.status = "failed"
                 metadata.save()
                 return False
-            elif not result:
+            if not result:
                 logger.error(f"Part {parts_to_download[i]} download failed")
                 metadata.status = "failed"
                 metadata.save()
