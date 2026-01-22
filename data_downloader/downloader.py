@@ -1,23 +1,34 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import datetime as dt
+import hashlib
+import json
 import multiprocessing as mp
 import os
+import random
 import selectors
 import time
 from netrc import netrc
 from pathlib import Path
 from pprint import pformat
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 from urllib.parse import urlparse
 
+import aiohttp
 import browser_cookie3 as bc
 import httpx
 import requests
 from dateutil.parser import parse
 from tqdm import tqdm
 
+from ._chunked_download import (
+    _detect_and_resume_download,
+    _download_data_chunked_aiohttp,
+    _download_data_chunked_httpx,
+)
+from ._metadata import _ChunkedDownloadMetadata
 from .logging import setup_logger, tqdm_handler
 from .utils.tools import safe_repr
 
@@ -25,6 +36,138 @@ if TYPE_CHECKING:
     from os import PathLike
 
 logger = setup_logger(__name__, handler=tqdm_handler)
+
+# Retryable HTTP status codes (transient errors)
+RETRYABLE_STATUS_CODES = {
+    202: "Accepted (data being prepared)",
+    408: "Request Timeout",
+    429: "Too Many Requests",
+    500: "Internal Server Error",
+    502: "Bad Gateway",
+    503: "Service Unavailable",
+    504: "Gateway Timeout",
+}
+
+
+# ============================================================================
+# Helper Functions (imported from modules, keeping here for backward compatibility)
+# ============================================================================
+
+
+def _auto_detect_chunks(file_size: int) -> int:
+    """Automatically determine optimal number of chunks based on file size.
+
+    Parameters
+    ----------
+    file_size : int
+        File size in bytes
+
+    Returns
+    -------
+    int
+        Recommended number of chunks
+
+    Notes
+    -----
+    Strategy:
+    - < 10 MB: 1 chunk (no splitting)
+    - 10 MB - 100 MB: 4 chunks
+    - 100 MB - 1 GB: 8 chunks
+    - > 1 GB: 16 chunks
+    """
+    MB = 1024 * 1024
+    GB = 1024 * MB
+
+    if file_size < 10 * MB:
+        return 1
+    elif file_size < 100 * MB:
+        return 4
+    elif file_size < 1 * GB:
+        return 8
+    else:
+        return 16
+
+
+def _merge_chunks(file_path: Path, chunks: int) -> None:
+    """Merge chunk files into final file.
+
+    Parameters
+    ----------
+    file_path : Path
+        Target file path
+    chunks : int
+        Number of chunks to merge
+
+    Notes
+    -----
+    Merges files like filename.part0, filename.part1, ... into filename
+    and deletes part files after successful merge.
+    """
+    logger.info(f"Merging {chunks} chunks into {file_path.name}...")
+
+    with open(file_path, "wb") as target:
+        for i in range(chunks):
+            part_path = file_path.parent / f"{file_path.name}.part{i}"
+            if not part_path.exists():
+                msg = f"Missing part file: {part_path.name}"
+                logger.error(msg)
+                raise FileNotFoundError(msg)
+
+            with open(part_path, "rb") as part:
+                target.write(part.read())
+
+    # Delete part files after successful merge
+    for i in range(chunks):
+        part_path = file_path.parent / f"{file_path.name}.part{i}"
+        part_path.unlink()
+
+    logger.info(f"Successfully merged {chunks} chunks")
+
+
+def _get_retry_wait_time(response, status_code):
+    """Calculate wait time based on Retry-After header and status code.
+
+    Parameters
+    ----------
+    response : HTTP response object
+        Response object with headers
+    status_code : int
+        HTTP status code
+
+    Returns
+    -------
+    float
+        Wait time in seconds
+    """
+    # Try to read Retry-After header
+    retry_after = response.headers.get("Retry-After")
+
+    if retry_after:
+        try:
+            # Retry-After can be seconds
+            wait_time = float(retry_after)
+            logger.info(f"Server requested wait of {wait_time} seconds")
+            return min(wait_time, 60)  # Max 60 seconds
+        except ValueError:
+            # Retry-After can also be HTTP date format
+            try:
+                retry_date = parse(retry_after)
+                now = dt.datetime.now(dt.timezone.utc)
+                wait_time = (retry_date - now).total_seconds()
+                wait_time = max(0, min(wait_time, 60))
+                if wait_time > 0:
+                    logger.info(
+                        f"Server requested wait until {retry_after} ({wait_time:.1f}s)"
+                    )
+                return wait_time
+            except Exception:
+                pass  # Parse failed, use default
+
+    # No Retry-After header, use default strategy
+    if status_code == 429:  # Rate limiting
+        return random.uniform(2, 10)
+    else:  # 202, 408, 5xx
+        return random.uniform(0.5, 5)
 
 
 def get_url_host(url):
@@ -171,8 +314,8 @@ def _get_cookiejar(authorize_from_browser):
 def _handle_status(r, url, local_size, file_name, file_path):
     # returns (True, '') : downloaded entirely
     # returns (False,'') : error! break download
-    # returns (False, url) : 301,302
-    # returns None: continue to download
+    # returns (False, url) : 301,302 redirect
+    # returns (None, status_code): retryable error
 
     global support_resume, pbar, remote_size
 
@@ -182,10 +325,7 @@ def _handle_status(r, url, local_size, file_name, file_path):
 
         # init process bar
         if _new_file_from_web(r, file_path):
-            msg = (
-                f"There is a new file from {url}. "
-                f"{Path(file_name).name} is ready to be downloaded again"
-            )
+            msg = f"There is a new file from {url}. {Path(file_name).name} is ready to be downloaded again"
             logger.info(msg)
             os.remove(file_path)
         elif local_size < remote_size:
@@ -208,8 +348,7 @@ def _handle_status(r, url, local_size, file_name, file_path):
 
             if _new_file_from_web(r, file_path):
                 logger.info(
-                    f"There is a new file from {url}. "
-                    f"{Path(file_name).name} is ready to be downloaded again"
+                    f"There is a new file from {url}. {Path(file_name).name} is ready to be downloaded again"
                 )
                 os.remove(file_path)
             elif 0 < local_size < remote_size:
@@ -228,7 +367,9 @@ def _handle_status(r, url, local_size, file_name, file_path):
                 logger.info(msg)
                 os.remove(file_path)
             elif local_size == remote_size:
-                msg = f"{Path(file_name).name} was downloaded entirely. skiping download"
+                msg = (
+                    f"{Path(file_name).name} was downloaded entirely. skiping download"
+                )
                 logger.info(msg)
                 return True, ""
         # don't know the total size, warning user if detect the file was downloaded.
@@ -242,16 +383,15 @@ def _handle_status(r, url, local_size, file_name, file_path):
                 )
                 logger.warning(msg)
                 return True, ""
-    elif r.status_code == 202:
-        msg = (
-            ">>> The server has accepted your request but has not yet processed it. "
-            "Please redownload it later"
-        )
+    elif r.status_code in RETRYABLE_STATUS_CODES:
+        # Unified handling of retryable errors
+        reason = RETRYABLE_STATUS_CODES[r.status_code]
+        msg = f">>> Server returned {r.status_code} ({reason}), will retry..."
         logger.info(msg)
-        return False, ""
+        return None, r.status_code  # Return status code for retry logic
     elif r.status_code in [301, 302]:
         url_new = r.headers["Location"]
-        msg = f">>> Waring: the website has redirected to {url_new}"
+        msg = f">>> Warning: the website has redirected to {url_new}"
         logger.warning(msg)
         return False, url_new
     elif r.status_code == 401:
@@ -268,10 +408,7 @@ def _handle_status(r, url, local_size, file_name, file_path):
         logger.error(msg)
         return False, ""
     else:
-        msg = (
-            f'  Download file from "{url}" failed, '
-            f" The service returns the HTTP Status Code: {r.status_code}"
-        )
+        msg = f'  Download file from "{url}" failed,  The service returns the HTTP Status Code: {r.status_code}'
         logger.error(msg)
         return False, ""
 
@@ -282,32 +419,34 @@ def _download_data_httpx(
     file_name=None,
     client=None,
     follow_redirects=True,
-    retry=0,
+    retry=10,
     authorize_from_browser=False,
 ):
-    """Download a single file.
+    """Download a single file using httpx.
 
-    Parameters:
-    -----------
-    url: str
-        url of web file
-    folder: str
-        the folder to store output files. Default current folder.
-    authorize_from_browser: bool
+    Parameters
+    ----------
+    url : str
+        URL of web file
+    folder : str, optional
+        The folder to store output files. Default current folder.
+    file_name : str, optional
+        The file name. If None, will parse from web response or url.
+        file_name can be the absolute path if folder is None.
+    client : httpx.Client, optional
+        Client maintaining connection. Default None
+    follow_redirects : bool, optional
+        Enables or disables HTTP redirects. Default True
+    retry : int, optional
+        Number of retries for transient errors (202, 408, 429, 500-504).
+        Each retry waits 0.5-5 seconds (2-10 seconds for 429 with Retry-After).
+        Default is 10.
+    authorize_from_browser : bool, optional
         Whether to load cookies used by your web browser for authorization.
         This means you can use python to download data by logging in to website
         via browser (So far the following browsers are supported: Chrome,Firefox,
         Opera, Edge, Chromium"). It will be very useful when website doesn't support
         "HTTP Basic Auth". Default is False.
-    file_name: str
-        the file name. If None, will parse from web response or url.
-        file_name can be the absolute path if folder is None.
-    client: httpx.Client() object
-        client maintaining connection. Default None
-    follow_redirects: bool
-        Enables or disables HTTP redirects
-    retry: int
-        number of reconnection when status code is 503
     """
     # init parameters
     global support_resume, pbar, remote_size
@@ -348,29 +487,53 @@ def _download_data_httpx(
 
     result = _handle_status(r, url, local_size, file_name, file_path)
     if result:
-        status, url_new = result
-        if status:  # downloaded entirely
+        status, extra = result
+        if status is True:  # downloaded entirely
             return True
-        elif not status:
-            if url_new:  # 301,302
+        elif status is False:
+            if extra:  # 301/302 redirect, extra is new URL
                 return _download_data_httpx(
-                    url_new,
+                    extra,
                     folder=folder,
                     file_name=file_name,
                     authorize_from_browser=authorize_from_browser,
                     follow_redirects=True,
                     client=client,
+                    retry=retry,
                 )
-            elif retry > 0:
+            else:  # permanent error
+                return False
+        elif status is None:  # retryable error, extra is status_code
+            status_code = extra
+
+            if retry > 0:
+                # Get wait time (with Retry-After support)
+                wait_time = _get_retry_wait_time(r, status_code)
+
+                # Improved logging
+                remaining = retry - 1
+                if remaining <= 3:  # Warning when few attempts left
+                    logger.warning(
+                        f">>> Retrying {status_code} for {url} "
+                        f"({remaining} attempts remaining)"
+                    )
+                else:
+                    logger.info(
+                        f">>> Retrying {status_code} (attempt {10 - remaining + 1}/10)"
+                    )
+
+                time.sleep(wait_time)
                 return _download_data_httpx(
                     url,
                     folder=folder,
                     file_name=file_name,
-                    authorize_from_browser=authorize_from_browser,
                     client=client,
+                    follow_redirects=follow_redirects,
                     retry=retry - 1,
+                    authorize_from_browser=authorize_from_browser,
                 )
-            else:  # error! break download
+            else:
+                logger.error(f">>> Max retries exceeded for {url}")
                 return False
 
     # begin downloading
@@ -422,32 +585,34 @@ def _download_data_requests(
     file_name=None,
     client=None,
     follow_redirects=True,
-    retry=0,
+    retry=10,
     authorize_from_browser=False,
 ):
-    """Download a single file.
+    """Download a single file using requests.
 
-    Parameters:
-    -----------
-    url: str
-        url of web file
-    folder: str
-        the folder to store output files. Default current folder.
-    authorize_from_browser: bool
+    Parameters
+    ----------
+    url : str
+        URL of web file
+    folder : str, optional
+        The folder to store output files. Default current folder.
+    file_name : str, optional
+        The file name. If None, will parse from web response or url.
+        file_name can be the absolute path if folder is None.
+    client : requests.Session, optional
+        Client maintaining connection. Default None
+    follow_redirects : bool, optional
+        Enables or disables HTTP redirects. Default True
+    retry : int, optional
+        Number of retries for transient errors (202, 408, 429, 500-504).
+        Each retry waits 0.5-5 seconds (2-10 seconds for 429 with Retry-After).
+        Default is 10.
+    authorize_from_browser : bool, optional
         Whether to load cookies used by your web browser for authorization.
         This means you can use python to download data by logging in to website
         via browser (So far the following browsers are supported: Chrome,Firefox,
         Opera, Edge, Chromium"). It will be very useful when website doesn't support
         "HTTP Basic Auth". Default is False.
-    file_name: str
-        the file name. If None, will parse from web response or url.
-        file_name can be the absolute path if folder is None.
-    client: requests.Session() object
-        client maintaining connection. Default None
-    follow_redirects: bool
-        Enables or disables HTTP redirects
-    retry: int
-        number of reconnection when status code is 503
     """
     # init parameters
     global support_resume, pbar, remote_size
@@ -485,29 +650,53 @@ def _download_data_requests(
 
     result = _handle_status(r, url, local_size, file_name, file_path)
     if result:
-        status, url_new = result
-        if status:  # downloaded entirely
+        status, extra = result
+        if status is True:  # downloaded entirely
             return True
-        elif not status:
-            if url_new:  # 301,302
+        elif status is False:
+            if extra:  # 301/302 redirect, extra is new URL
                 return _download_data_requests(
-                    url_new,
+                    extra,
                     folder=folder,
                     file_name=file_name,
                     authorize_from_browser=authorize_from_browser,
                     follow_redirects=True,
                     client=client,
+                    retry=retry,
                 )
-            elif retry > 0:
+            else:  # permanent error
+                return False
+        elif status is None:  # retryable error, extra is status_code
+            status_code = extra
+
+            if retry > 0:
+                # Get wait time (with Retry-After support)
+                wait_time = _get_retry_wait_time(r, status_code)
+
+                # Improved logging
+                remaining = retry - 1
+                if remaining <= 3:  # Warning when few attempts left
+                    logger.warning(
+                        f">>> Retrying {status_code} for {url} "
+                        f"({remaining} attempts remaining)"
+                    )
+                else:
+                    logger.info(
+                        f">>> Retrying {status_code} (attempt {10 - remaining + 1}/10)"
+                    )
+
+                time.sleep(wait_time)
                 return _download_data_requests(
                     url,
                     folder=folder,
                     file_name=file_name,
-                    authorize_from_browser=authorize_from_browser,
                     client=client,
+                    follow_redirects=follow_redirects,
                     retry=retry - 1,
+                    authorize_from_browser=authorize_from_browser,
                 )
-            else:  # error! break download
+            else:
+                logger.error(f">>> Max retries exceeded for {url}")
                 return False
 
     # begin downloading
@@ -562,7 +751,7 @@ def download_data(
     client=None,
     engine="requests",
     follow_redirects=True,
-    retry=0,
+    retry=10,
     authorize_from_browser=False,
 ):
     """Download a single file.
@@ -583,7 +772,7 @@ def download_data(
     follow_redirects: bool
         Enables or disables HTTP redirects
     retry: int
-        number of reconnection when status code is 503
+        number of retries for transient errors (202, 408, 429, 5xx). Default is 10.
     authorize_from_browser: bool
         Whether to load cookies used by your web browser for authorization.
         This means you can use python to download data by logging in to website
@@ -668,11 +857,11 @@ def download_datas(
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141211_20150128/20141211_20150128.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif']
-    >>> folder = 'D:\\data'
+    >>> folder = "D:\\data"
 
     download data from urls and store them in folder
 
-    >>> downloader.download_datas(urls,folder)
+    >>> downloader.download_datas(urls, folder)
     """
     if engine == "requests":
         client = requests.Session()
@@ -724,7 +913,7 @@ def mp_download_datas(
     ncore=None,
     desc="",
     follow_redirects=True,
-    retry=0,
+    retry=10,
     engine="requests",
     authorize_from_browser=False,
 ):
@@ -747,6 +936,8 @@ def mp_download_datas(
         by os.cpu_count() is used. Default None.
     desc: str
         description of data downloading
+    retry: int
+        number of retries for transient errors (202, 408, 429, 5xx). Default is 10.
     authorize_from_browser: bool
         Whether to load cookies used by your web browser for authorization.
         This means you can use python to download data by logging in to website
@@ -768,11 +959,11 @@ def mp_download_datas(
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141211_20150128/20141211_20150128.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif']
-    >>> folder = 'D:\\data'
+    >>> folder = "D:\\data"
 
     download data from urls and store them in folder
 
-    >>> downloader.mp_download_datas(urls,folder)
+    >>> downloader.mp_download_datas(urls, folder)
     """
     params = {
         "message": "Key parameters for mp_download_datas",
@@ -838,7 +1029,7 @@ async def _download_data(
     folder=None,
     file_name=None,
     follow_redirects=True,
-    retry=0,
+    retry=10,
     authorize_from_browser=False,
 ):
     global support_resume, pbar, remote_size
@@ -878,29 +1069,52 @@ async def _download_data(
 
     result = _handle_status(r, url, local_size, file_name, file_path)
     if result:
-        status, url_new = result
-        if status:  # downloaded entirely
+        status, extra = result
+        if status is True:  # downloaded entirely
             return True
-        elif not status:
-            if url_new:  # 301,302
+        elif status is False:
+            if extra:  # 301, 302 redirect
                 return await _download_data(
                     client,
-                    url_new,
+                    extra,
                     folder=folder,
                     authorize_from_browser=authorize_from_browser,
                     file_name=file_name,
                     follow_redirects=True,
+                    retry=retry,
                 )
-            elif retry > 0:
+            else:  # Permanent error (401, 403, 404, etc.)
+                return False
+        elif status is None:  # Retryable error (202, 408, 429, 5xx)
+            status_code = extra  # extra contains the status code
+            if retry > 0:
+                wait_time = _get_retry_wait_time(r, status_code)
+                attempts_made = 10 - retry + 1  # Calculate attempt number (starts at 1)
+
+                # Log based on remaining attempts
+                if retry > 3:
+                    logger.info(
+                        f"Received {status_code} for {url}. Retrying in {wait_time:.1f}s... (Attempt {attempts_made}/10)"
+                    )
+                elif retry > 0:
+                    logger.warning(
+                        f"Received {status_code} for {url}. Retrying in {wait_time:.1f}s... (Attempt {attempts_made}/10, {retry} retries left)"
+                    )
+
+                await asyncio.sleep(wait_time)
                 return await _download_data(
                     client,
                     url,
                     folder=folder,
-                    authorize_from_browser=authorize_from_browser,
                     file_name=file_name,
+                    follow_redirects=follow_redirects,
                     retry=retry - 1,
+                    authorize_from_browser=authorize_from_browser,
                 )
-            else:  # error! break download
+            else:
+                logger.error(
+                    f"Max retries (10) exceeded for {url} after receiving {status_code}. Download failed."
+                )
                 return False
 
     # begin download
@@ -1007,7 +1221,7 @@ def async_download_datas(
     limit=30,
     desc="",
     follow_redirects=True,
-    retry=0,
+    retry=10,
     authorize_from_browser=False,
 ):
     """Download multiple files simultaneously.
@@ -1034,7 +1248,7 @@ def async_download_datas(
     follow_redirects: bool
         Enables or disables HTTP redirects
     retry: int
-        number of reconnection when status code is 503
+        number of retries for transient errors (202, 408, 429, 5xx). Default is 10.
 
     Example:
     ---------
@@ -1050,11 +1264,11 @@ def async_download_datas(
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141211_20150128/20141211_20150128.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150317/20141117_20150317.geo.cc.tif',
     'http://gws-access.ceda.ac.uk/public/nceo_geohazards/LiCSAR_products/106/106D_05049_131313/interferograms/20141117_20150221/20141117_20150221.geo.cc.tif']
-    >>> folder = 'D:\\data'
+    >>> folder = "D:\\data"
 
     download data from urls and store them in folder
 
-    >>> downloader.async_download_datas(urls,folder,None,desc='interferograms')
+    >>> downloader.async_download_datas(urls, folder, None, desc="interferograms")
     """
     params = {
         "message": "Key parameters for async_download_datas",
@@ -1151,11 +1365,15 @@ def status_ok(urls, limit=200, authorize_from_browser=False, timeout=60):
     from data_downloader import downloader
     import numpy as np
 
-    urls = np.array(['https://www.baidu.com',
-    'https://www.bai.com/wrongurl',
-    'https://cn.bing.com/',
-    'https://bing.com/wrongurl',
-    'https://bing.com/'] )
+    urls = np.array(
+        [
+            "https://www.baidu.com",
+            "https://www.bai.com/wrongurl",
+            "https://cn.bing.com/",
+            "https://bing.com/wrongurl",
+            "https://bing.com/",
+        ]
+    )
 
     status_ok = downloader.status_ok(urls)
     urls_accessible = urls[status_ok]

@@ -16,7 +16,6 @@ release = "v1.0"
 from pathlib import Path
 
 
-
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
@@ -59,7 +58,7 @@ html_theme_options = {
     "icon_links": [
         {
             "name": "GitHub",
-            "url": "https://github.com/Fanchengyan/data-downloader", 
+            "url": "https://github.com/Fanchengyan/data-downloader",
             "icon": "fa-brands fa-square-github",
             "type": "fontawesome",
         },
