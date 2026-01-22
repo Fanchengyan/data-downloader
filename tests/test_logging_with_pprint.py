@@ -9,10 +9,9 @@ from data_downloader.downloader import (
     _download_data_httpx,
     _get_cookiejar,
     _new_file_from_web,
-    async_download_datas,
+    batch_download_files,
     download_datas,
     logger,
-    mp_download_datas,
 )
 
 
@@ -137,57 +136,25 @@ class TestLoggingWithPprint:
             assert "http://example.com/test1.txt" in log_msg
             assert "http://example.com/test2.txt" in log_msg
 
-    @patch("data_downloader.downloader.mp")
-    def test_mp_download_datas_logging(self, mock_mp, mock_logger):
-        """Test logging in mp_download_datas function"""
-        # Prepare test data
-        urls = ["http://example.com/test1.txt", "http://example.com/test2.txt"]
-        folder = Path("~/test_downloads")
-
-        # Mock multiprocess pool
-        mock_pool = MagicMock()
-        mock_mp.Pool.return_value.__enter__.return_value = mock_pool
-
-        # Mock progress bar
-        with patch("data_downloader.downloader.tqdm") as mock_tqdm:
-            # Call function
-            mp_download_datas(urls, folder)
-
-            # Verify log recording
-            mock_logger["info"].assert_called()
-            log_msg = mock_logger["info"].call_args_list[0][0][
-                0
-            ]  # First parameter of first call
-
-            # Verify pformat formatting
-            assert "message" in log_msg
-            assert "urls" in log_msg
-            assert str(folder) in log_msg
-
-            # Ensure URLs in list are correctly recorded
-            assert "http://example.com/test1.txt" in log_msg
-            assert "http://example.com/test2.txt" in log_msg
-
-    @patch("data_downloader.downloader.selectors")
     @patch("data_downloader.downloader.asyncio")
-    def test_async_download_datas_logging(
-        self, mock_asyncio, mock_selectors, mock_logger
-    ):
-        """Test logging in async_download_datas function"""
+    def test_batch_download_files_logging(self, mock_asyncio, mock_logger):
+        """Test logging in batch_download_files function"""
         # Prepare test data
         urls = ["http://example.com/test1.txt", "http://example.com/test2.txt"]
         folder = Path("~/test_downloads")
 
         # Mock event loop
         mock_loop = MagicMock()
-        mock_asyncio.SelectorEventLoop.return_value = mock_loop
+        mock_asyncio.get_running_loop.side_effect = RuntimeError
+        mock_asyncio.run.return_value = None
 
         # Call function
-        async_download_datas(urls, folder)
+        batch_download_files(urls, folder)
 
         # Verify log recording
-        mock_logger["info"].assert_called_once()
-        log_msg = mock_logger["info"].call_args[0][0]
+        mock_logger["info"].assert_called()
+        # Check params log
+        log_msg = mock_logger["info"].call_args_list[0][0][0]
 
         # Verify pformat formatting
         assert "message" in log_msg

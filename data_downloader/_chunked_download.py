@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import random
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -202,54 +203,70 @@ async def _download_range_httpx(
     """
     from . import downloader
 
-    # Check if part already exists (resume)
-    current_size = part_path.stat().st_size if part_path.exists() else 0
-
-    if current_size > 0:
-        # Resume from current position
-        actual_start = start + current_size
-        if actual_start > end:
-            # Part already complete
-            logger.debug("Part %s already complete", part_index)
-            return True
-
-        logger.debug(
-            "Resuming part %s from byte %s (range: %s-%s)",
-            part_index,
-            current_size,
-            actual_start,
-            end,
-        )
-    else:
-        actual_start = start
-
-    headers = {"Range": f"bytes={actual_start}-{end}"}
     cj = downloader._get_cookiejar(authorize_from_browser)
 
-    try:
-        async with client.stream("GET", url, headers=headers, cookies=cj) as response:
-            response.raise_for_status()
+    for attempt in range(retry + 1):
+        # Check if part already exists (resume)
+        current_size = part_path.stat().st_size if part_path.exists() else 0
 
-            # Open file in append mode
-            mode = "ab" if current_size > 0 else "wb"
-            with Path(part_path).open(mode) as f:
-                async for chunk in response.aiter_bytes():
-                    f.write(chunk)
+        if current_size > 0:
+            # Resume from current position
+            actual_start = start + current_size
+            if actual_start > end:
+                # Part already complete
+                logger.debug("Part %s already complete", part_index)
+                return True
 
-                    # Update metadata periodically
-                    if f.tell() % (10 * 1024 * 1024) == 0:  # Every 10MB
-                        metadata.update_part_progress(part_index)
+            logger.debug(
+                "Resuming part %s from byte %s (range: %s-%s)",
+                part_index,
+                current_size,
+                actual_start,
+                end,
+            )
+        else:
+            actual_start = start
 
-        # Mark as completed
-        metadata.mark_part_completed(part_index)
-        return True
+        headers = {"Range": f"bytes={actual_start}-{end}"}
 
-    except Exception as e:
-        logger.error("Error downloading part %s: %s", part_index, e)
-        # Save current progress
-        if part_path.exists():
-            metadata.update_part_progress(part_index)
-        return False
+        try:
+            async with client.stream(
+                "GET", url, headers=headers, cookies=cj
+            ) as response:
+                response.raise_for_status()
+
+                # Open file in append mode
+                mode = "ab" if current_size > 0 else "wb"
+                with Path(part_path).open(mode) as f:
+                    async for chunk in response.aiter_bytes():
+                        f.write(chunk)
+
+                        # Update metadata periodically
+                        if f.tell() % (10 * 1024 * 1024) == 0:  # Every 10MB
+                            metadata.update_part_progress(part_index)
+
+            # Mark as completed
+            metadata.mark_part_completed(part_index)
+            return True
+
+        except Exception as e:
+            if attempt < retry:
+                logger.warning(
+                    "Error downloading part %s (attempt %s/%s): %s. Retrying...",
+                    part_index,
+                    attempt + 1,
+                    retry + 1,
+                    e,
+                )
+                await asyncio.sleep(1 + random.random() * 2)
+                continue
+
+            logger.error("Error downloading part %s: %s", part_index, e)
+            # Save current progress
+            if part_path.exists():
+                metadata.update_part_progress(part_index)
+            return False
+    return False
 
 
 async def _download_data_chunked_httpx(
@@ -409,54 +426,68 @@ async def _download_range_aiohttp(
     """
     from . import downloader
 
-    # Check if part already exists (resume)
-    current_size = part_path.stat().st_size if part_path.exists() else 0
-
-    if current_size > 0:
-        # Resume from current position
-        actual_start = start + current_size
-        if actual_start > end:
-            # Part already complete
-            logger.debug("Part %s already complete", part_index)
-            return True
-
-        logger.debug(
-            "Resuming part %s from byte %s (range: %s-%s)",
-            part_index,
-            current_size,
-            actual_start,
-            end,
-        )
-    else:
-        actual_start = start
-
-    headers = {"Range": f"bytes={actual_start}-{end}"}
     cj = downloader._get_cookiejar(authorize_from_browser)
 
-    try:
-        async with session.get(url, headers=headers, cookies=cj) as response:
-            response.raise_for_status()
+    for attempt in range(retry + 1):
+        # Check if part already exists (resume)
+        current_size = part_path.stat().st_size if part_path.exists() else 0
 
-            # Open file in append mode
-            mode = "ab" if current_size > 0 else "wb"
-            with Path(part_path).open(mode) as f:
-                async for chunk in response.content.iter_any():
-                    f.write(chunk)
+        if current_size > 0:
+            # Resume from current position
+            actual_start = start + current_size
+            if actual_start > end:
+                # Part already complete
+                logger.debug("Part %s already complete", part_index)
+                return True
 
-                    # Update metadata periodically
-                    if f.tell() % (10 * 1024 * 1024) == 0:  # Every 10MB
-                        metadata.update_part_progress(part_index)
+            logger.debug(
+                "Resuming part %s from byte %s (range: %s-%s)",
+                part_index,
+                current_size,
+                actual_start,
+                end,
+            )
+        else:
+            actual_start = start
 
-        # Mark as completed
-        metadata.mark_part_completed(part_index)
-        return True
+        headers = {"Range": f"bytes={actual_start}-{end}"}
 
-    except Exception as e:
-        logger.error("Error downloading part %s: %s", part_index, e)
-        # Save current progress
-        if part_path.exists():
-            metadata.update_part_progress(part_index)
-        return False
+        try:
+            async with session.get(url, headers=headers, cookies=cj) as response:
+                response.raise_for_status()
+
+                # Open file in append mode
+                mode = "ab" if current_size > 0 else "wb"
+                with Path(part_path).open(mode) as f:
+                    async for chunk in response.content.iter_any():
+                        f.write(chunk)
+
+                        # Update metadata periodically
+                        if f.tell() % (10 * 1024 * 1024) == 0:  # Every 10MB
+                            metadata.update_part_progress(part_index)
+
+            # Mark as completed
+            metadata.mark_part_completed(part_index)
+            return True
+
+        except Exception as e:
+            if attempt < retry:
+                logger.warning(
+                    "Error downloading part %s (attempt %s/%s): %s. Retrying...",
+                    part_index,
+                    attempt + 1,
+                    retry + 1,
+                    e,
+                )
+                await asyncio.sleep(1 + random.random() * 2)
+                continue
+
+            logger.error("Error downloading part %s: %s", part_index, e)
+            # Save current progress
+            if part_path.exists():
+                metadata.update_part_progress(part_index)
+            return False
+    return False
 
 
 async def _download_data_chunked_aiohttp(
