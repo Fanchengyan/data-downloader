@@ -2,16 +2,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import asf_search as asf
 
 from data_downloader.logging import setup_logger
 
 from .asf_base import ASFTileScenesTimeseries
-
-if TYPE_CHECKING:
-    pass
 
 logger = setup_logger(__name__)
 

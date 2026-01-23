@@ -58,7 +58,6 @@ class ARIATileABC(ASFScenesABC):
     @property
     def pairs(self) -> Pairs:
         """Pairs corresponding to ASF interferogram scenes."""
-
         if len(self.gdf) == 0:
             logger.warning("No scenes found for this frame.")
             names = []
@@ -74,7 +73,6 @@ class ARIATileABC(ASFScenesABC):
     @property
     def baselines(self) -> Baselines:
         """Baselines corresponding to ASF interferogram scenes."""
-
         return Baselines.from_pair_wise(self.pairs, self.perpendicular_baselines)
 
 

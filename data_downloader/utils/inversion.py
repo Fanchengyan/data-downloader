@@ -5,7 +5,8 @@ This module is a modified copy of the faninsar.NSBAS module.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 import psutil
@@ -209,7 +210,7 @@ class NSBASMatrixFactory:
         return self._G
 
     @G.setter
-    def G(self, G: np.ndarray) -> None:  # noqa: N802, N803
+    def G(self, G: np.ndarray) -> None:  # noqa: N802
         """Update G by input G."""
         if not isinstance(G, np.ndarray):
             msg = "G must be a numpy array"
@@ -229,7 +230,7 @@ class NSBASMatrixFactory:
 
     def _make_nsbas_matrix(
         self,
-        G_br: np.ndarray,  # noqa: N803
+        G_br: np.ndarray,
         gamma: float,
     ) -> np.ndarray:
         G_br = np.asarray(G_br, dtype=np.float32)  # noqa: N806
@@ -360,7 +361,7 @@ def get_memory_size() -> int:
 
 
 def _get_patch_col(
-    G: np.ndarray,  # noqa: N803
+    G: np.ndarray,
     d: np.ndarray,
     mem_size: int,
     dtype: Union[np.dtype, type, None] = None,
@@ -419,7 +420,7 @@ def _get_patch_col(
 
 
 def batch_lstsq(
-    G: np.ndarray,  # noqa: N803
+    G: np.ndarray,
     d: np.ndarray,
     dtype: Optional[Union[np.dtype, type]] = np.float64,
     verbose: bool = True,
@@ -481,7 +482,7 @@ def batch_lstsq(
 
 
 def censored_lstsq(
-    G: np.ndarray,  # noqa: N803
+    G: np.ndarray,
     d: np.ndarray,
     dtype: Optional[Union[np.dtype, type]] = np.float64,
 ) -> NDArray[np.floating]:
@@ -544,6 +545,6 @@ def censored_lstsq(
         axis=2,
     ).T  # transpose to get r x n
 
-    X[:, m] = X_solved  # noqa: N806
+    X[:, m] = X_solved
 
     return X

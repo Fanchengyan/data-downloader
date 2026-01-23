@@ -14,14 +14,14 @@ SUCCESS = 25  # between INFO and WARNING
 logging.addLevelName(SUCCESS, "SUCCESS")
 
 __all__ = [
+    "SUCCESS",
+    "EnhancedLogger",
     "color_formatter",
+    "file_formatter",
     "formatter",
     "setup_logger",
     "stream_handler",
     "tqdm_handler",
-    "SUCCESS",
-    "file_formatter",
-    "EnhancedLogger",
 ]
 
 # formatters
@@ -145,7 +145,8 @@ def setup_logger(
     handler : logging.Handler, optional
         Logging handler to use, by default stream_handler
     log_file : str, optional
-        Log file path. If provided, logs will be written to both the file and terminal, by default None
+        Log file path. If provided, logs will be written to both the file and terminal,
+        by default None
     level : int, optional
         Log level, by default logging.DEBUG
 
@@ -179,6 +180,6 @@ def setup_logger(
 
     # For backward compatibility with loggers created before setting logger class
     if not hasattr(logger, "success"):
-        setattr(logger, "success", functools.partial(_success_method, logger))
+        logger.success = functools.partial(_success_method, logger)
 
     return logger

@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 from pathlib import Path
+from typing import Literal
 
 from .logging import setup_logger, tqdm_handler
 
@@ -41,15 +42,22 @@ class _ChunkedDownloadMetadata:
 
     """
 
+    status: Literal["pending", "partial", "completed"]
+    """Overall download status:
+        - "pending": Not started
+        - "partial": In progress
+        - "completed": Finished
+    """
+
     def __init__(
         self,
         file_path: Path,
         url: str,
         file_size: int,
         chunks: int,
-        engine: str,
+        engine: Literal["requests", "httpx", "aiohttp"],
         supports_range: bool = True,
-    ):
+    ) -> None:
         self.file_path = Path(file_path)
         self.url = url
         self.file_size = file_size
@@ -100,16 +108,16 @@ class _ChunkedDownloadMetadata:
             "checksum": self.checksum,
         }
 
-        with Path(self.meta_file).open("w") as f:
+        with Path(self.meta_file).open("w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
     @classmethod
-    def load(cls, file_path: Path) -> _ChunkedDownloadMetadata | None:
+    def load(cls, file_path: Path | str) -> _ChunkedDownloadMetadata | None:
         """Load metadata from JSON file.
 
         Parameters
         ----------
-        file_path : Path
+        file_path : Path | str
             Target file path
 
         Returns
@@ -118,6 +126,7 @@ class _ChunkedDownloadMetadata:
             Loaded metadata object or None if not found
 
         """
+        file_path = Path(file_path)
         meta_dir = file_path.parent / ".download_meta"
         meta_file = meta_dir / f"{file_path.name}.json"
 
@@ -125,7 +134,7 @@ class _ChunkedDownloadMetadata:
             return None
 
         try:
-            with Path(meta_file).open() as f:
+            with meta_file.open(encoding="utf-8") as f:
                 data = json.load(f)
 
             # Create instance
@@ -145,10 +154,10 @@ class _ChunkedDownloadMetadata:
             obj.started_at = data["started_at"]
             obj.updated_at = data["updated_at"]
 
-            return obj
+            return obj  # noqa: TRY300
 
         except Exception as e:
-            logger.warning(f"Failed to load metadata for {file_path.name}: {e}")
+            logger.warning("Failed to load metadata for %s: %s", file_path.name, e)
             return None
 
     def is_compatible(self, new_chunks: int | None, new_url: str) -> bool:

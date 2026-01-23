@@ -1,8 +1,10 @@
+"""Module for parsing URLs from various sources."""
+
 from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any
 from urllib.parse import urljoin
 from xml.dom.minidom import parse
 
@@ -16,64 +18,65 @@ logger = setup_logger(__name__)
 
 
 def from_file(url_file: str | Path) -> list:
-    """parse urls from a file which only contains urls
+    """Parse urls from a file which only contains urls.
 
     .. versionadded:: 1.2
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     url_file: str
         path to file which only contains urls
 
     Return:
     -------
     a list contains urls
+
     """
-    with open(url_file) as f:
-        urls = [i.strip() for i in f.readlines()]
-    return urls
+    with Path(url_file).open() as f:
+        return [i.strip() for i in f]
 
 
 def from_urls_file(url_file: str | Path) -> list:
-    """parse urls from a file which only contains urls
+    """Parse urls from a file which only contains urls.
 
     .. warning::
         This function will be deprecated in the future. Please use :func:`from_file` instead.
 
     .. seealso:: :func:`from_file`
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     url_file: str
         path to file which only contains urls
 
     Return:
     -------
     a list contains urls
+
     """
     warnings.warn(
         "from_urls_file will be deprecated in the future. Please use from_file instead.",
         DeprecationWarning,
+        stacklevel=2,
     )
     return from_file(url_file)
 
 
 def from_sentinel_meta4(url_file: str | Path) -> list:
-    """parse urls from sentinel `products.meta4` file downloaded from
-    https://scihub.copernicus.eu/dhus
+    """Parse urls from sentinel `products.meta4` file downloaded from https://scihub.copernicus.eu/dhus.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     url_file: str
         path to products.meta4
 
     Return:
     -------
     a list contains urls
+
     """
     data = parse(str(url_file)).documentElement
-    urls = [i.childNodes[0].nodeValue for i in data.getElementsByTagName("url")]
-    return urls
+    return [i.childNodes[0].nodeValue for i in data.getElementsByTagName("url")]
 
 
 def from_html(
@@ -82,27 +85,28 @@ def from_html(
     suffix_depth: int = 0,
     url_depth: int = 0,
 ) -> list:
-    """parse urls from html website
+    """Parse urls from html website.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     url: str
         the website contains data
     suffix: list[str] | None, optional
         data format. suffix should be a list contains multipart.
         if suffix_depth is 0, all '.' will parsed.
-        Examples:
+    suffix_depth: int
+        Number of suffixes
+    url_depth: int
+        depth of url in website will parsed
 
+    Examples
+    --------
         - when set 'suffix_depth=0':
             - suffix of 'xxx8.1_GLOBAL.nc' should be ['.1_GLOBAL', '.nc']
             - suffix of 'xxx.tar.gz' should be ['.tar', '.gz']
         - when set 'suffix_depth=1':
             - suffix of 'xxx8.1_GLOBAL.nc' should be ['.nc']
             - suffix of 'xxx.tar.gz' should be ['.gz']
-    suffix_depth: int
-        Number of suffixes
-    url_depth: int
-        depth of url in website will parsed
 
     Return:
     -------
@@ -118,8 +122,8 @@ def from_html(
     ...     url, suffix=[".nc"], suffix_depth=1, url_depth=1
     ... )
     >>> print(len(urls_all) - len(urls))
-    """
 
+    """
     r_h = requests.head(url)
     if "text/html" in r_h.headers["Content-Type"]:
         r = requests.get(url)
@@ -140,13 +144,14 @@ def from_html(
                     urls.extend(u)
 
         return sorted(set(urls))
-    else:
-        msg = f"URL {url} is not a HTML page"
-        logger.warning(msg)
-        return []
+    msg = f"URL {url} is not a HTML page"
+    logger.warning(msg)
+    return []
 
 
-def _retrieve_all_orders(url_host, email, auth):
+def _retrieve_all_orders(
+    url_host: str, email: str, auth: tuple[str, str] | None
+) -> list[Any]:
     filters = {"status": "complete"}
     url = urljoin(url_host, f"/api/v1/list-orders/{email}")
     r = requests.get(url, params=filters, auth=auth)
@@ -156,7 +161,9 @@ def _retrieve_all_orders(url_host, email, auth):
     return all_orders
 
 
-def _retrieve_urls_from_order(url_host, orderid, auth):
+def _retrieve_urls_from_order(
+    url_host: str, orderid: str, auth: tuple[str, str] | None
+) -> list[str]:
     filters = {"status": "complete"}
     url = urljoin(url_host, f"/api/v1/item-status/{orderid}")
     r = requests.get(url, params=filters, auth=auth)
@@ -181,18 +188,18 @@ def _retrieve_urls_from_order(url_host, orderid, auth):
 
 
 def from_EarthExplorer_order(
-    username: Optional[str] = None,
-    passwd: Optional[str] = None,
-    email: Optional[str] = None,
-    order: Optional[Union[str, dict]] = None,
-    url_host: Optional[str] = None,
+    username: str | None = None,
+    passwd: str | None = None,
+    email: str | None = None,
+    order: str | dict | None = None,
+    url_host: str | None = None,
 ) -> dict:
-    """parse urls from orders in earthexplorer.
+    r"""Parse urls from orders in earthexplorer.
 
     Reference: [bulk-downloader](https://code.usgs.gov/espa/bulk-downloader)
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     username, passwd: str, optional
         your username and passwd to login in EarthExplorer. Could be
         None when you have save them in .netrc
@@ -220,6 +227,7 @@ def from_EarthExplorer_order(
     >>>         folder.mkdir()
     >>>     urls = urls_info[odr]
     >>>     downloader.download_datas(urls, folder)
+
     """
     # init parameters
     email = email if email else ""
@@ -228,34 +236,36 @@ def from_EarthExplorer_order(
     host = get_url_host(url_host)
 
     auth = get_netrc_auth(host)
-    if (auth == username) or (auth == passwd):
-        raise ValueError(
+    if auth in (username, passwd):
+        msg = (
             "username and passwd neither be found in netrc or be assigned in parameter"
         )
-    elif not auth:
-        auth = (username, passwd)
+        raise ValueError(msg)
+    if not auth:
+        auth = (username, passwd)  # type: ignore
 
     # refine oders
     if not order:
-        orders = _retrieve_all_orders(url_host, email, auth)
+        orders = _retrieve_all_orders(url_host, email, auth)  # type: ignore
+    elif isinstance(order, str):
+        orders = [order]
     else:
-        if isinstance(order, str):
-            orders = [order]
-        else:
-            try:
-                orders = list(order)
-            except:
-                raise ValueError("order must be str or list of str")
+        try:
+            orders = list(order)
+        except Exception:
+            msg = "order must be str or list of str"
+            raise ValueError(msg) from None
 
     urls_info = {}
     for odr in orders:
-        urls = _retrieve_urls_from_order(url_host, odr, auth)
+        urls = _retrieve_urls_from_order(url_host, odr, auth)  # type: ignore
         if urls:
             urls_info.update({odr: urls})
         else:
-            print(
-                f">>> Warning: Data for order id {odr} have expired."
-                " Please reorder it again if you want to use it anymore"
+            logger.warning(
+                ">>> Warning: Data for order id %s have expired. "
+                "Please reorder it again if you want to use it anymore",
+                odr,
             )
     return urls_info
 
@@ -266,9 +276,9 @@ def match_suffix(href: str, suffix: list[str] | None, suffix_depth: int) -> bool
     Parameters
     ----------
     href : str
+
     """
     if suffix is not None:
         sf = Path(href).suffixes[-suffix_depth:]
         return suffix == sf
-    else:
-        return True
+    return True

@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterator, Literal
+from typing import TYPE_CHECKING, Literal
 
+import asf_search as asf
 import geopandas as gpd
 import pandas as pd
-import asf_search as asf
 
 from data_downloader import downloader
 from data_downloader.logging import setup_logger
@@ -17,6 +18,7 @@ from data_downloader.utils.pairs import Pairs
 
 if TYPE_CHECKING:
     from os import PathLike
+
     from typing_extensions import Self
 
 
@@ -94,6 +96,7 @@ class ASFScenesABC(ABC):
         -------
         gpd.GeoDataFrame
             The GeoDataFrame representation of the Scenes.
+
         """
         gdf = self.gdf
         if crs is not None:
@@ -114,6 +117,7 @@ class ASFScenesABC(ABC):
         filename : str, optional
             The name of the output GeoJSON file. If None, it will use the
             default boundary file name. Default is None.
+
         """
         folder = Path(folder)
         if not folder.exists():
@@ -140,6 +144,7 @@ class ASFScenesABC(ABC):
             The folder where the Scenes will be saved.
         urls : list[str] or None, optional
              List of URLs to download. If None, all URLs will be used.
+
         """
         folder = Path(folder)
         if urls is None:
@@ -190,6 +195,7 @@ class ASFTileScenesABC(ASFScenesABC):
         flightDirection : Literal["ASCENDING", "DESCENDING"], optional
             The flight direction of the scenes. If None, the flight direction will
             be inferred from the GeoJSON. Default is None.
+
         """
         super().__init__(geojson=geojson)
         self._parse_scenes_info(path=path, frame=frame)
@@ -202,15 +208,13 @@ class ASFTileScenesABC(ASFScenesABC):
         """Parse the frame and path from the GeoJSON."""
         if frame is not None:
             self._frame = frame
-        else:
-            if len(self.gdf) > 0 and "frameNumber" in self.gdf.columns:
-                self._frame = self.gdf.iloc[0]["frameNumber"]
+        elif len(self.gdf) > 0 and "frameNumber" in self.gdf.columns:
+            self._frame = self.gdf.iloc[0]["frameNumber"]
 
         if path is not None:
             self._path = path
-        else:
-            if len(self.gdf) > 0 and "pathNumber" in self.gdf.columns:
-                self._path = self.gdf.iloc[0]["pathNumber"]
+        elif len(self.gdf) > 0 and "pathNumber" in self.gdf.columns:
+            self._path = self.gdf.iloc[0]["pathNumber"]
 
         if len(self.gdf) > 0 and "flightDirection" in self.gdf.columns:
             self._flightDirection = self.gdf.iloc[0]["flightDirection"]

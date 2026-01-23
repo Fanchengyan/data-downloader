@@ -1,3 +1,5 @@
+"""Main downloader module."""
+
 from __future__ import annotations
 
 import asyncio
@@ -6,10 +8,9 @@ import os
 import random
 import selectors
 import time
-from netrc import netrc
 from pathlib import Path
 from pprint import pformat
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlparse
 
 import aiohttp
@@ -26,10 +27,13 @@ from ._chunked_download import (
 )
 from ._metadata import _ChunkedDownloadMetadata
 from .logging import setup_logger, tqdm_handler
+from .netrc import Netrc
 from .utils.tools import safe_repr
 
 if TYPE_CHECKING:
-    from os import PathLike
+    from collections.abc import Iterable
+    from http.cookiejar import CookieJar
+
 
 logger = setup_logger(__name__, handler=tqdm_handler)
 
@@ -50,7 +54,7 @@ RETRYABLE_STATUS_CODES = {
 # ============================================================================
 
 
-def _extract_checksum_from_headers(headers) -> dict | None:
+def _extract_checksum_from_headers(headers: Any) -> dict[str, Any] | None:
     """Extract checksum information from HTTP response headers.
 
     Parameters
@@ -63,6 +67,7 @@ def _extract_checksum_from_headers(headers) -> dict | None:
     dict | None
         {"type": "md5|sha256|etag", "value": "...", "reliable": bool}
         or None if no checksum found
+
     """
     import base64
 
@@ -71,7 +76,7 @@ def _extract_checksum_from_headers(headers) -> dict | None:
         try:
             md5_b64 = headers["content-md5"]
             md5_hex = base64.b64decode(md5_b64).hex()
-            return {"type": "md5", "value": md5_hex, "reliable": True}
+            return {"type": "md5", "value": md5_hex, "reliable": True}  # noqa: TRY300
         except Exception:
             pass
 
@@ -82,7 +87,7 @@ def _extract_checksum_from_headers(headers) -> dict | None:
             try:
                 hash_b64 = digest.split("SHA-256=")[1].split(",")[0]
                 hash_hex = base64.b64decode(hash_b64).hex()
-                return {"type": "sha256", "value": hash_hex, "reliable": True}
+                return {"type": "sha256", "value": hash_hex, "reliable": True}  # noqa: TRY300
             except Exception:
                 pass
 
@@ -106,7 +111,7 @@ def _extract_checksum_from_headers(headers) -> dict | None:
 
 def _verify_file_checksum(
     file_path: Path,
-    checksum_info: dict | None,
+    checksum_info: dict[str, Any] | None,
     verify_unreliable: bool = False,
 ) -> bool:
     """Verify file integrity using checksum.
@@ -125,6 +130,7 @@ def _verify_file_checksum(
     bool
         True if verification passed or no checksum available,
         False if verification failed
+
     """
     import hashlib
 
@@ -179,15 +185,15 @@ def _verify_file_checksum(
             actual,
             file_path.name,
         )
-        return False
-    except Exception as e:
-        logger.error("Error during checksum verification: %s", e)
+        return False  # noqa: TRY300
+    except Exception:
+        logger.exception("Error during checksum verification: %s")
         return False
 
 
 async def _download_checksum_file(
-    client, checksum_url: str, timeout: int = 30
-) -> dict | None:
+    client: Any, checksum_url: str, timeout: int = 30
+) -> dict[str, Any] | None:
     """Download and parse external checksum file.
 
     Parameters
@@ -203,6 +209,7 @@ async def _download_checksum_file(
     -------
     dict | None
         {"type": "md5|sha256", "value": "..."} or None if failed
+
     """
     try:
         # Determine algorithm from URL
@@ -227,7 +234,7 @@ async def _download_checksum_file(
         # Parse checksum (format: "hash filename" or just "hash")
         checksum = content.strip().split()[0]
 
-        return {"type": algo, "value": checksum, "reliable": True}
+        return {"type": algo, "value": checksum, "reliable": True}  # noqa: TRY300
 
     except Exception as e:
         logger.debug("Failed to download checksum file %s: %s", checksum_url, e)
@@ -289,7 +296,7 @@ def _merge_chunks(file_path: Path, chunks: int) -> None:
     and deletes part files after successful merge.
 
     """
-    logger.info(f"Merging {chunks} chunks into {file_path.name}...")
+    logger.info("Merging %s chunks into %s...", chunks, file_path.name)
 
     with Path(file_path).open("wb") as target:
         for i in range(chunks):
@@ -299,7 +306,7 @@ def _merge_chunks(file_path: Path, chunks: int) -> None:
                 logger.error(msg)
                 raise FileNotFoundError(msg)
 
-            with Path(part_path).open("rb") as part:
+            with Path(part_path).open("rb", encoding="utf-8") as part:
                 target.write(part.read())
 
     # Delete part files after successful merge
@@ -310,7 +317,7 @@ def _merge_chunks(file_path: Path, chunks: int) -> None:
     logger.info("Successfully merged %s chunks", chunks)
 
 
-def _get_retry_wait_time(response, status_code):
+def _get_retry_wait_time(response: Any, status_code: int) -> float:
     """Calculate wait time based on Retry-After header and status code.
 
     Parameters
@@ -344,9 +351,9 @@ def _get_retry_wait_time(response, status_code):
                 wait_time = max(0, min(wait_time, 60))
                 if wait_time > 0:
                     logger.info(
-                        f"Server requested wait until {retry_after} ({wait_time:.1f}s)"
+                        "Server requested wait until %s (%.1fs)", retry_after, wait_time
                     )
-                return wait_time
+                return wait_time  # noqa: TRY300
             except Exception:
                 pass  # Parse failed, use default
 
@@ -357,20 +364,19 @@ def _get_retry_wait_time(response, status_code):
     return random.uniform(0.5, 5)
 
 
-def get_url_host(url):
-    """Returns the url host for a given url"""
+def get_url_host(url: str) -> str:
+    """Return the url host for a given url."""
     ri = urlparse(url)
     # Strip port numbers from netloc. This weird `if...encode`` dance is
     # used for Python 3.2, which doesn't support unicode literals.
     splitstr = b":"
     if isinstance(url, str):
         splitstr = splitstr.decode("ascii")
-    host = ri.netloc.split(splitstr)[0]
-    return host
+    return ri.netloc.split(splitstr)[0]
 
 
-def get_netrc_auth(url):
-    """Returns the Requests tuple auth for a given url from .netrc"""
+def get_netrc_auth(url: str) -> tuple[str, str] | None:
+    """Return the Requests tuple auth for a given url from .netrc."""
     host = get_url_host(url)
     _netrc = Netrc().authenticators(host)
 
@@ -378,73 +384,25 @@ def get_netrc_auth(url):
         # Return with login / password
         login_i = 0 if _netrc[0] else 1
         return (_netrc[login_i], _netrc[2])
+    return None
 
 
-class Netrc(netrc):
-    """a class managing records in .netrc file"""
-
-    def __init__(self, file: str | PathLike | None = None):
-        if file is None:
-            file = Path("~/.netrc").expanduser()
-        else:
-            file = Path(file)
-        self.file = file
-        if not file.exists():
-            Path(self.file).open("w").close()
-
-        super().__init__(file)
-
-    def _info_to_file(self):
-        rep = self.__repr__()
-        Path(self.file).write_text(rep)
-
-    def _update_info(self):
-        with Path(self.file).open() as fp:
-            self._parse(self.file, fp, False)
-
-    def add(self, host, login, password, account=None, overwrite=False):
-        """Add a record
-
-        Will do nothing if host exists in .netrc file unless set overwrite=True
-        """
-        if host in self.hosts and not overwrite:
-            logger.warning(
-                ">>> Warning: %s existed, nothing will be done. If you want to overwrite the existed record, set overwrite=True",
-                host,
-            )
-        else:
-            self.hosts.update({host: (login, account, password)})
-            self._info_to_file()
-            self._update_info()
-
-    def remove(self, host):
-        """Remove a record by host"""
-        self.hosts.pop(host)
-        self._info_to_file()
-        self._update_info()
-
-    def clear(self):
-        """Remove all records"""
-        self.hosts = {}
-        self._info_to_file()
-        self._update_info()
-
-
-def _parse_file_name(response):
-    """Parse the file_name from the headers of web response or url"""
+def _parse_file_name(response: Any) -> str:
+    """Parse the file_name from the headers of web response or url."""
     if "Content-disposition" in response.headers:
         file_name = (
-            response.headers["Content-disposition"]
+            response
+            .headers["Content-disposition"]
             .split("filename=")[1]
             .strip('"')
             .strip("'")
         )
     else:
-        file_name = os.path.basename(urlparse(str(response.url)).path)
+        file_name = Path(urlparse(str(response.url)).path).name
     return file_name
 
 
-def _unit_formater(size, suffix):
+def _unit_formater(size: float, suffix: str) -> str:
     prefixs = ["", "k", "M", "G", "T"]
     idx = 0
     while size / 1024 >= 1:
@@ -456,8 +414,8 @@ def _unit_formater(size, suffix):
     return f"{size:.2f}{prefixs[idx]}{suffix}"
 
 
-def _new_file_from_web(r, file_path):
-    """Whether have new file from the website"""
+def _new_file_from_web(r: Any, file_path: str | Path) -> bool:
+    """Whether have new file from the website."""
     try:
         if not Path(file_path).exists():
             return False
@@ -465,7 +423,7 @@ def _new_file_from_web(r, file_path):
         time_local = dt.datetime.fromtimestamp(
             Path(file_path).stat().st_mtime, dt.timezone.utc
         )
-        return time_remote > time_local
+        return time_remote > time_local  # noqa: TRY300
     except Exception as e:
         params = {
             "message": "Error for _new_file_from_web",
@@ -477,7 +435,7 @@ def _new_file_from_web(r, file_path):
         return False
 
 
-def _get_cookiejar(authorize_from_browser):
+def _get_cookiejar(authorize_from_browser: bool) -> CookieJar | None:
     cj = None
     if authorize_from_browser:
         try:
@@ -487,16 +445,18 @@ def _get_cookiejar(authorize_from_browser):
                 "message": "Error for _get_cookiejar",
                 "error": str(e),
                 "info": "Could not load cookie from browser. "
-                "Please login in website via browser before run this code"
-                "\n  So far the following browsers are supported: "
-                "Chrome,Firefox, Opera, Edge, Chromium",
+                "Please login in website via browser before run this code\n  So far "
+                "the following browsers are supported: Chrome,Firefox, Opera, Edge, "
+                "Chromium",
             }
             msg = pformat(safe_repr(params), indent=4)
-            logger.error(msg)
+            logger.exception(msg)
     return cj
 
 
-def _handle_status(r, url, local_size, file_name, file_path):
+def _handle_status(
+    r: Any, url: str, local_size: int, file_name: str | Path, file_path: str | Path
+) -> tuple[bool | None, str | int]:
     # returns (True, '') : downloaded entirely
     # returns (False,'') : error! break download
     # returns (False, url) : 301,302 redirect
@@ -504,14 +464,17 @@ def _handle_status(r, url, local_size, file_name, file_path):
 
     global support_resume, pbar, remote_size
 
-    if r.status_code in [206, 416]:
+    if r.status_code in {206, 416}:
         support_resume = True
         remote_size = int(r.headers["Content-Range"].rsplit("/")[-1])
 
         # init process bar
         if _new_file_from_web(r, file_path):
-            msg = f"There is a new file from {url}. {Path(file_name).name} is ready to be downloaded again"
-            logger.info(msg)
+            logger.info(
+                "There is a new file from %s. %s is ready to be downloaded again",
+                url,
+                Path(file_name).name,
+            )
             Path(file_path).unlink()
         elif local_size < remote_size:
             pbar = tqdm(
@@ -523,89 +486,99 @@ def _handle_status(r, url, local_size, file_name, file_path):
                 desc=Path(file_name).name,
             )
         else:
-            msg = f"{Path(file_name).name} was downloaded entirely. skiping download"
-            logger.info(msg)
+            logger.info(
+                "%s was downloaded entirely. skipping download", Path(file_name).name
+            )
             return True, ""
     elif r.status_code == 200:
-        # know the total size, then delete the file that wasn't downloaded entirely and redownload it.
+        # know the total size, then delete the file that wasn't downloaded entirely
+        # and redownload it.
         if "Content-length" in r.headers:
             remote_size = int(r.headers["Content-length"])
 
             if _new_file_from_web(r, file_path):
                 logger.info(
-                    f"There is a new file from {url}. {Path(file_name).name} is ready to be downloaded again"
+                    "There is a new file from %s. %s is ready to be downloaded again",
+                    url,
+                    Path(file_name).name,
                 )
                 Path(file_path).unlink()
             elif 0 < local_size < remote_size:
-                msg = (
-                    f"  Detect {Path(file_name).name} wasn't downloaded entirely"
-                    " Prepare to remove the local file and redownload since the "
-                    "server not supports resuming breakpoint"
+                logger.info(
+                    "  Detect %s wasn't downloaded entirely Prepare to remove the "
+                    "local file and redownload since the "
+                    "server not supports resuming breakpoint",
+                    Path(file_name).name,
                 )
-                logger.info(msg)
                 Path(file_path).unlink()
             elif local_size > remote_size:
-                msg = (
-                    f"Detected the local file ({Path(file_name).name}) is larger than the server file. "
-                    " Prepare to remove local the file and redownload..."
+                logger.info(
+                    "Detected the local file (%s) is larger than the server file. "
+                    " Prepare to remove local the file and redownload...",
+                    Path(file_name).name,
                 )
-                logger.info(msg)
                 Path(file_path).unlink()
             elif local_size == remote_size:
-                msg = (
-                    f"{Path(file_name).name} was downloaded entirely. skiping download"
+                logger.info(
+                    "%s was downloaded entirely. skipping download",
+                    Path(file_name).name,
                 )
-                logger.info(msg)
                 return True, ""
         # don't know the total size, warning user if detect the file was downloaded.
         elif Path(file_path).exists():
-            msg = (
-                f">>> Warning: Detect the {Path(file_name).name} was downloaded,"
-                " but can't parse the it's size from website\n"
-                f"    If you know it wasn't downloaded entirely, delete "
-                "it and redownload it again. skiping download..."
+            logger.warning(
+                ">>> Warning: Detect the %s was downloaded, but can't parse the "
+                "it's size from website\n"
+                "    If you know it wasn't downloaded entirely, delete it and "
+                "redownload it again. skipping download...",
+                Path(file_name).name,
             )
-            logger.warning(msg)
             return True, ""
     elif r.status_code in RETRYABLE_STATUS_CODES:
         # Unified handling of retryable errors
         reason = RETRYABLE_STATUS_CODES[r.status_code]
-        msg = f">>> Server returned {r.status_code} ({reason}), will retry..."
-        logger.info(msg)
+        logger.info(">>> Server returned %s (%s), will retry...", r.status_code, reason)
         return None, r.status_code  # Return status code for retry logic
-    elif r.status_code in [301, 302]:
+    elif r.status_code in {301, 302}:
         url_new = r.headers["Location"]
-        msg = f">>> Warning: the website has redirected to {url_new}"
-        logger.warning(msg)
+        logger.warning(">>> Warning: the website has redirected to %s", url_new)
         return False, url_new
     elif r.status_code == 401:
         netrc_file = Path("~/.netrc").expanduser()
-        msg = (
-            f">>> Authorization failed! Please check your username and password in {netrc_file}. "
+        logger.error(
+            ">>> Authorization failed! Please check your username and password in %s. "
             "More details about .netrc file: https://data-downloader.readthedocs.io/en/latest/user_guide/netrc.html"
-            "\n Or authorizing by browser and set the parameter `authorize_from_browser` to `True`"
+            "\n Or authorizing by browser and set the parameter "
+            "`authorize_from_browser` to `True`",
+            netrc_file,
         )
-        logger.error(msg)
         return False, ""
     elif r.status_code == 403:
-        msg = ">>> Forbidden! Access to the requested resource was denied by the server"
-        logger.error(msg)
+        logger.error(
+            ">>> Forbidden! Access to the requested resource was denied by the server"
+        )
         return False, ""
     else:
-        msg = f'  Download file from "{url}" failed,  The service returns the HTTP Status Code: {r.status_code}'
-        logger.error(msg)
+        logger.error(
+            '  Download file from "%s" failed,  The service returns the HTTP '
+            "Status Code: %s",
+            url,
+            r.status_code,
+        )
         return False, ""
+
+    return False, ""
 
 
 def _download_data_httpx(
-    url,
-    folder=None,
-    file_name=None,
-    client=None,
-    follow_redirects=True,
-    retry=10,
-    authorize_from_browser=False,
-):
+    url: str,
+    folder: str | Path | None = None,
+    file_name: str | Path | None = None,
+    client: httpx.Client | None = None,
+    follow_redirects: bool = True,
+    retry: int = 10,
+    authorize_from_browser: bool = False,
+) -> bool:
     """Download a single file using httpx.
 
     Parameters
@@ -664,9 +637,9 @@ def _download_data_httpx(
         file_name = _parse_file_name(r)
 
     if folder is not None:
-        file_path = os.path.join(folder, file_name)
+        file_path = Path(folder) / file_name
     else:
-        file_path = os.path.abspath(file_name)
+        file_path = Path(file_name).resolve()
 
     local_size = Path(file_path).stat().st_size if Path(file_path).exists() else 0
 
@@ -706,7 +679,9 @@ def _download_data_httpx(
                     )
                 else:
                     logger.info(
-                        f">>> Retrying {status_code} (attempt {10 - remaining + 1}/10)"
+                        ">>> Retrying %s (attempt %s/10)",
+                        status_code,
+                        10 - remaining + 1,
                     )
 
                 time.sleep(wait_time)
@@ -728,15 +703,17 @@ def _download_data_httpx(
     else:
         headers = None
 
-    with client.stream("GET", url, headers=headers, timeout=120, cookies=cj) as r:
-        with Path(file_path).open("ab") as f:
-            time_start_realtime = time_start = time.time()
-            for chunk in r.iter_raw():
-                if chunk:
-                    size_add = len(chunk)
-                    local_size += size_add
-                    f.write(chunk)
-                    f.flush()
+    with (
+        client.stream("GET", url, headers=headers, timeout=120, cookies=cj) as r,
+        Path(file_path).open("ab") as f,
+    ):
+        time_start_realtime = time_start = time.time()
+        for chunk in r.iter_raw():
+            if chunk:
+                size_add = len(chunk)
+                local_size += size_add
+                f.write(chunk)
+                f.flush()
                 if support_resume:
                     pbar.update(size_add)
                 else:
@@ -745,35 +722,33 @@ def _download_data_httpx(
                     if time_span > 1:
                         speed_realtime = size_add / time_span
                         logger.info(
-                            "  Downloading {} [Speed: {} | Size: {}]".format(
-                                Path(file_name).name,
-                                _unit_formater(speed_realtime, "B/s"),
-                                _unit_formater(local_size, "B"),
-                            )
+                            "  Downloading %s [Speed: %s | Size: %s]",
+                            Path(file_name).name,
+                            _unit_formater(speed_realtime, "B/s"),
+                            _unit_formater(local_size, "B"),
                         )
                         time_start_realtime = time_end_realtime
-            if not support_resume:
-                time_cost = time.time() - time_start
-                speed = local_size / time_cost if time_cost > 0 else 0
-                logger.info(
-                    "  Finish downloading {} [Speed: {} | Total Size: {}]".format(
-                        Path(file_name).name,
-                        _unit_formater(speed, "B/s"),
-                        _unit_formater(local_size, "B"),
-                    )
-                )
+        if not support_resume:
+            time_cost = time.time() - time_start
+            speed = local_size / time_cost if time_cost > 0 else 0
+            logger.info(
+                "  Finish downloading %s [Speed: %s | Total Size: %s]",
+                Path(file_name).name,
+                _unit_formater(speed, "B/s"),
+                _unit_formater(local_size, "B"),
+            )
     return True
 
 
 def _download_data_requests(
-    url,
-    folder=None,
-    file_name=None,
-    client=None,
-    follow_redirects=True,
-    retry=10,
-    authorize_from_browser=False,
-):
+    url: str,
+    folder: str | Path | None = None,
+    file_name: str | Path | None = None,
+    client: requests.Session | None = None,
+    follow_redirects: bool = True,
+    retry: int = 10,
+    authorize_from_browser: bool = False,
+) -> bool:
     """Download a single file using requests.
 
     Parameters
@@ -829,9 +804,9 @@ def _download_data_requests(
         file_name = _parse_file_name(r)
 
     if folder is not None:
-        file_path = os.path.join(folder, file_name)
+        file_path = Path(folder) / file_name
     else:
-        file_path = os.path.abspath(file_name)
+        file_path = Path(file_name).resolve()
 
     local_size = Path(file_path).stat().st_size if Path(file_path).exists() else 0
 
@@ -843,7 +818,7 @@ def _download_data_requests(
         if status is False:
             if extra:  # 301/302 redirect, extra is new URL
                 return _download_data_requests(
-                    extra,
+                    str(extra),
                     folder=folder,
                     file_name=file_name,
                     authorize_from_browser=authorize_from_browser,
@@ -854,7 +829,7 @@ def _download_data_requests(
             # permanent error
             return False
         if status is None:  # retryable error, extra is status_code
-            status_code = extra
+            status_code = int(extra)
 
             if retry > 0:
                 # Get wait time (with Retry-After support)
@@ -871,7 +846,9 @@ def _download_data_requests(
                     )
                 else:
                     logger.info(
-                        f">>> Retrying {status_code} (attempt {10 - remaining + 1}/10)"
+                        ">>> Retrying %s (attempt %s/10)",
+                        status_code,
+                        10 - remaining + 1,
                     )
 
                 time.sleep(wait_time)
@@ -910,22 +887,20 @@ def _download_data_requests(
                     if time_span > 1:
                         speed_realtime = size_add / time_span
                         logger.info(
-                            "  Downloading {} [Speed: {} | Size: {}]".format(
-                                Path(file_name).name,
-                                _unit_formater(speed_realtime, "B/s"),
-                                _unit_formater(local_size, "B"),
-                            )
+                            "  Downloading %s [Speed: %s | Size: %s]",
+                            Path(file_name).name,
+                            _unit_formater(speed_realtime, "B/s"),
+                            _unit_formater(local_size, "B"),
                         )
                         time_start_realtime = time_end_realtime
         if not support_resume:
             time_cost = time.time() - time_start
             speed = local_size / time_cost if time_cost > 0 else 0
             logger.info(
-                "  Finish downloading {} [Speed: {} | Total Size: {}]".format(
-                    Path(file_name).name,
-                    _unit_formater(speed, "B/s"),
-                    _unit_formater(local_size, "B"),
-                )
+                "  Finish downloading %s [Speed: %s | Total Size: %s]",
+                Path(file_name).name,
+                _unit_formater(speed, "B/s"),
+                _unit_formater(local_size, "B"),
             )
 
     r.close()
@@ -936,7 +911,7 @@ async def _download_data_async(
     url: str,
     folder: str | None = None,
     file_name: str | None = None,
-    client=None,
+    client: Any | None = None,
     engine: str = "httpx",
     follow_redirects: bool = True,
     retry: int = 10,
@@ -993,7 +968,7 @@ async def _download_data_async(
                 file_name = _parse_file_name(r)
             else:  # aiohttp
                 # For aiohttp, parse from URL
-                file_name = os.path.basename(urlparse(url).path)
+                file_name = Path(urlparse(url).path).name
                 if not file_name:
                     file_name = "downloaded_file"
 
@@ -1020,8 +995,8 @@ async def _download_data_async(
                 file_path=file_path,
                 file_size=file_size,
                 chunks=chunks,
-                engine=engine,
-                supports_range=supports_range,
+                _engine=engine,
+                _supports_range=supports_range,
             )
         else:
             # No size info or no range support
@@ -1286,20 +1261,20 @@ async def _download_single_file_aiohttp(
 
 
 def download_data(
-    url,
-    folder=None,
-    file_name=None,
-    client=None,
-    engine="requests",
-    follow_redirects=True,
-    retry=10,
-    authorize_from_browser=False,
+    url: str,
+    folder: str | None = None,
+    file_name: str | None = None,
+    client: Any | None = None,
+    engine: str = "requests",
+    follow_redirects: bool = True,
+    retry: int = 10,
+    authorize_from_browser: bool = False,
     chunks: int | None = None,
     force_restart: bool = False,
     verify_checksum: bool | Literal["strict"] = False,
     checksum_url: str | None = None,
     expected_checksum: str | None = None,
-):
+) -> bool:
     """Download a single file with optional chunked download and resume support.
 
     Parameters
@@ -1432,13 +1407,13 @@ def download_data(
 
 
 def download_datas(
-    urls,
-    folder=None,
-    file_names=None,
-    engine="requests",
-    authorize_from_browser=False,
-    desc="",
-):
+    urls: Iterable[str],
+    folder: str | None = None,
+    file_names: Iterable[str] | None = None,
+    engine: str = "requests",
+    authorize_from_browser: bool = False,
+    desc: str = "",
+) -> None:
     r"""Download data from a list like object which containing urls.
 
     Parameters
@@ -1506,7 +1481,7 @@ def download_datas(
             download_data(
                 url,
                 folder,
-                file_name=file_names[i],
+                file_name=file_names[i],  # type: ignore
                 client=client,
                 engine=engine,
                 authorize_from_browser=authorize_from_browser,
@@ -1522,21 +1497,21 @@ def download_datas(
 
 
 def batch_download_files(
-    urls,
-    folder=None,
-    file_names=None,
-    limit=10,
-    desc="",
-    follow_redirects=True,
-    retry=10,
-    authorize_from_browser=False,
-    engine="httpx",
-    chunks=None,
-    force_restart=False,
-    verify_checksum=False,
-    checksum_urls=None,
-    expected_checksums=None,
-):
+    urls: Iterable[str],
+    folder: str | None = None,
+    file_names: Iterable[str] | None = None,
+    limit: int = 10,
+    desc: str = "",
+    follow_redirects: bool = True,
+    retry: int = 10,
+    authorize_from_browser: bool = False,
+    engine: str = "httpx",
+    chunks: int | None = None,
+    force_restart: bool = False,
+    verify_checksum: bool | Literal["strict"] = False,
+    checksum_urls: Iterable[str] | None = None,
+    expected_checksums: Iterable[str] | None = None,
+) -> None:
     """Download multiple files concurrently.
 
     Parameters
@@ -1592,7 +1567,14 @@ def batch_download_files(
     if engine not in ["httpx", "aiohttp"]:
         raise ValueError("Batch download requires 'httpx' or 'aiohttp' engine")
 
-    async def _bounded_download(sem, client, url, fname, c_url, exp_sum):
+    async def _bounded_download(
+        sem: asyncio.Semaphore,
+        client: Any,
+        url: str,
+        fname: str | None,
+        c_url: str | None,
+        exp_sum: str | None,
+    ) -> bool:
         async with sem:
             return await _download_data_async(
                 url=url,
@@ -1610,7 +1592,7 @@ def batch_download_files(
                 expected_checksum=exp_sum,
             )
 
-    async def _main():
+    async def _main() -> None:
         sem = asyncio.Semaphore(limit)
 
         # Create client
@@ -1662,14 +1644,14 @@ def batch_download_files(
 
 
 async def _download_data(
-    client,
-    url,
-    folder=None,
-    file_name=None,
-    follow_redirects=True,
-    retry=10,
-    authorize_from_browser=False,
-):
+    client: Any,
+    url: str,
+    folder: str | None = None,
+    file_name: str | None = None,
+    follow_redirects: bool = True,
+    retry: int = 10,
+    authorize_from_browser: bool = False,
+) -> bool:
     global support_resume, pbar, remote_size
 
     headers = {"Range": "bytes=0-4"}
@@ -1688,24 +1670,27 @@ async def _download_data(
 
     # auth = get_netrc_auth(url)
 
-    r = await client.get(
-        url, headers=headers, timeout=120, follow_redirects=follow_redirects, cookies=cj
-    )
-    # r.close()
-    # r = await client.head(url, headers=headers, auth=auth, timeout=120)
-    if file_name is None:
-        file_name = _parse_file_name(r)
+    async with client.stream(
+        "GET",
+        url,
+        headers=headers,
+        timeout=120,
+        follow_redirects=follow_redirects,
+        cookies=cj,
+    ) as r:
+        if file_name is None:
+            file_name = _parse_file_name(r)
 
-    if folder is not None:
-        if not Path(folder).exists():
-            Path(folder).mkdir(parents=True)
-        file_path = os.path.join(folder, file_name)
-    else:
-        file_path = os.path.abspath(file_name)
+        if folder is not None:
+            if not Path(folder).exists():
+                Path(folder).mkdir(parents=True)
+            file_path = os.path.join(folder, file_name)
+        else:
+            file_path = os.path.abspath(file_name)
 
-    local_size = Path(file_path).stat().st_size if Path(file_path).exists() else 0
+        local_size = Path(file_path).stat().st_size if Path(file_path).exists() else 0
 
-    result = _handle_status(r, url, local_size, file_name, file_path)
+        result = _handle_status(r, url, local_size, file_name, file_path)
     if result:
         status, extra = result
         if status is True:  # downloaded entirely
@@ -1732,11 +1717,20 @@ async def _download_data(
                 # Log based on remaining attempts
                 if retry > 3:
                     logger.info(
-                        f"Received {status_code} for {url}. Retrying in {wait_time:.1f}s... (Attempt {attempts_made}/10)"
+                        "Received %s for %s. Retrying in %.1fs... (Attempt %s/10)",
+                        status_code,
+                        url,
+                        wait_time,
+                        attempts_made,
                     )
                 elif retry > 0:
                     logger.warning(
-                        f"Received {status_code} for {url}. Retrying in {wait_time:.1f}s... (Attempt {attempts_made}/10, {retry} retries left)"
+                        "Received %s for %s. Retrying in %.1fs... (Attempt %s/10, %s retries left)",
+                        status_code,
+                        url,
+                        wait_time,
+                        attempts_made,
+                        retry,
                     )
 
                 await asyncio.sleep(wait_time)
@@ -1781,27 +1775,27 @@ async def _download_data(
                     if time_span > 1:
                         speed_realtime = size_add / time_span
                         logger.info(
-                            "Downloading {} [Speed: {} | Size: {}]".format(
-                                Path(file_name).name,
-                                _unit_formater(speed_realtime, "B/s"),
-                                _unit_formater(local_size, "B"),
-                            )
+                            "Downloading %s [Speed: %s | Size: %s]",
+                            Path(file_name).name,
+                            _unit_formater(speed_realtime, "B/s"),
+                            _unit_formater(local_size, "B"),
                         )
                         time_start_realtime = time_end_realtime
             if not support_resume:
                 speed = local_size / (time.time() - time_start)
                 logger.info(
-                    "Finish downloading {} [Speed: {} | Total Size: {}]".format(
-                        Path(file_name).name,
-                        _unit_formater(speed, "B/s"),
-                        _unit_formater(local_size, "B"),
-                    )
+                    "Finish downloading %s [Speed: %s | Total Size: %s]",
+                    Path(file_name).name,
+                    _unit_formater(speed, "B/s"),
+                    _unit_formater(local_size, "B"),
                 )
             # r.close()
             return True
 
 
-async def _is_response_staus_ok(client, url, authorize_from_browser, timeout):
+async def _is_response_staus_ok(
+    client: Any, url: str, authorize_from_browser: bool, timeout: int
+) -> bool:
     cj = _get_cookiejar(authorize_from_browser)
     try:
         r = await client.head(url, timeout=timeout, cookies=cj)
@@ -1820,7 +1814,9 @@ async def _is_response_staus_ok(client, url, authorize_from_browser, timeout):
         return False
 
 
-async def creat_tasks_status_ok(urls, limit, authorize_from_browser, timeout):
+async def creat_tasks_status_ok(
+    urls: Iterable[str], limit: int, authorize_from_browser: bool, timeout: int
+) -> list[bool]:
     limits = httpx.Limits(max_keepalive_connections=limit, max_connections=limit)
     async with httpx.AsyncClient(limits=limits, timeout=None) as client:
         tasks = [
@@ -1831,10 +1827,15 @@ async def creat_tasks_status_ok(urls, limit, authorize_from_browser, timeout):
         ]
         status_ok = await asyncio.gather(*tasks)
 
-    return status_ok
+    return list(status_ok)
 
 
-def status_ok(urls, limit=200, authorize_from_browser=False, timeout=60):
+def status_ok(
+    urls: Iterable[str],
+    limit: int = 200,
+    authorize_from_browser: bool = False,
+    timeout: int = 60,
+) -> list[bool]:
     """Simultaneously detecting whether the given links are accessible.
 
     Parameters
@@ -1862,15 +1863,13 @@ def status_ok(urls, limit=200, authorize_from_browser=False, timeout=60):
     from data_downloader import downloader
     import numpy as np
 
-    urls = np.array(
-        [
-            "https://www.baidu.com",
-            "https://www.bai.com/wrongurl",
-            "https://cn.bing.com/",
-            "https://bing.com/wrongurl",
-            "https://bing.com/",
-        ]
-    )
+    urls = np.array([
+        "https://www.baidu.com",
+        "https://www.bai.com/wrongurl",
+        "https://cn.bing.com/",
+        "https://bing.com/wrongurl",
+        "https://bing.com/",
+    ])
 
     status_ok = downloader.status_ok(urls)
     urls_accessible = urls[status_ok]

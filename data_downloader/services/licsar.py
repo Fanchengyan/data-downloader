@@ -11,7 +11,7 @@ class LiCSARService:
     """a class to retrieve LiCSAR data
 
     Example:
-    --------
+    -------
     >>> from pathlib import Path
     >>> import pandas as pd
     >>> from data_downloader import downloader, services
@@ -41,6 +41,7 @@ class LiCSARService:
     >>> downloader.download_datas(
     ...     licsar.coh_urls[mask], folder=pair_dir, desc="Coherence"
     ... )
+
     """
 
     def __init__(
@@ -48,14 +49,15 @@ class LiCSARService:
         frame_id: str,
         root_url: str = "https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products",
     ):
-        """init LiCSARService.
+        """Init LiCSARService.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         frame_id : str
             frame id of LiCSAR.
         root_url : str
             root url of LiCSAR. default is "https://gws-access.jasmin.ac.uk/public/nceo_geohazards/LiCSAR_products".
+
         """
         self.frame_id = frame_id
         self.track_id = self._parse_track_id()
@@ -73,12 +75,12 @@ class LiCSARService:
         return len(self.pairs)
 
     def _parse_track_id(self):
-        """parse track id from frame id."""
+        """Parse track id from frame id."""
         track_id = str(int(self.frame_id[0:3]))
         return track_id
 
     def _retrieve_pairs_urls(self):
-        """retrieve pairs of LiCSAR."""
+        """Retrieve pairs of LiCSAR."""
         url = f"{self.home_url}/interferograms/"
         page_urls = parse_urls.from_html(url, url_depth=1)
         pairs = []
@@ -94,30 +96,30 @@ class LiCSARService:
 
     @property
     def pairs(self) -> Pairs:
-        """all available pairs of given frame id."""
+        """All available pairs of given frame id."""
         return Pairs.from_names(self._pairs)
 
     @property
     def ifg_urls(self) -> pd.Series:
-        """interferogram urls of given frame id."""
+        """Interferogram urls of given frame id."""
         df = pd.Series(self._ifg_urls, name="ifg_urls", index=self._pairs)
         return df
 
     @property
     def coh_urls(self) -> pd.Series:
-        """coherence urls of given frame id."""
+        """Coherence urls of given frame id."""
         df = pd.Series(self._coh_urls, name="coh_urls", index=self._pairs)
         return df
 
     @property
     def urls(self) -> pd.DataFrame:
-        """all urls, including interferogram and coherence, of given frame id."""
+        """All urls, including interferogram and coherence, of given frame id."""
         urls = pd.concat([self.ifg_urls, self.coh_urls], axis=1)
         return urls
 
     @property
     def meta_urls(self) -> np.ndarray:
-        """metadata urls of LiCSAR.
+        """Metadata urls of LiCSAR.
 
         metadata includes:
 

@@ -49,6 +49,7 @@ class HyP3Service:
             Prompt for the username and password in the terminal, by default False.
         include_expired : bool, optional
             Include expired jobs, by default False
+
         """
         self.include_expired = include_expired
         self.login(username, password, prompt)
@@ -105,19 +106,21 @@ class HyP3Service:
             Username and password for HyP3
         prompt : bool, optional
             Prompt for the username and password in the terminal, by default False.
+
         """
         self.hyp3 = sdk.HyP3(username=username, password=password, prompt=prompt)
         self.flush()
 
     @property
     def my_info(self) -> dict:
-        """user's information"""
+        """User's information"""
         return self._my_info
 
     @property
     def jobs(self) -> Jobs:
-        """all jobs (not expired by default, set ``include_expired=True`` to
-        include expired jobs)"""
+        """All jobs (not expired by default, set ``include_expired=True`` to
+        include expired jobs)
+        """
         return self._jobs
 
     def _parse_jobs(self) -> Jobs:
@@ -138,6 +141,7 @@ class HyP3JobsDownloader:
             The HyP3 service
         job_type : JobType
             The job type to download. e.g. INSAR_GAMMA, INSAR_ISCE_BURST
+
         """
         self.service = service
         self.job_type = job_type
@@ -242,6 +246,7 @@ class HyP3JobsDownloader:
         retry : int, optional
             Number of times to retry the download if the jobs are still running or
             pending, by default 10
+
         """
         wait_minutes = int(wait_minutes)
         count = 0
@@ -320,6 +325,7 @@ class HyP3Jobs(HyP3JobsDownloader, ABC):
                 - You can still modify job parameters after initialization by
                 resetting the ``job_parameters`` attribute.
                 - You can use the ``show_parameters`` method to view all available submission parameters.
+
         """
         self.granules = granules
         self.service = service
@@ -337,7 +343,6 @@ class HyP3Jobs(HyP3JobsDownloader, ABC):
         .. hint::
             You can use ``self.service.hyp3`` to get the ``hyp3_sdk.HyP3`` instance.
         """
-        pass
 
     @property
     def jobs_on_service(self) -> Jobs:
@@ -421,6 +426,7 @@ class HyP3Jobs(HyP3JobsDownloader, ABC):
         skip_existing : bool, optional
             Whether to skip the existing pairs that have succeeded or are running,
             by default True
+
         """
         pairs_remain = self._get_remain_pairs(pairs, skip_existing)
         for pair in tqdm(pairs_remain, desc="Submitting jobs"):
@@ -489,7 +495,7 @@ def unzip_file(output_dir, file_name, remove_zip=True, overwrite=False):
     try:
         if not overwrite and unzip_dir.exists():
             logger.warning(f"Directory {unzip_dir} already exists. Skipping.")
-            return None
+            return
         with zipfile.ZipFile(zip_file, "r") as zip_ref:
             zip_ref.extractall(output_dir)
         if remove_zip:

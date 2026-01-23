@@ -28,8 +28,8 @@ async def _detect_and_resume_download(
     file_path: Path,
     file_size: int,
     chunks: int | None,
-    engine: str,
-    supports_range: bool,
+    _engine: str,
+    _supports_range: bool,
 ) -> tuple[int, _ChunkedDownloadMetadata | None]:
     """Detect incomplete download and determine resume strategy.
 
@@ -92,38 +92,43 @@ async def _detect_and_resume_download(
         # Use compatibility mode: keep existing chunks
         if chunks and chunks != metadata.chunks:
             logger.warning(
-                f"You requested {chunks} chunks, but found existing download with "
-                f"{metadata.chunks} chunks"
+                "You requested %s chunks, but found existing download with %s chunks",
+                chunks,
+                metadata.chunks,
             )
             logger.info(
-                f"Using existing {metadata.chunks} chunks to resume download "
-                f"(compatibility mode)"
+                "Using existing %s chunks to resume download (compatibility mode)",
+                metadata.chunks,
             )
             logger.info(
-                f"To restart with {chunks} chunks, delete: {file_path} and "
-                f"{metadata.meta_file}"
+                "To restart with %s chunks, delete: %s and %s",
+                chunks,
+                file_path,
+                metadata.meta_file,
             )
 
     # Compatible or using compatibility mode - check progress
     resume_info = metadata.get_resume_info()
 
     if resume_info["progress_percent"] >= 100:
-        logger.info(f"Download already completed: {file_path.name}")
+        logger.info("Download already completed: %s", file_path.name)
         metadata.cleanup()
         return metadata.chunks, None
 
     # Log resume information
-    logger.info(f"Detected incomplete download for {file_path.name}")
+    logger.info("Detected incomplete download for %s", file_path.name)
     logger.info(
-        f"Resuming with {metadata.chunks} chunks "
-        f"({len(resume_info['completed_parts'])} completed, "
-        f"{len(resume_info['partial_parts'])} partial, "
-        f"{len(resume_info['pending_parts'])} pending)"
+        "Resuming with %s chunks (%s completed, %s partial, %s pending)",
+        metadata.chunks,
+        len(resume_info["completed_parts"]),
+        len(resume_info["partial_parts"]),
+        len(resume_info["pending_parts"]),
     )
     logger.info(
-        f"Progress: {resume_info['progress_percent']:.1f}% already downloaded "
-        f"({resume_info['total_downloaded'] / 1024 / 1024:.1f}MB / "
-        f"{file_size / 1024 / 1024:.1f}MB)"
+        "Progress: %.1f%% already downloaded (%.1fMB / %.1fMB)",
+        resume_info["progress_percent"],
+        resume_info["total_downloaded"] / 1024 / 1024,
+        file_size / 1024 / 1024,
     )
 
     return metadata.chunks, metadata
@@ -138,18 +143,17 @@ def _cleanup_orphaned_parts(file_path: Path) -> None:
         Target file path
 
     """
-    orphaned = []
-    for part_file in file_path.parent.glob(f"{file_path.name}.part*"):
-        orphaned.append(part_file)
+    orphaned = list(file_path.parent.glob(f"{file_path.name}.part*"))
 
     if orphaned:
         logger.warning(
-            f"Found {len(orphaned)} orphaned .part files for {file_path.name} "
-            f"without metadata"
+            "Found %s orphaned .part files for %s without metadata",
+            len(orphaned),
+            file_path.name,
         )
         logger.info("These may be from a previous interrupted download")
         logger.info(
-            f"Cleaning up orphaned files: {', '.join(p.name for p in orphaned)}"
+            "Cleaning up orphaned files: %s", ", ".join(p.name for p in orphaned)
         )
 
         for part_file in orphaned:
@@ -247,7 +251,6 @@ async def _download_range_httpx(
 
             # Mark as completed
             metadata.mark_part_completed(part_index)
-            return True
 
         except Exception as e:
             if attempt < retry:
@@ -261,11 +264,13 @@ async def _download_range_httpx(
                 await asyncio.sleep(1 + random.random() * 2)
                 continue
 
-            logger.error("Error downloading part %s: %s", part_index, e)
+            logger.exception("Error downloading part %s", part_index)
             # Save current progress
             if part_path.exists():
                 metadata.update_part_progress(part_index)
             return False
+        else:
+            return True
     return False
 
 
@@ -328,7 +333,7 @@ async def _download_data_chunked_httpx(
     if not parts_to_download:
         logger.info("All parts already downloaded, merging...")
     else:
-        logger.info(f"Downloading {len(parts_to_download)} parts concurrently...")
+        logger.info("Downloading %s parts concurrently...", len(parts_to_download))
 
         # Create download tasks
         tasks = []
@@ -355,12 +360,12 @@ async def _download_data_chunked_httpx(
         # Check for failures
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                logger.error(f"Part {parts_to_download[i]} failed: {result}")
+                logger.error("Part %s failed: %s", parts_to_download[i], result)
                 metadata.status = "failed"
                 metadata.save()
                 return False
             if not result:
-                logger.error(f"Part {parts_to_download[i]} download failed")
+                logger.error("Part %s download failed", parts_to_download[i])
                 metadata.status = "failed"
                 metadata.save()
                 return False
@@ -468,7 +473,6 @@ async def _download_range_aiohttp(
 
             # Mark as completed
             metadata.mark_part_completed(part_index)
-            return True
 
         except Exception as e:
             if attempt < retry:
@@ -482,11 +486,13 @@ async def _download_range_aiohttp(
                 await asyncio.sleep(1 + random.random() * 2)
                 continue
 
-            logger.error("Error downloading part %s: %s", part_index, e)
+            logger.exception("Error downloading part %s", part_index)
             # Save current progress
             if part_path.exists():
                 metadata.update_part_progress(part_index)
             return False
+        else:
+            return True
     return False
 
 
@@ -549,7 +555,7 @@ async def _download_data_chunked_aiohttp(
     if not parts_to_download:
         logger.info("All parts already downloaded, merging...")
     else:
-        logger.info(f"Downloading {len(parts_to_download)} parts concurrently...")
+        logger.info("Downloading %s parts concurrently...", len(parts_to_download))
 
         # Create download tasks
         tasks = []
@@ -576,12 +582,12 @@ async def _download_data_chunked_aiohttp(
         # Check for failures
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                logger.error(f"Part {parts_to_download[i]} failed: {result}")
+                logger.error("Part %s failed: %s", parts_to_download[i], result)
                 metadata.status = "failed"
                 metadata.save()
                 return False
             if not result:
-                logger.error(f"Part {parts_to_download[i]} download failed")
+                logger.error("Part %s download failed", parts_to_download[i])
                 metadata.status = "failed"
                 metadata.save()
                 return False

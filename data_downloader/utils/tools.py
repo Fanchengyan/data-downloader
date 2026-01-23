@@ -29,9 +29,8 @@ def safe_repr(obj: Path | Mapping | Iterable | Any) -> str | dict | list | Any:
     """Convert objects to strings for safe serialization"""
     if isinstance(obj, Path):
         return str(obj)
-    elif isinstance(obj, Mapping):
+    if isinstance(obj, Mapping):
         return {k: safe_repr(v) for k, v in obj.items()}
-    elif isinstance(obj, Iterable) and not isinstance(obj, (str, bytes, Mapping)):
+    if isinstance(obj, Iterable) and not isinstance(obj, (str, bytes, Mapping)):
         return [safe_repr(x) for x in obj]
-    else:
-        return obj
+    return obj

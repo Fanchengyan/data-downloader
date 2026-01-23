@@ -1104,7 +1104,7 @@ class DateManager:
 
     @staticmethod
     def season_of_month(month: int) -> int:
-        """return the season of a given month
+        """Return the season of a given month
 
         Parameters
         ----------
@@ -1119,6 +1119,7 @@ class DateManager:
                 2 for summer,
                 3 for fall,
                 4 for winter.
+
         """
         month = int(month)
         if month not in list(range(1, 13)):
@@ -1128,7 +1129,7 @@ class DateManager:
 
     @staticmethod
     def ensure_datetime(date: Any) -> datetime:
-        """ensure the date is a datetime object
+        """Ensure the date is a datetime object
 
         Parameters
         ----------
@@ -1139,6 +1140,7 @@ class DateManager:
         -------
         date: datetime
             Date with format of datetime.
+
         """
         if isinstance(date, datetime):
             pass
@@ -1155,7 +1157,7 @@ class DateManager:
         parse_function: Optional[Callable] = None,
         date_args: dict = {},
     ) -> list[pd.Timestamp]:
-        """convert date string to dates
+        """Convert date string to dates
 
         Parameters
         ----------
@@ -1172,6 +1174,7 @@ class DateManager:
             Keyword arguments for :func:`pd.to_datetime` to convert the date strings
             to datetime objects. For example, {'format': '%Y%m%d'}.
             Default is {}.
+
         """
         if parse_function is not None:
             dates: list = parse_function(date_str)

@@ -35,6 +35,7 @@ class SentinelOrbit:
     >>>    date_start="20210101", date_end="20220301", platform="S1A"
     >>> )
     >>> downloader.download_datas(urls_preorb, folder=folder_preorb)
+
     """
 
     def __init__(
@@ -42,7 +43,7 @@ class SentinelOrbit:
         home_aux_cal: str = "https://s1qc.asf.alaska.edu/aux_cal/",
         home_preorb: str = "https://s1qc.asf.alaska.edu/aux_poeorb/",
     ) -> None:
-        """init SentinelOrbit.
+        """Init SentinelOrbit.
 
         Parameters
         ----------
@@ -50,6 +51,7 @@ class SentinelOrbit:
             home url of aux_cal, default is "https://s1qc.asf.alaska.edu/aux_cal/".
         home_preorb : str
             home url of aux_poeorb, default is "https://s1qc.asf.alaska.edu/aux_poeorb/".
+
         """
         self.home_aux_cal = home_aux_cal
         self.home_preorb = home_preorb
@@ -58,12 +60,13 @@ class SentinelOrbit:
         self,
         platform: Literal["S1A", "S1B", "all"] = "all",
     ):
-        """filter files from urls of aux_cal by platform.
+        """Filter files from urls of aux_cal by platform.
 
         Parameters
         ----------
         platform : str, one of ['S1A', 'S1B','all']
             platform of satellite. should be one of ['S1A', 'S1B','all']
+
         """
         urls = parse_urls.from_html(self.home_aux_cal)
         if platform in ["S1A", "S1B", "all"]:
@@ -85,7 +88,7 @@ class SentinelOrbit:
         date_end: str,
         platform: Literal["S1A", "S1B", "all"] = "all",
     ):
-        """filter files from urls of aux_poeorb (precise orbit) by date and platform.
+        """Filter files from urls of aux_poeorb (precise orbit) by date and platform.
 
         Parameters
         ----------
@@ -94,6 +97,7 @@ class SentinelOrbit:
             pd.to_datetime (e.g. '20210101', '2021-01-01', '2021/01/01').
         platform : str, one of ['S1A', 'S1B','all']
             platform of satellite. should be one of ['S1A', 'S1B','all']
+
         """
         if platform in ["S1A", "S1B", "all"]:
             if platform == "all":

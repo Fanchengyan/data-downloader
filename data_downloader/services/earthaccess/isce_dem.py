@@ -26,9 +26,7 @@ def _check_isce2_available():
 
 
 class ISCE2AuxData(EarthAccessDownloader):
-    """
-    Base class for ISCE2 auxiliary data (DEMs, Water Masks).
-    """
+    """Base class for ISCE2 auxiliary data (DEMs, Water Masks)."""
 
     DOI = None
     SHORT_NAME = None
@@ -38,8 +36,7 @@ class ISCE2AuxData(EarthAccessDownloader):
         bbox: Tuple[float, float, float, float],
         output_dir: str | os.PathLike = ".",
     ):
-        """
-        Initialize the downloader.
+        """Initialize the downloader.
 
         Parameters
         ----------
@@ -47,6 +44,7 @@ class ISCE2AuxData(EarthAccessDownloader):
             Bounding box (west, south, east, north).
         output_dir : str, optional
             Output directory for downloaded files, by default ".".
+
         """
         super().__init__()
         self.bbox = bbox
@@ -57,13 +55,13 @@ class ISCE2AuxData(EarthAccessDownloader):
         self.downloaded_files: List[str] = []
 
     def download(self) -> List[str]:
-        """
-        Search and download data for the specified bounding box.
+        """Search and download data for the specified bounding box.
 
         Returns
         -------
         List[str]
             List of downloaded file paths.
+
         """
         if self.DOI is None:
             raise ValueError("DOI must be defined in subclass.")
@@ -87,8 +85,7 @@ class ISCE2AuxData(EarthAccessDownloader):
         output_name: str | None = None,
         delete_original: bool = False,
     ) -> str:
-        """
-        Merge downloaded files into a single file.
+        """Merge downloaded files into a single file.
         Must be implemented by subclasses.
 
         Parameters
@@ -102,6 +99,7 @@ class ISCE2AuxData(EarthAccessDownloader):
         -------
         str
             Path to the merged file.
+
         """
         raise NotImplementedError("Merge method must be implemented by subclasses.")
 
@@ -114,8 +112,7 @@ class ISCE2AuxData(EarthAccessDownloader):
                 os.remove(f)
 
     def _ensure_vrt(self, output_path: str):
-        """
-        Ensure a VRT file exists for the output.
+        """Ensure a VRT file exists for the output.
         If missing, attempts to create one from the ISCE XML.
         """
         vrt_path = output_path + ".vrt"
@@ -143,9 +140,7 @@ class ISCE2AuxData(EarthAccessDownloader):
 
 
 class SRTMGL1(ISCE2AuxData):
-    """
-    SRTMGL1 downloader and merger (1 arc-second Global).
-    """
+    """SRTMGL1 downloader and merger (1 arc-second Global)."""
 
     DOI = "10.5067/MEASURES/SRTM/SRTMGL1.003"
 
@@ -196,9 +191,7 @@ class SRTMGL1(ISCE2AuxData):
 
 
 class SRTMGL3(ISCE2AuxData):
-    """
-    SRTMGL3 downloader and merger (3 arc-second Global).
-    """
+    """SRTMGL3 downloader and merger (3 arc-second Global)."""
 
     DOI = "10.5067/MEASURES/SRTM/SRTMGL3.003"
 
@@ -244,9 +237,7 @@ class SRTMGL3(ISCE2AuxData):
 
 
 class SRTMSWBD(ISCE2AuxData):
-    """
-    SRTMSWBD downloader and merger (Water Body Data).
-    """
+    """SRTMSWBD downloader and merger (Water Body Data)."""
 
     DOI = "10.5067/MEASURES/SRTM/SRTMSWBD.003"
 

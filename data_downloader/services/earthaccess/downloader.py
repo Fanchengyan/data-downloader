@@ -1,25 +1,22 @@
-from typing import Any, Iterable, Optional
+import logging
+from collections.abc import Iterable
+from typing import Any
+
 import earthaccess
 from earthaccess.search import DataGranule
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 class EarthAccessDownloader:
-    """
-    Base class for downloading data using earthaccess.
-    """
+    """Base class for downloading data using earthaccess."""
 
     def __init__(self):
-        """
-        Initialize the downloader and login to earthaccess.
-        """
+        """Initialize the downloader and login to earthaccess."""
         self.auth = earthaccess.login(strategy="interactive", persist=True)
 
     def search_data(self, count: int = -1, **kwargs: Any) -> Iterable[DataGranule]:
-        """
-        Search for data granules.
+        """Search for data granules.
 
         Parameters
         ----------
@@ -33,6 +30,7 @@ class EarthAccessDownloader:
         -------
         Iterable[DataGranule]
             Iterable of found granules.
+
         """
         logger.info(f"Searching data with params: {kwargs}")
         results = earthaccess.search_data(count=count, **kwargs)
@@ -42,8 +40,7 @@ class EarthAccessDownloader:
     def download(
         self, granules: Iterable[DataGranule], local_path: str = "./"
     ) -> Iterable[str]:
-        """
-        Download granules to a local directory.
+        """Download granules to a local directory.
 
         Parameters
         ----------
@@ -56,6 +53,7 @@ class EarthAccessDownloader:
         -------
         Iterable[str]
             Iterable of downloaded file paths.
+
         """
         if not granules:
             logger.warning("No granules to download.")

@@ -7,9 +7,8 @@ import numpy as np
 import pandas as pd
 from dateutil.parser import parse as parse_date
 
-from data_downloader.logging import setup_logger
-
 from data_downloader.enums.hyp3 import JobStatus, JobType
+from data_downloader.logging import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -25,13 +24,13 @@ class Job(sdk.Job):
     def __hash__(self) -> int:
         return hash(id_of_job(self))
 
-    def __lt__(self, other: "Job") -> bool:
+    def __lt__(self, other: Job) -> bool:
         return id_of_job(self) < id_of_job(other)
 
-    def __eq__(self, other: "Job") -> bool:
+    def __eq__(self, other: Job) -> bool:
         return id_of_job(self) == id_of_job(other)
 
-    def __gt__(self, other: "Job") -> bool:
+    def __gt__(self, other: Job) -> bool:
         return id_of_job(self) > id_of_job(other)
 
     @staticmethod
@@ -73,6 +72,7 @@ class Jobs:
         jobs : list[sdk.Job]
             List of Job objects from HyP3 SDK. You can get the jobs from the
             hyp3_sdk.Batch.jobs attribute.
+
         """
         self.jobs = pd.Series(
             [Job.from_dict(i.to_dict()) for i in jobs],
@@ -101,12 +101,12 @@ class Jobs:
     def __len__(self) -> int:
         return len(self.jobs)
 
-    def __add__(self, other: "Jobs") -> "Jobs":
+    def __add__(self, other: Jobs) -> Jobs:
         if not isinstance(other, Jobs):
             raise ValueError("Can only sum Jobs with Jobs instances.")
         return Jobs(pd.concat([self.jobs, other.jobs]).tolist())
 
-    def __sub__(self, other: "Jobs") -> "Jobs":
+    def __sub__(self, other: Jobs) -> Jobs:
         if not isinstance(other, Jobs):
             raise ValueError("Can only subtract Jobs with Jobs instances.")
         mask = np.isin(self.jobs, other.jobs)
@@ -127,6 +127,7 @@ class Jobs:
             Job type to filter by
         status_code : Literal[status_code]
             Status code to filter by
+
         """
         job_id = []
         job_type = []
@@ -200,97 +201,97 @@ class Jobs:
 
     @property
     def job_type(self) -> np.ndarray:
-        """the job type of all jobs"""
+        """The job type of all jobs"""
         return np.array(self._job_type, dtype=np.str_)
 
     @property
     def job_id(self) -> np.ndarray:
-        """the job ID of all jobs"""
+        """The job ID of all jobs"""
         return np.array(self._job_id, dtype=np.str_)
 
     @property
     def request_time(self) -> np.ndarray:
-        """the request time of all jobs"""
+        """The request time of all jobs"""
         return np.array(self._request_time, dtype="M8[D]")
 
     @property
     def status_code(self) -> np.ndarray:
-        """the status code of all jobs"""
+        """The status code of all jobs"""
         return np.array(self._status_code, dtype=np.str_)
 
     @property
     def user_id(self) -> np.ndarray:
-        """the user ID of all jobs"""
+        """The user ID of all jobs"""
         return np.array(self._user_id, dtype=np.str_)
 
     @property
     def name(self) -> np.ndarray:
-        """the name of all jobs"""
+        """The name of all jobs"""
         return np.array(self._name, dtype=np.str_)
 
     @property
     def job_parameters(self) -> np.ndarray:
-        """the job parameters of all jobs"""
+        """The job parameters of all jobs"""
         return np.array(self._job_parameters, dtype="O")
 
     @property
     def files(self) -> np.ndarray:
-        """the files of all jobs"""
+        """The files of all jobs"""
         return np.array(self._files, dtype="O")
 
     @property
     def file_names(self) -> np.ndarray:
-        """the file names of all jobs"""
+        """The file names of all jobs"""
         return np.array([file["filename"] for file in self._files])
 
     @property
     def file_urls(self) -> np.ndarray:
-        """the file urls of all jobs"""
+        """The file urls of all jobs"""
         return np.array([file["url"] for file in self._files])
 
     @property
     def file_sizes(self) -> np.ndarray:
-        """the file sizes of all jobs"""
+        """The file sizes of all jobs"""
         return np.array([file["size"] for file in self._files])
 
     @property
     def logs(self) -> np.ndarray:
-        """the logs of all jobs"""
+        """The logs of all jobs"""
         return np.array(self._logs, dtype=np.str_)
 
     @property
     def browse_images(self) -> np.ndarray:
-        """the browse images of all jobs"""
+        """The browse images of all jobs"""
         return np.array(self._browse_images)
 
     @property
     def thumbnail_images(self) -> np.ndarray:
-        """the thumbnail images of all jobs"""
+        """The thumbnail images of all jobs"""
         return np.array(self._thumbnail_images, dtype=np.str_)
 
     @property
     def expiration_time(self) -> np.ndarray:
-        """the expiration time of all jobs"""
+        """The expiration time of all jobs"""
         return np.array(self._expiration_time, dtype="M8[D]")
 
     @property
     def processing_times(self) -> np.ndarray:
-        """the processing times of all jobs"""
+        """The processing times of all jobs"""
         return np.array(self._processing_times, dtype=np.str_)
 
     @property
     def credit_cost(self) -> np.ndarray:
-        """the credit cost of all jobs"""
+        """The credit cost of all jobs"""
         return np.array(self._credit_cost, dtype=np.float32)
 
     @property
     def total_credit_cost(self) -> int:
-        """the total credit cost of all jobs"""
+        """The total credit cost of all jobs"""
         return np.nansum(self.credit_cost)
 
     @property
     def frame(self) -> pd.DataFrame:
-        """jobs in the form of a pandas DataFrame"""
+        """Jobs in the form of a pandas DataFrame"""
         df = pd.DataFrame(
             {
                 "name": self.name,
@@ -320,7 +321,7 @@ class Jobs:
         job_type: JobType | None = None,
         status_code: JobStatus | None = None,
         request_time: datetime | str | slice | None = None,
-    ) -> "Jobs":
+    ) -> Jobs:
         """Select jobs based on job type and status code
 
         Parameters
@@ -333,6 +334,7 @@ class Jobs:
             Status code to filter by
         request_time : datetime | str | slice | None
             Request time to filter by. Can be a datetime object, a string, or a slice object. If a slice object is used, the start must be a string or a datetime object, and the stop can be None, a string, or a datetime object. If a string is used, it must be in the format that can be converted to a datetime object using pd.to_datetime. by default None
+
         """
         if job_type is not None and not hasattr(JobType, job_type):
             raise ValueError(
@@ -350,8 +352,7 @@ class Jobs:
                     msg = "The start of the slice must be a string or a datetime object"
                     logger.error(msg)
                     raise ValueError(msg)
-                else:
-                    start = self._ensure_datetime(request_time.start)
+                start = self._ensure_datetime(request_time.start)
                 if request_time.stop is None:
                     end = datetime.now().date()
                 else:
@@ -373,21 +374,21 @@ class Jobs:
         return Jobs(self.jobs[mask].tolist())
 
     @property
-    def succeeded(self) -> "Jobs":
-        """all succeeded jobs (not expired by default)"""
+    def succeeded(self) -> Jobs:
+        """All succeeded jobs (not expired by default)"""
         return self.sel(status_code=JobStatus.SUCCEEDED)
 
     @property
-    def failed(self) -> "Jobs":
-        """all failed jobs (not expired by default)"""
+    def failed(self) -> Jobs:
+        """All failed jobs (not expired by default)"""
         return self.sel(status_code=JobStatus.FAILED)
 
     @property
-    def pending(self) -> "Jobs":
-        """all pending jobs (not expired by default)"""
+    def pending(self) -> Jobs:
+        """All pending jobs (not expired by default)"""
         return self.sel(status_code=JobStatus.PENDING)
 
     @property
-    def running(self) -> "Jobs":
-        """all running jobs (not expired by default)"""
+    def running(self) -> Jobs:
+        """All running jobs (not expired by default)"""
         return self.sel(status_code=JobStatus.RUNNING)
