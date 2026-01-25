@@ -208,6 +208,7 @@ async def _download_range_httpx(
     from . import downloader
 
     cj = downloader._get_cookiejar(authorize_from_browser)
+    auth = downloader.get_netrc_auth(url)
 
     for attempt in range(retry + 1):
         # Check if part already exists (resume)
@@ -235,7 +236,7 @@ async def _download_range_httpx(
 
         try:
             async with client.stream(
-                "GET", url, headers=headers, cookies=cj
+                "GET", url, headers=headers, cookies=cj, auth=auth
             ) as response:
                 response.raise_for_status()
 
@@ -432,6 +433,11 @@ async def _download_range_aiohttp(
     from . import downloader
 
     cj = downloader._get_cookiejar(authorize_from_browser)
+    auth = downloader.get_netrc_auth(url)
+    if auth:
+        import aiohttp
+
+        auth = aiohttp.BasicAuth(*auth)
 
     for attempt in range(retry + 1):
         # Check if part already exists (resume)
@@ -458,7 +464,9 @@ async def _download_range_aiohttp(
         headers = {"Range": f"bytes={actual_start}-{end}"}
 
         try:
-            async with session.get(url, headers=headers, cookies=cj) as response:
+            async with session.get(
+                url, headers=headers, cookies=cj, auth=auth
+            ) as response:
                 response.raise_for_status()
 
                 # Open file in append mode

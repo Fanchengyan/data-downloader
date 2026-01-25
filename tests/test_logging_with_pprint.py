@@ -6,6 +6,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from data_downloader.downloader import (
+    DownloadAction,
+    StatusResult,
     _download_data_httpx,
     _get_cookiejar,
     _new_file_from_web,
@@ -28,14 +30,18 @@ class TestLoggingWithPprint:
         ):
             yield {"debug": mock_debug, "info": mock_info, "error": mock_error}
 
-    def test_new_file_from_web_logging(self, mock_logger):
+    def test_new_file_from_web_logging(self, mock_logger, tmp_path):
         """Test logging in _new_file_from_web function"""
+        # Create a temporary file to pass the exists() check
+        test_file = tmp_path / "test_file.txt"
+        test_file.write_text("test content")
+
         # Mock exception scenario
         r = MagicMock()
         r.headers.get.side_effect = ValueError("Test exception")
 
         # Call function
-        result = _new_file_from_web(r, "test_file.txt")
+        result = _new_file_from_web(r, test_file)
 
         # Verify log recording
         mock_logger["debug"].assert_called_once()
@@ -83,7 +89,7 @@ class TestLoggingWithPprint:
         # Mock _handle_status to return a value indicating "downloaded entirely"
         handle_status_patcher = patch("data_downloader.downloader._handle_status")
         mock_handle_status = handle_status_patcher.start()
-        mock_handle_status.return_value = (True, "")  # 模拟 "downloaded entirely"
+        mock_handle_status.return_value = StatusResult(DownloadAction.COMPLETED)
 
         try:
             # Call function
