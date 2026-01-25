@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import random
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .logging import setup_logger, tqdm_handler
 
@@ -175,6 +175,7 @@ async def _download_range_httpx(
     part_index: int,
     retry: int = 10,
     authorize_from_browser: bool = False,
+    pbar: Any | None = None,
 ) -> bool:
     """Download a specific byte range using httpx.
 
@@ -198,6 +199,8 @@ async def _download_range_httpx(
         Number of retries
     authorize_from_browser : bool
         Load cookies from browser
+    pbar : Any | None
+        Optional tqdm progress bar to update
 
     Returns
     -------
@@ -244,10 +247,15 @@ async def _download_range_httpx(
                 mode = "ab" if current_size > 0 else "wb"
                 with Path(part_path).open(mode) as f:
                     async for chunk in response.aiter_bytes():
+                        chunk_size = len(chunk)
                         f.write(chunk)
 
-                        # Update metadata periodically
-                        if f.tell() % (10 * 1024 * 1024) == 0:  # Every 10MB
+                        # Update progress bar if provided
+                        if pbar is not None:
+                            pbar.update(chunk_size)
+
+                        # Update metadata periodically (reduced frequency)
+                        if f.tell() % (50 * 1024 * 1024) == 0:  # Every 50MB
                             metadata.update_part_progress(part_index)
 
             # Mark as completed
@@ -333,12 +341,37 @@ async def _download_data_chunked_httpx(
 
     if not parts_to_download:
         logger.info("All parts already downloaded, merging...")
+        progress_bars = []
     else:
         logger.info("Downloading %s parts concurrently...", len(parts_to_download))
 
-        # Create download tasks
+        # Create progress bars for each chunk
+        from tqdm import tqdm
+
+        progress_bars = []
+        for i, part_idx in enumerate(parts_to_download):
+            part = metadata.parts[part_idx]
+            chunk_size = part["end"] - part["start"] + 1
+
+            # Get current size for resume support
+            part_path = metadata.get_part_path(part_idx)
+            current_size = part_path.stat().st_size if part_path.exists() else 0
+
+            pbar = tqdm(
+                total=chunk_size,
+                initial=current_size,
+                unit="B",
+                unit_scale=True,
+                desc=f"{file_path.name} part {part_idx + 1}/{chunks}",
+                position=i,
+                leave=False,
+                dynamic_ncols=True,
+            )
+            progress_bars.append(pbar)
+
+        # Create download tasks with progress bars
         tasks = []
-        for part_idx in parts_to_download:
+        for i, part_idx in enumerate(parts_to_download):
             part = metadata.parts[part_idx]
             part_path = metadata.get_part_path(part_idx)
 
@@ -352,11 +385,17 @@ async def _download_data_chunked_httpx(
                 part_index=part_idx,
                 retry=retry,
                 authorize_from_browser=authorize_from_browser,
+                pbar=progress_bars[i],
             )
             tasks.append(task)
 
         # Download all parts concurrently
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        try:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+        finally:
+            # Close all progress bars
+            for pbar in progress_bars:
+                pbar.close()
 
         # Check for failures
         for i, result in enumerate(results):
@@ -400,6 +439,7 @@ async def _download_range_aiohttp(
     part_index: int,
     retry: int = 10,
     authorize_from_browser: bool = False,
+    pbar: Any | None = None,
 ) -> bool:
     """Download a specific byte range using aiohttp.
 
@@ -423,6 +463,8 @@ async def _download_range_aiohttp(
         Number of retries
     authorize_from_browser : bool
         Load cookies from browser
+    pbar : Any | None
+        Optional tqdm progress bar to update
 
     Returns
     -------
@@ -473,10 +515,15 @@ async def _download_range_aiohttp(
                 mode = "ab" if current_size > 0 else "wb"
                 with Path(part_path).open(mode) as f:
                     async for chunk in response.content.iter_any():
+                        chunk_size = len(chunk)
                         f.write(chunk)
 
-                        # Update metadata periodically
-                        if f.tell() % (10 * 1024 * 1024) == 0:  # Every 10MB
+                        # Update progress bar if provided
+                        if pbar is not None:
+                            pbar.update(chunk_size)
+
+                        # Update metadata periodically (reduced frequency)
+                        if f.tell() % (50 * 1024 * 1024) == 0:  # Every 50MB
                             metadata.update_part_progress(part_index)
 
             # Mark as completed
@@ -562,12 +609,37 @@ async def _download_data_chunked_aiohttp(
 
     if not parts_to_download:
         logger.info("All parts already downloaded, merging...")
+        progress_bars = []
     else:
         logger.info("Downloading %s parts concurrently...", len(parts_to_download))
 
-        # Create download tasks
+        # Create progress bars for each chunk
+        from tqdm import tqdm
+
+        progress_bars = []
+        for i, part_idx in enumerate(parts_to_download):
+            part = metadata.parts[part_idx]
+            chunk_size = part["end"] - part["start"] + 1
+
+            # Get current size for resume support
+            part_path = metadata.get_part_path(part_idx)
+            current_size = part_path.stat().st_size if part_path.exists() else 0
+
+            pbar = tqdm(
+                total=chunk_size,
+                initial=current_size,
+                unit="B",
+                unit_scale=True,
+                desc=f"{file_path.name} part {part_idx + 1}/{chunks}",
+                position=i,
+                leave=False,
+                dynamic_ncols=True,
+            )
+            progress_bars.append(pbar)
+
+        # Create download tasks with progress bars
         tasks = []
-        for part_idx in parts_to_download:
+        for i, part_idx in enumerate(parts_to_download):
             part = metadata.parts[part_idx]
             part_path = metadata.get_part_path(part_idx)
 
@@ -581,11 +653,17 @@ async def _download_data_chunked_aiohttp(
                 part_index=part_idx,
                 retry=retry,
                 authorize_from_browser=authorize_from_browser,
+                pbar=progress_bars[i],
             )
             tasks.append(task)
 
         # Download all parts concurrently
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        try:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+        finally:
+            # Close all progress bars
+            for pbar in progress_bars:
+                pbar.close()
 
         # Check for failures
         for i, result in enumerate(results):

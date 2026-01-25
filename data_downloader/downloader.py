@@ -29,6 +29,7 @@ from ._chunked_download import (
 from ._metadata import _ChunkedDownloadMetadata
 from .logging import setup_logger, tqdm_handler
 from .netrc import Netrc
+from .url_handlers import process_url_handlers
 from .utils.tools import safe_repr
 
 if TYPE_CHECKING:
@@ -456,7 +457,8 @@ def _parse_file_name(response: Any) -> str:
     """Parse the file_name from the headers of web response or url."""
     if "Content-disposition" in response.headers:
         file_name = (
-            response.headers["Content-disposition"]
+            response
+            .headers["Content-disposition"]
             .split("filename=")[1]
             .strip('"')
             .strip("'")
@@ -1191,51 +1193,67 @@ async def _download_data_async(
         True if download succeeded
 
     """
-
-    # Create a custom auth handler for httpx that uses .netrc
-    class NetrcAuth(httpx.Auth):
-        """Custom auth handler that reads credentials from .netrc for each request."""
-
-        def auth_flow(self, request):
-            # Get auth for the current request URL
-            auth = get_netrc_auth(str(request.url))
-            if auth:
-                # Add Basic Auth header
-                import base64
-
-                credentials = f"{auth[0]}:{auth[1]}".encode("latin1")
-                encoded = base64.b64encode(credentials).decode("ascii")
-                request.headers["Authorization"] = f"Basic {encoded}"
-            yield request
-
     # Create client if not provided
     client_created = False
     if client is None:
         client_created = True
         if engine == "httpx":
             client = httpx.AsyncClient(
-                timeout=None, verify=False, auth=NetrcAuth(), follow_redirects=True
+                timeout=None, verify=False, follow_redirects=True
             )
-        elif engine == "aiohttp":
-            client = aiohttp.ClientSession()
+        if engine == "aiohttp":
+            client = aiohttp.ClientSession(trust_env=True)
         else:
             raise ValueError(f"Invalid async engine: {engine}")
 
     try:
-        # Get file size and check server support
-        cj = _get_cookiejar(authorize_from_browser)
-        auth = get_netrc_auth(url)
+        # Pre-process URL (authentication, cookie priming, etc.)
+        extra_headers = await process_url_handlers(url, client, engine)
 
+        # Get file size and check server support
+        # IMPORTANT: Always use httpx for range detection because its NetrcAuth
+        # properly handles cross-domain redirects (e.g., ASF → Earthdata → S3),
+        # while aiohttp's auth doesn't get re-applied on redirects
+        cj = _get_cookiejar(authorize_from_browser)
+
+        # Create temporary httpx client if not using httpx engine
+        httpx_client_for_head = None
         if engine == "httpx":
-            # httpx client already has auth configured via NetrcAuth
-            r = await client.head(url, cookies=cj)
-            headers = r.headers
-        else:  # aiohttp
-            # For aiohttp, we need to handle auth manually for each redirect
-            # Use a helper function that follows redirects and applies .netrc auth
-            headers = await _aiohttp_head_with_netrc(
-                client, url, cookies=cj, max_redirects=10
-            )
+            head_client = client
+        else:
+            # Create httpx client just for HEAD check
+            # httpx is imported at the top of this file
+            httpx_client_for_head = httpx.AsyncClient()
+            head_client = httpx_client_for_head
+
+        try:
+            # Use httpx GET with Range to detect file info
+            # Retry mechanism for head request
+            for attempt in range(retry + 1):
+                try:
+                    r = await head_client.get(
+                        url,
+                        headers={"Range": "bytes=0-10"},
+                        cookies=cj,
+                        follow_redirects=True,
+                    )
+                    headers = r.headers
+                    break
+                except httpx.RequestError as e:
+                    if attempt == retry:
+                        logger.error(
+                            "Failed to get file info after %s retries: %s", retry, e
+                        )
+                        raise
+                    wait_time = 0.5 * (2**attempt) + random.uniform(0, 1)
+                    logger.warning(
+                        f"Error getting file info (attempt {attempt + 1}/{retry + 1}): {e}. Retrying in {wait_time:.2f}s..."
+                    )
+                    await asyncio.sleep(wait_time)
+        finally:
+            # Clean up temporary client if created
+            if httpx_client_for_head:
+                await httpx_client_for_head.aclose()
 
         # Extract file info
         file_size = int(headers.get("content-length", 0))
@@ -1449,136 +1467,157 @@ async def _download_single_file_aiohttp(
     logger.debug(msg)
 
     # Check if server supports resume
-    async with client.get(
-        url,
-        headers=headers,
-        allow_redirects=follow_redirects,
-        cookies=cj,
-        auth=auth,
-    ) as r:
-        if file_name is None:
-            # Parse from URL
-            file_name = os.path.basename(urlparse(url).path)
-            if not file_name:
-                file_name = "downloaded_file"
+    try:
+        async with client.get(
+            url,
+            headers=headers,
+            allow_redirects=follow_redirects,
+            cookies=cj,
+            auth=auth,
+        ) as r:
+            if file_name is None:
+                # Parse from URL
+                file_name = os.path.basename(urlparse(url).path)
+                if not file_name:
+                    file_name = "downloaded_file"
 
-        if folder is not None:
-            file_path = os.path.join(folder, file_name)
-        else:
-            file_path = os.path.abspath(file_name)
+            if folder is not None:
+                file_path = os.path.join(folder, file_name)
+            else:
+                file_path = os.path.abspath(file_name)
 
-        local_size = Path(file_path).stat().st_size if Path(file_path).exists() else 0
-
-        # Handle status
-        result = _handle_status(r, url, local_size, file_name, file_path)
-
-        # Handle different actions
-        if result.action == DownloadAction.COMPLETED:
-            return True
-
-        if result.action == DownloadAction.FAIL:
-            return False
-
-        if result.action == DownloadAction.REDIRECT:
-            # Redirect to new URL
-            return await _download_single_file_aiohttp(
-                client,
-                str(result.extra),
-                folder=folder,
-                file_name=file_name,
-                follow_redirects=True,
-                retry=retry,
-                authorize_from_browser=authorize_from_browser,
-                _max_retries=_max_retries,
+            local_size = (
+                Path(file_path).stat().st_size if Path(file_path).exists() else 0
             )
 
-        if result.action == DownloadAction.RETRY:
-            # Retryable error
-            if retry > 0:
-                status_code = int(result.extra)
-                wait_time = _get_retry_wait_time(r, status_code)
+            # Handle status
+            result = _handle_status(r, url, local_size, file_name, file_path)
 
-                current_attempt = _max_retries - retry + 1
-                remaining = retry - 1
+            # Handle different actions
+            if result.action == DownloadAction.COMPLETED:
+                return True
 
-                if remaining <= 3:  # Warning when few attempts left
-                    logger.warning(
-                        ">>> Retrying %s for %s (%s attempts remaining)",
-                        status_code,
-                        url,
-                        remaining,
-                    )
-                else:
-                    logger.info(
-                        ">>> Retrying %s (attempt %s/%s)",
-                        status_code,
-                        current_attempt,
-                        _max_retries,
-                    )
+            if result.action == DownloadAction.FAIL:
+                return False
 
-                await asyncio.sleep(wait_time)
+            if result.action == DownloadAction.REDIRECT:
+                # Redirect to new URL
                 return await _download_single_file_aiohttp(
                     client,
-                    url,
+                    str(result.extra),
                     folder=folder,
                     file_name=file_name,
-                    follow_redirects=follow_redirects,
-                    retry=retry - 1,
+                    follow_redirects=True,
+                    retry=retry,
                     authorize_from_browser=authorize_from_browser,
                     _max_retries=_max_retries,
                 )
 
-            logger.error(">>> Max retries (%s) exceeded for %s", _max_retries, url)
-            return False
+            if result.action == DownloadAction.RETRY:
+                # Retryable error
+                if retry > 0:
+                    status_code = int(result.extra)
+                    wait_time = _get_retry_wait_time(r, status_code)
 
-    # result.action == DownloadAction.PROCEED
-    # Continue with download
+                    current_attempt = _max_retries - retry + 1
+                    remaining = retry - 1
 
-    # Begin download
-    if support_resume:
-        headers["Range"] = f"bytes={local_size}-{remote_size}"
-    else:
-        headers = {}
-
-    async with client.get(url, headers=headers, cookies=cj) as r:
-        with Path(file_path).open("ab") as f:
-            time_start_realtime = time_start = time.time()
-
-            async for chunk in r.content.iter_any():
-                if chunk:
-                    size_add = len(chunk)
-                    local_size += size_add
-                    f.write(chunk)
-                    f.flush()
-
-                    if support_resume:
-                        pbar.update(size_add)
+                    if remaining <= 3:  # Warning when few attempts left
+                        logger.warning(
+                            ">>> Retrying %s for %s (%s attempts remaining)",
+                            status_code,
+                            url,
+                            remaining,
+                        )
                     else:
-                        time_end_realtime = time.time()
-                        time_span = time_end_realtime - time_start_realtime
-                        if time_span > 1:
-                            speed_realtime = size_add / time_span
-                            logger.info(
-                                "  Downloading {} [Speed: {} | Size: {}]".format(
-                                    Path(file_name).name,
-                                    _unit_formater(speed_realtime, "B/s"),
-                                    _unit_formater(local_size, "B"),
-                                )
-                            )
-                            time_start_realtime = time_end_realtime
+                        logger.info(
+                            ">>> Retrying %s (attempt %s/%s)",
+                            status_code,
+                            current_attempt,
+                            _max_retries,
+                        )
 
-            if not support_resume:
-                time_cost = time.time() - time_start
-                speed = local_size / time_cost if time_cost > 0 else 0
-                logger.info(
-                    "  Finish downloading {} [Speed: {} | Total Size: {}]".format(
-                        Path(file_name).name,
-                        _unit_formater(speed, "B/s"),
-                        _unit_formater(local_size, "B"),
+                    await asyncio.sleep(wait_time)
+                    return await _download_single_file_aiohttp(
+                        client,
+                        url,
+                        folder=folder,
+                        file_name=file_name,
+                        follow_redirects=follow_redirects,
+                        retry=retry - 1,
+                        authorize_from_browser=authorize_from_browser,
+                        _max_retries=_max_retries,
                     )
-                )
 
-    return True
+                logger.error(">>> Max retries (%s) exceeded for %s", _max_retries, url)
+                return False
+
+        # result.action == DownloadAction.PROCEED
+        # Continue with download
+
+        # Begin download
+        if support_resume:
+            headers["Range"] = f"bytes={local_size}-{remote_size}"
+        else:
+            headers = {}
+
+        async with client.get(url, headers=headers, cookies=cj) as r:
+            # Get total size for progress bar (if available)
+            total_size = int(r.headers.get("Content-Length", 0))
+
+            with Path(file_path).open("ab") as f:
+                # Use tqdm for progress regardless of resume support
+                from tqdm import tqdm
+
+                with tqdm(
+                    total=total_size or None,
+                    initial=0,
+                    unit="B",
+                    unit_scale=True,
+                    unit_divisor=1024,
+                    desc=Path(file_name).name,
+                    leave=True,
+                    dynamic_ncols=True,
+                ) as pbar_local:
+                    async for chunk in r.content.iter_any():
+                        if chunk:
+                            size_add = len(chunk)
+                            local_size += size_add
+                            f.write(chunk)
+                            f.flush()
+                            pbar_local.update(size_add)
+
+            return True
+
+    except (asyncio.TimeoutError, aiohttp.ClientError) as e:
+        if retry > 0:
+            logger.warning(
+                ">>> Network error for %s: %s. Retrying (%s/%s)",
+                url,
+                e,
+                _max_retries - retry + 1,
+                _max_retries,
+            )
+            # Randomized exponential backoff
+            wait_time = 0.5 * (2 ** (_max_retries - retry)) + random.uniform(0, 1)
+            await asyncio.sleep(wait_time)
+            return await _download_single_file_aiohttp(
+                client,
+                url,
+                folder=folder,
+                file_name=file_name,
+                follow_redirects=follow_redirects,
+                retry=retry - 1,
+                authorize_from_browser=authorize_from_browser,
+                _max_retries=_max_retries,
+            )
+        logger.error(
+            ">>> Max retries (%s) exceeded for %s due to network error: %s",
+            _max_retries,
+            url,
+            e,
+        )
+        return False
 
 
 def download_file(
@@ -1839,7 +1878,7 @@ def batch_download_files(
     follow_redirects: bool = True,
     retry: int = 10,
     authorize_from_browser: bool = False,
-    engine: Literal["requests", "httpx", "aiohttp"] = "httpx",
+    engine: Literal["httpx", "aiohttp"] = "httpx",
     chunks: int | None = None,
     force_restart: bool = False,
     verify_checksum: bool | Literal["strict"] = False,
@@ -1934,7 +1973,7 @@ def batch_download_files(
         if engine == "httpx":
             client = httpx.AsyncClient(timeout=None, verify=False)
         else:
-            client = aiohttp.ClientSession()
+            client = aiohttp.ClientSession(trust_env=True)
 
         try:
             tasks = []
@@ -2104,41 +2143,72 @@ async def _download_data(
     else:
         headers = None
     auth = get_netrc_auth(url)
-    async with client.stream(
-        "GET", url, headers=headers, auth=auth, timeout=None, cookies=cj
-    ) as r:
-        with Path(file_path).open("ab") as f:
-            time_start_realtime = time_start = time.time()
 
-            async for chunk in r.aiter_bytes():
-                size_add = len(chunk)
-                local_size += size_add
-                f.write(chunk)
-                f.flush()
-                if support_resume:
-                    pbar.update(size_add)
-                else:
-                    time_end_realtime = time.time()
-                    time_span = time_end_realtime - time_start_realtime
-                    if time_span > 1:
-                        speed_realtime = size_add / time_span
-                        logger.info(
-                            "Downloading %s [Speed: %s | Size: %s]",
-                            Path(file_name).name,
-                            _unit_formater(speed_realtime, "B/s"),
-                            _unit_formater(local_size, "B"),
-                        )
-                        time_start_realtime = time_end_realtime
-            if not support_resume:
-                speed = local_size / (time.time() - time_start)
-                logger.info(
-                    "Finish downloading %s [Speed: %s | Total Size: %s]",
-                    Path(file_name).name,
-                    _unit_formater(speed, "B/s"),
-                    _unit_formater(local_size, "B"),
-                )
-            # r.close()
-            return True
+    try:
+        async with client.stream(
+            "GET", url, headers=headers, auth=auth, timeout=None, cookies=cj
+        ) as r:
+            with Path(file_path).open("ab") as f:
+                time_start_realtime = time_start = time.time()
+
+                async for chunk in r.aiter_bytes():
+                    size_add = len(chunk)
+                    local_size += size_add
+                    f.write(chunk)
+                    f.flush()
+                    if support_resume:
+                        pbar.update(size_add)
+                    else:
+                        time_end_realtime = time.time()
+                        time_span = time_end_realtime - time_start_realtime
+                        if time_span > 1:
+                            speed_realtime = size_add / time_span
+                            logger.info(
+                                "Downloading %s [Speed: %s | Size: %s]",
+                                Path(file_name).name,
+                                _unit_formater(speed_realtime, "B/s"),
+                                _unit_formater(local_size, "B"),
+                            )
+                            time_start_realtime = time_end_realtime
+                if not support_resume:
+                    speed = local_size / (time.time() - time_start)
+                    logger.info(
+                        "Finish downloading %s [Speed: %s | Total Size: %s]",
+                        Path(file_name).name,
+                        _unit_formater(speed, "B/s"),
+                        _unit_formater(local_size, "B"),
+                    )
+                # r.close()
+                return True
+    except httpx.RequestError as e:
+        if retry > 0:
+            logger.warning(
+                ">>> Network error for %s: %s. Retrying (%s/%s)",
+                url,
+                e,
+                _max_retries - retry + 1,
+                _max_retries,
+            )
+            # Randomized exponential backoff
+            wait_time = 0.5 * (2 ** (_max_retries - retry)) + random.uniform(0, 1)
+            await asyncio.sleep(wait_time)
+            return await _download_data(
+                client,
+                url,
+                folder=folder,
+                file_name=file_name,
+                follow_redirects=follow_redirects,
+                retry=retry - 1,
+                authorize_from_browser=authorize_from_browser,
+                _max_retries=_max_retries,
+            )
+        logger.error(
+            ">>> Max retries (%s) exceeded for %s due to network error: %s",
+            _max_retries,
+            url,
+            e,
+        )
+        return False
 
 
 async def _is_response_staus_ok(
@@ -2211,15 +2281,13 @@ def status_ok(
     from data_downloader import downloader
     import numpy as np
 
-    urls = np.array(
-        [
-            "https://www.baidu.com",
-            "https://www.bai.com/wrongurl",
-            "https://cn.bing.com/",
-            "https://bing.com/wrongurl",
-            "https://bing.com/",
-        ]
-    )
+    urls = np.array([
+        "https://www.baidu.com",
+        "https://www.bai.com/wrongurl",
+        "https://cn.bing.com/",
+        "https://bing.com/wrongurl",
+        "https://bing.com/",
+    ])
 
     status_ok = downloader.status_ok(urls)
     urls_accessible = urls[status_ok]
