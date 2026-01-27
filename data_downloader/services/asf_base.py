@@ -2,35 +2,57 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from collections.abc import Iterator
+from abc import abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 import asf_search as asf
 import geopandas as gpd
 import pandas as pd
+from asf_search.ASFSearchResults import ASFSearchResults
 
 from data_downloader import downloader
 from data_downloader.logging import setup_logger
-from data_downloader.utils.baselines import Baselines
-from data_downloader.utils.pairs import Pairs
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from os import PathLike
 
     from typing_extensions import Self
+
+    from data_downloader.utils.baselines import Baselines
+    from data_downloader.utils.pairs import Pairs
 
 
 logger = setup_logger(__name__)
 
 
-class ASFScenesABC(ABC):
+class ASFScenes:
     """Abstract Base Class handling ASF scenes."""
 
-    def __init__(self, geojson: dict) -> None:
-        """Initialize ASFScenes with given GeoJSON."""
-        self._geojson = geojson
+    def __init__(self, products: ASFSearchResults | dict, sort: bool = True) -> None:
+        """Initialize ASFScenes with given products.
+
+        Parameters
+        ----------
+        products : ASFSearchResults or dict
+            The ASFSearchResults or GeoJSON representation of the scenes from
+            asf_search.
+        sort : bool, optional
+            Whether to sort the scenes by datetime. Default is True.
+
+        """
+        if isinstance(products, ASFSearchResults):
+            products = products.geojson()
+        elif not isinstance(products, dict):
+            msg = "products must be an ASFSearchResults or dict (GeoJSON)."
+            raise TypeError(msg)
+
+        if sort:
+            gdf = gpd.GeoDataFrame.from_features(products["features"])
+            gdf.sort_values(by="startTime", inplace=True)
+            products = gdf.to_geo_dict()
+        self._geojson = products
 
     def __repr__(self) -> str:
         """Return a string representation of the ASFScenes instance."""
@@ -51,9 +73,9 @@ class ASFScenesABC(ABC):
     @property
     def repr(self) -> str:
         """String representation of the ASFScenes instance."""
-        return self.__repr__()
+        return repr(self)
 
-    def __scenes_repr__(self) -> str:
+    def __scenes_repr__(self) -> str:  # noqa: PLW3201
         """Return a string representation of the ASFScenes instance."""
         return self.__class__.__name__
 
@@ -122,9 +144,9 @@ class ASFScenesABC(ABC):
         folder = Path(folder)
         if not folder.exists():
             folder.mkdir(parents=True, exist_ok=True)
-        out_file = folder / (filename if filename else self.boundary_file)
+        out_file = folder / (filename or self.boundary_file)
         self.gdf.to_file(out_file, driver="GeoJSON")
-        logger.info(f"Saved {self.repr} boundaries to {out_file}")
+        logger.info("Saved %s boundaries to %s", self.repr, out_file)
 
     def download(
         self,
@@ -167,7 +189,48 @@ class ASFScenesABC(ABC):
         logger.success(msg, stacklevel=2)
 
 
-class ASFTileScenesABC(ASFScenesABC):
+class ASFBurstScenes(ASFScenes):
+    """Abstract Base Class handling ASF burst scenes."""
+
+    def __post_init__(self) -> None:
+        """Post-initialization for burst columns."""
+        if "burst" not in self.gdf.columns:
+            msg = "The input geojson does not contain 'burst' column."
+            raise ValueError(msg)
+
+    @property
+    def gdf_burst(self) -> pd.DataFrame:
+        """Return the burst information as a DataFrame."""
+        gdf = super().gdf
+        return pd.DataFrame(gdf.burst.to_list(), index=gdf.index)
+
+    @property
+    def gdf(self) -> gpd.GeoDataFrame:
+        """Return the GeoDataFrame with burst information."""
+        return super().gdf.join(self.gdf_burst)
+
+    def to_gdf(self, crs: int | str | None = None) -> gpd.GeoDataFrame:
+        """Convert the GeoJSON to a geopandas.GeoDataFrame.
+
+        Parameters
+        ----------
+        crs : int, str, or None, optional
+            The CRS to set for the GeoDataFrame. If None, the CRS will not be
+            set. Default is None.
+
+        Returns
+        -------
+        gpd.GeoDataFrame
+            The GeoDataFrame representation of the Scenes.
+
+        """
+        gdf = self.gdf
+        if crs is not None:
+            gdf.set_crs(crs=crs, inplace=True)
+        return gdf
+
+
+class ASFTileScenesABC(ASFScenes):
     """Abstract Base Class for handling ASF scenes within a tile."""
 
     _frame: int | None = None
@@ -268,7 +331,8 @@ class ASFTileScenesTimeseries(ASFTileScenesABC):
     def _parse_datetime(self) -> pd.DatetimeIndex:
         """Add datetime to the scenes."""
         dates_str = (
-            pd.to_datetime(self.gdf.startTime, format="mixed")
+            pd
+            .to_datetime(self.gdf.startTime, format="mixed")
             .map(lambda x: x.strftime("%F"))
             .values
         )

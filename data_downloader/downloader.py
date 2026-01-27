@@ -1690,7 +1690,9 @@ def download_file(
         # Requests engine doesn't support chunked downloads
         if chunks and chunks > 1:
             logger.warning(
-                "Chunked download (chunks=%s) is not supported with 'requests' engine. Using sequential download. Use engine='httpx' or 'aiohttp' for chunked downloads.",
+                "Chunked download (chunks=%s) is not supported with 'requests' "
+                "engine. Using sequential download. Use engine='httpx' or "
+                "'aiohttp' for chunked downloads.",
                 chunks,
             )
 
@@ -1711,12 +1713,35 @@ def download_file(
 
         try:
             loop = asyncio.get_running_loop()
-            # Already in async context
-            raise RuntimeError(
-                "download_file() cannot be called from async context. "
-                "Use async version directly or call from sync code."
-            )
         except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            # If we are in a running event loop (e.g. Jupyter), we cannot call asyncio.run()
+            # So we run it in a separate thread.
+            from concurrent.futures import ThreadPoolExecutor
+
+            with ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    asyncio.run,
+                    _download_data_async(
+                        url=url,
+                        folder=folder,
+                        file_name=file_name,
+                        client=client,
+                        engine=engine,
+                        follow_redirects=follow_redirects,
+                        retry=retry,
+                        authorize_from_browser=authorize_from_browser,
+                        chunks=chunks,
+                        force_restart=force_restart,
+                        verify_checksum=verify_checksum,
+                        checksum_url=checksum_url,
+                        expected_checksum=expected_checksum,
+                    ),
+                )
+                return future.result()
+        else:
             # Not in async context, create new loop
             return asyncio.run(
                 _download_data_async(
@@ -1870,9 +1895,9 @@ def download_files(
 
 
 def batch_download_files(
-    urls: Iterable[str],
+    urls: Iterable[str | Path],
     folder: str | None = None,
-    file_names: Iterable[str] | None = None,
+    file_names: Iterable[str | Path] | None = None,
     limit: int = 10,
     desc: str = "",
     follow_redirects: bool = True,
@@ -1938,8 +1963,9 @@ def batch_download_files(
     msg = pformat(safe_repr(params), indent=4)
     logger.info(msg)
 
-    if engine not in ["httpx", "aiohttp"]:
-        raise ValueError("Batch download requires 'httpx' or 'aiohttp' engine")
+    if engine not in {"httpx", "aiohttp"}:
+        msg = "Batch download requires 'httpx' or 'aiohttp' engine"
+        raise ValueError(msg)
 
     async def _bounded_download(
         sem: asyncio.Semaphore,
@@ -2010,10 +2036,18 @@ def batch_download_files(
 
     try:
         loop = asyncio.get_running_loop()
-        raise RuntimeError(
-            "batch_download_files cannot be called from within a running event loop"
-        )
     except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        # If we are in a running event loop (e.g. Jupyter), we cannot call asyncio.run()
+        # So we run it in a separate thread.
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor() as executor:
+            future = executor.submit(asyncio.run, _main())
+            future.result()
+    else:
         asyncio.run(_main())
 
 

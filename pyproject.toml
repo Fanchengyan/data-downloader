@@ -22,32 +22,33 @@ dependencies = [
   "httpx >= 0.4.0",
   "requests",
   "aiohttp >= 3.8.0",
-  "earthaccess",
   "tqdm",
   "setuptools",
   "beautifulsoup4",
   "nest_asyncio",
   "python-dateutil",
   "browser-cookie3",
-  "hyp3_sdk",
   "pandas",
   "geopandas",
   "matplotlib",
   "xarray",
   "psutil",
-  "asf_search",
   "colorlog",
   "typing_extensions",
 ]
 
 
 [project.optional-dependencies]
+
+services = ["burst2safe", "earthaccess", "hyp3_sdk", "asf_search"]
+
 tests = [
   "pytest>=6.0.0",
   "pytest-cov>=2.10.0",
   "pytest-mock>=3.0.0",
   "pytest-asyncio",
 ]
+
 docs = [
   "recommonmark",
   "sphinx>=7",

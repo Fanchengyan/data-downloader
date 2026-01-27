@@ -22,7 +22,7 @@ Following is a brief introduction to those functions.
 
 .. _example_download_data:
 
-download_data
+download_file
 -------------
 
 This function is design for downloading a single file. 
@@ -39,7 +39,7 @@ Example:
        ...: 41211.geo.unw.tif'
        ...:  
        ...: folder = 'D:\\data'
-       ...: downloader.download_data(url,folder)
+       ...: downloader.download_file(url,folder)
 
     20141117_20141211.geo.unw.tif:   2%|▌                   | 455k/22.1M [00:52<42:59, 8.38kB/s]
 

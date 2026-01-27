@@ -1,0 +1,359 @@
+"""Module for handling Sentinel-1 burst scenes from ASF."""
+
+from __future__ import annotations
+
+import warnings
+from datetime import datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
+
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+
+from data_downloader import downloader
+from data_downloader.logging import setup_logger
+from data_downloader.services.asf_base import ASFBurstScenes
+
+try:
+    from burst2safe.safe import Safe
+    from burst2safe.utils import BurstInfo
+except ImportError as e:
+    msg = (
+        "burst2safe is required for data_downloader.services. "
+        "Please install it via 'pip install data_downloader[services]'."
+    )
+    raise ImportError(msg) from e
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from os import PathLike
+
+    import pandas as pd
+    from matplotlib.axes import Axes
+    from numpy.typing import NDArray
+
+
+logger = setup_logger(__name__)
+
+
+class S1Burst2SafeScenes(ASFBurstScenes):
+    """Class to download Sentinel-1 burst scenes and convert to SAFE format."""
+
+    def __repr__(self) -> str:
+        """Return the string representation of the object."""
+        num_safes = []
+        for burst_id in self.full_burst_ids:
+            burst_gdf = self.gdf[self.gdf.fullBurstID == burst_id]
+            num_safes.append(len(burst_gdf))
+        return (
+            f"S1Burst2SafeScenes(\n"
+            f"  scenes={len(self.gdf)},\n"
+            f"  bursts={len(self.full_burst_ids)},\n"
+            f"  safes={max(num_safes)},\n"
+            ")"
+        )
+
+    @property
+    def full_burst_ids(self) -> NDArray[np.str_]:
+        """Return the full burst IDs."""
+        return self.gdf.fullBurstID.unique().astype(str)
+
+    @property
+    def absolute_orbit(self) -> NDArray[np.uint32]:
+        """Return the absolute orbits."""
+        return self.gdf.orbit.unique().astype(np.uint32)
+
+    @property
+    def relative_orbit(self) -> NDArray[np.uint32]:
+        """Return the relative orbits."""
+        return self.gdf.pathNumber.unique().astype(np.uint32)
+
+    def plot(self, crs: str = "EPSG:4326", ax: Axes | None = None, **kwargs) -> Axes:
+        """Plot the burst scenes.
+
+        Parameters
+        ----------
+        crs : str, optional
+            The coordinate reference system to use for plotting.
+            Default is "EPSG:4326".
+        ax : Axes, optional
+            The matplotlib Axes to plot on. If None, a new Axes will be created.
+            Default is None.
+        **kwargs :
+            Additional keyword arguments to pass to the plotting function.
+
+        """
+        ec = kwargs.pop("edgecolor", "C0")
+        fc = kwargs.pop("facecolor", "none")
+        lw = kwargs.pop("linewidth", 1)
+        ax = kwargs.pop("ax", ax)
+        gdf = self.to_gdf("EPSG:4326").to_crs(crs)
+
+        # ignore UserWarnings from geopandas during plotting
+        warnings.filterwarnings("ignore", category=UserWarning)
+        for burst_id in self.full_burst_ids:
+            burst_gdf = gdf[gdf.fullBurstID == burst_id]
+
+            # use minimum rotated rectangle to determine burst orientation
+            geom = burst_gdf.geometry.values[0]
+            min_rect = geom.minimum_rotated_rectangle
+            coords = list(min_rect.exterior.coords)
+            # calculate the angle of the burst
+            edge1 = np.array(coords[1]) - np.array(coords[0])
+            edge2 = np.array(coords[2]) - np.array(coords[1])
+            # select the longer edge as the main direction
+            if np.linalg.norm(edge1) > np.linalg.norm(edge2):
+                angle = np.degrees(np.arctan2(edge1[1], edge1[0]))
+            else:
+                angle = np.degrees(np.arctan2(edge2[1], edge2[0]))
+            # get the centroid of the burst
+            centroid = burst_gdf.geometry.centroid.values[0]
+
+            ax = burst_gdf.plot(
+                ax=ax, edgecolor=ec, facecolor=fc, linewidth=lw, **kwargs
+            )
+            ax = cast("Axes", ax)
+            ax.annotate(
+                f"{burst_id} ({len(burst_gdf)})",
+                xy=(centroid.x, centroid.y),
+                ha="center",
+                fontsize=8,
+                rotation=angle,
+                rotation_mode="anchor",
+                color=ec,
+            )  # 'anchor' to rotate around the center
+
+        return ax
+
+    def download(
+        self,
+        folder: PathLike | str,
+        all_anns: bool = False,
+        keep_files: bool = False,
+        full_burst_ids: Iterable[str] | None = None,
+        limit: int = 10,
+        retry: int = 50,
+        quick_check: bool = True,
+    ) -> None:
+        """Download the burst scenes and convert to SAFE format.
+
+        Parameters
+        ----------
+        folder : PathLike  | str
+            The folder where the Scenes will be saved.
+        all_anns : bool, optional
+            Whether to include all annotation files for all swaths, regardless of
+            included bursts. Useful for ISCE3 processing. Default is False.
+        keep_files : bool, optional
+            Whether to keep the original downloaded files after conversion.
+            Default is False.
+        full_burst_ids : Iterable[str] | None, optional
+            List of full burst IDs to download. If None, all bursts will be
+            downloaded.
+        limit : int | None, optional
+            Limit the number of bursts to download parallely. Default is 10.
+        retry : int, optional
+            Number of retries to wait for the server to prepare the data.
+            Default is 50.
+        quick_check : bool, optional
+            Whether to check the safe files have been downloaded. Default is True.
+
+            .. note::
+                This will only check SAFE names roughly. It should be set to False
+                if more full_burst_ids are provided when re-downloading.
+
+        """
+        # create the output folders
+        folder = Path(folder)
+        if not folder.exists():
+            folder.mkdir(parents=True, exist_ok=True)
+            logger.info("Created folder %s", folder)
+        original_dir = folder / "original"
+        if not original_dir.exists():
+            original_dir.mkdir(parents=True, exist_ok=True)
+            logger.info("Created folder %s", original_dir)
+        safe_dir = folder / "SAFE"
+        if not safe_dir.exists():
+            safe_dir.mkdir(parents=True, exist_ok=True)
+            logger.info("Created folder %s", safe_dir)
+
+        # mask the full_burst_ids to download
+        if full_burst_ids is None:
+            full_burst_ids = self.full_burst_ids
+        else:
+            full_burst_ids = np.array(full_burst_ids, dtype=str).flatten()
+            intersected_ids = np.intersect1d(full_burst_ids, self.full_burst_ids)
+            if len(intersected_ids) == 0:
+                logger.warning("No matching full burst IDs found in the scenes.")
+                return
+            full_burst_ids = intersected_ids
+
+        # filter the gdf to only the selected burst IDs
+        gdf = self.gdf[self.gdf.fullBurstID.isin(full_burst_ids)]
+        absolute_orbit = gdf.orbit.unique().astype(np.uint32)
+
+        burst_infos = create_burst_info_list(gdf, original_dir)
+        logger.info(
+            "Found %d burst(s), comprising %d SAFE(s).",
+            len(burst_infos),
+            len(absolute_orbit),
+        )
+
+        logger.info("Check burst group validities...")
+        burst_sets = [
+            [bi for bi in burst_infos if bi.absolute_orbit == orbit]
+            for orbit in absolute_orbit
+        ]
+        # Checking burst group validities before download to fail faster
+        for burst_set in burst_sets:
+            Safe.check_group_validity(burst_set)
+
+        safe_names = [safe.name for safe in safe_dir.glob("*.SAFE")]
+
+        for burst_set in tqdm(burst_sets):
+            if quick_check:
+                safe_path = quick_match_safe(safe_names, burst_set)
+                if safe_path:
+                    logger.info("Safe %s already exists, skipping...", safe_path)
+                    continue
+
+            urls_burst = [bi.data_url for bi in burst_set]
+            paths_burst = [bi.data_path for bi in burst_set]
+
+            # get the unique metadata urls and paths
+            arr_meta = pd.DataFrame({
+                "url": [bi.metadata_url for bi in burst_set],
+                "path": [bi.metadata_path for bi in burst_set],
+            })
+
+            arr_meta = arr_meta.groupby("path").first().reset_index()
+            paths_burst_metadata = arr_meta.path.to_list()
+            urls_burst_metadata = arr_meta.url.to_list()
+            logger.info("Processing burst group %s...", burst_set[0].absolute_orbit)
+
+            logger.info("  Downloading bursts...")
+            downloader.batch_download_files(
+                urls=urls_burst + urls_burst_metadata,
+                file_names=paths_burst + paths_burst_metadata,
+                retry=retry,
+                engine="aiohttp",
+                limit=limit,
+            )
+            logger.info("  Merging bursts into SAFE...")
+            [info.add_shape_info() for info in burst_set]
+            [info.add_start_stop_utc() for info in burst_set]
+            safe = Safe(burst_set, all_anns, safe_dir)
+            safe_path = safe.create_safe()
+            logger.info("  Created SAFE at %s", safe_path)
+            if not keep_files:
+                safe.cleanup()
+                logger.info("  Cleaned up original files for burst group")
+
+        if not keep_files:
+            try:
+                original_dir.rmdir()
+                logger.info("Removed empty original directory %s.", original_dir)
+            except OSError:
+                logger.debug(
+                    "Original directory %s not empty, not removed.", original_dir
+                )
+
+        logger.success("All bursts are downloaded and converted to SAFE format.")
+
+
+def quick_match_safe(safe_names: list[str], burst_set: list[BurstInfo]) -> str:
+    """Quick match if the SAFE file is valid."""
+    prefix = burst_set[0].slc_granule.split("_")[:3]
+    min_date = min(cast("datetime", x.date) for x in burst_set).strftime("%Y%m%d")
+    max_date = max(cast("datetime", x.date) for x in burst_set).strftime("%Y%m%d")
+    date_pair = f"{min_date}_{max_date}"
+
+    suffix = burst_set[0].slc_granule.split("_")[-3:-1]
+
+    for safe_name in safe_names:
+        prefix_safe = safe_name.split("_")[:3]
+        suffix_safe = safe_name.split("_")[-3:-1]
+        date_pair_safe = "_".join(
+            pd.to_datetime(safe_name.split("_")[-5:-3]).strftime("%Y%m%d").tolist()
+        )
+        if (
+            prefix_safe == prefix
+            and suffix_safe == suffix
+            and date_pair_safe == date_pair
+        ):
+            return safe_name
+    return ""
+
+
+def create_burst_info(product: pd.Series, work_dir: Path) -> BurstInfo:
+    """Create a BurstInfo object given a granule.
+
+    Parameters
+    ----------
+    product: Series
+        DataFrame representing the burst product from ASF search.
+    work_dir: Path
+        The directory to save the data to.
+
+    """
+    burst_granule = product["fileID"]
+    direction = product["flightDirection"].upper()
+    polarization = product["polarization"].upper()
+    absolute_orbit = int(product["orbit"])
+    relative_orbit = int(product["pathNumber"])
+    data_url = product["url"]
+    metadata_url = product["additionalUrls"][0]
+
+    slc_granule = Path(data_url).parent.parent.parent.name
+
+    swath = product["burst"]["subswath"].upper()
+    burst_id = int(product["burst"]["relativeBurstID"])
+    burst_index = int(product["burst"]["burstIndex"])
+
+    date_format = "%Y%m%dT%H%M%S"
+    burst_time_str = burst_granule.split("_")[3]
+    burst_time = datetime.strptime(burst_time_str, date_format)
+    data_path = work_dir / f"{burst_granule}.tiff"
+    # metadata_path = data_path.with_suffix(".xml")
+    metadata_path = work_dir / f"{slc_granule}_{polarization}.xml"
+
+    return BurstInfo(
+        burst_granule,
+        slc_granule,
+        swath,
+        polarization,
+        burst_id,
+        burst_index,
+        direction,
+        absolute_orbit,
+        relative_orbit,
+        burst_time,
+        data_url,
+        data_path,
+        metadata_url,
+        metadata_path,
+    )
+
+
+def create_burst_info_list(products: pd.DataFrame, work_dir: Path) -> list[BurstInfo]:
+    """Convert the scenes to a list of BurstInfo objects.
+
+    Parameters
+    ----------
+    products : pd.DataFrame
+        DataFrame representing the burst products from ASF search.
+    work_dir : Path
+        The directory to save the data to.
+
+    Returns
+    -------
+    list[BurstInfo]
+        A list of BurstInfo objects representing the burst scenes.
+
+    """
+    burst_info_list = []
+    for _, product in products.iterrows():
+        burst_info = create_burst_info(product, work_dir)
+        burst_info_list.append(burst_info)
+    return burst_info_list

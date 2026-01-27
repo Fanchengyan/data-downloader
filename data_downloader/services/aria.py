@@ -9,7 +9,7 @@ from data_downloader.logging import setup_logger
 
 from ..utils.baselines import Baselines
 from ..utils.pairs import Pairs
-from .asf_base import ASFScenesABC
+from .asf_base import ASFScenes
 
 if TYPE_CHECKING:
     import numpy as np
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 logger = setup_logger(__name__)
 
 
-class ARIAScenesSTD(ASFScenesABC):
+class ARIAScenesSTD(ASFScenes):
     """Class for ARIA scenes with processingLevel of GUNW_STD from ASF.
 
     Scenes are searched based on the ASF scene IDs.
@@ -52,7 +52,7 @@ class ARIAScenesSTD(ASFScenesABC):
         return "ARIAScenesSTD"
 
 
-class ARIATileABC(ASFScenesABC):
+class ARIATileABC(ASFScenes):
     """Abstract Base Class for ARIA scenes within a tile."""
 
     @property

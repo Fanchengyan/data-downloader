@@ -14,7 +14,7 @@ This module provides a multiple download functions for downloading files from gi
 Functions
 ---------
 
-.. automethod:: data_downloader.downloader.download_data
+.. automethod:: data_downloader.downloader.download_file
 
 .. automethod:: data_downloader.downloader.download_datas
 

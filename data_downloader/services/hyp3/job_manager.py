@@ -171,8 +171,8 @@ class HyP3JobsDownloader:
         output_dir = Path(output_dir)
         if not output_dir.exists():
             output_dir.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Created directory {output_dir}")
-        logger.info(f"Downloading jobs from HyP3 service to {output_dir}")
+            logger.info("Created directory %s", output_dir)
+        logger.info("Downloading jobs from HyP3 service to %s", output_dir)
 
         local_ifgs = self._scan_interferograms(output_dir)
         logger.info(f"Found {len(local_ifgs)} interferograms in {output_dir}")
@@ -190,7 +190,7 @@ class HyP3JobsDownloader:
                 logger.info(msg)
                 continue
             try:
-                downloader.download_data(url, output_dir, file_name)
+                downloader.download_file(url, output_dir, file_name)
                 if unzip:
                     unzip_file(output_dir, file_name, remove_zip, overwrite)
             except Exception as e:
@@ -494,7 +494,7 @@ def unzip_file(output_dir, file_name, remove_zip=True, overwrite=False):
     unzip_dir = Path(output_dir) / Path(file_name).stem
     try:
         if not overwrite and unzip_dir.exists():
-            logger.warning(f"Directory {unzip_dir} already exists. Skipping.")
+            logger.warning("Directory %s already exists. Skipping.", unzip_dir)
             return
         with zipfile.ZipFile(zip_file, "r") as zip_ref:
             zip_ref.extractall(output_dir)
