@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Literal
 import asf_search as asf
 import geopandas as gpd
 import pandas as pd
-from asf_search.ASFSearchResults import ASFSearchResults
 
 from data_downloader import downloader
 from data_downloader.logging import setup_logger
@@ -30,29 +29,23 @@ logger = setup_logger(__name__)
 class ASFScenes:
     """Abstract Base Class handling ASF scenes."""
 
-    def __init__(self, products: ASFSearchResults | dict, sort: bool = True) -> None:
-        """Initialize ASFScenes with given products.
+    def __init__(self, geojson: dict, sort: bool = True) -> None:
+        """Initialize ASFScenes with given geojson.
 
         Parameters
         ----------
-        products : ASFSearchResults or dict
-            The ASFSearchResults or GeoJSON representation of the scenes from
+        geojson : dict
+            The GeoJSON representation of the scenes from
             asf_search.
         sort : bool, optional
             Whether to sort the scenes by datetime. Default is True.
 
         """
-        if isinstance(products, ASFSearchResults):
-            products = products.geojson()
-        elif not isinstance(products, dict):
-            msg = "products must be an ASFSearchResults or dict (GeoJSON)."
-            raise TypeError(msg)
-
         if sort:
-            gdf = gpd.GeoDataFrame.from_features(products["features"])
+            gdf = gpd.GeoDataFrame.from_features(geojson["features"])
             gdf.sort_values(by="startTime", inplace=True)
-            products = gdf.to_geo_dict()
-        self._geojson = products
+            geojson = gdf.to_geo_dict()
+        self._geojson = geojson
 
     def __repr__(self) -> str:
         """Return a string representation of the ASFScenes instance."""
