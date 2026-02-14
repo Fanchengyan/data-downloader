@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from abc import abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import asf_search as asf
 import geopandas as gpd
@@ -12,15 +13,22 @@ import pandas as pd
 
 from data_downloader import downloader
 from data_downloader.logging import setup_logger
+from data_downloader.utils.tools import safe_repr
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from os import PathLike
 
-    from typing_extensions import Self
+    from typing_extensions import Protocol, Self
 
     from data_downloader.utils.baselines import Baselines
     from data_downloader.utils.pairs import Pairs
+
+    class ASFSearchResultsLike(Protocol):
+        """Protocol for ASF search-like results."""
+
+        def geojson(self) -> dict[str, Any]:
+            """Return GeoJSON as a dictionary."""
 
 
 logger = setup_logger(__name__)
@@ -29,23 +37,209 @@ logger = setup_logger(__name__)
 class ASFScenes:
     """Abstract Base Class handling ASF scenes."""
 
-    def __init__(self, geojson: dict, sort: bool = True) -> None:
+    @staticmethod
+    def _validate_geojson(geojson: dict[str, Any]) -> dict[str, Any]:
+        """Validate GeoJSON input format.
+
+        Parameters
+        ----------
+        geojson : dict[str, Any]
+            GeoJSON dictionary expected to contain a ``features`` list.
+
+        Returns
+        -------
+        dict[str, Any]
+            Validated GeoJSON dictionary.
+
+        Raises
+        ------
+        TypeError
+            If ``geojson`` is not a dictionary, or ``features`` is not a list.
+        ValueError
+            If ``features`` does not exist in ``geojson``.
+
+        """
+        if not isinstance(geojson, dict):
+            msg = "The input `geojson` must be a dictionary."
+            logger.error("%s Got type: %s", msg, type(geojson).__name__, stacklevel=2)
+            raise TypeError(msg)
+
+        if "features" not in geojson:
+            msg = "The input `geojson` must contain the `features` field."
+            logger.error(
+                "%s Available keys: %s",
+                msg,
+                safe_repr(list(geojson.keys())),
+                stacklevel=2,
+            )
+            raise ValueError(msg)
+
+        if not isinstance(geojson["features"], list):
+            msg = "The `features` field in `geojson` must be a list."
+            logger.error(
+                "%s Got type: %s",
+                msg,
+                type(geojson["features"]).__name__,
+                stacklevel=2,
+            )
+            raise TypeError(msg)
+
+        return geojson
+
+    def __init__(self, geojson: dict[str, Any], sort: bool = True) -> None:
         """Initialize ASFScenes with given geojson.
 
         Parameters
         ----------
-        geojson : dict
+        geojson : dict[str, Any]
             The GeoJSON representation of the scenes from
             asf_search.
         sort : bool, optional
             Whether to sort the scenes by datetime. Default is True.
 
+        Raises
+        ------
+        TypeError
+            If ``geojson`` is not a dictionary, or ``features`` is not a list.
+        ValueError
+            If ``features`` does not exist in ``geojson``.
+
         """
+        geojson = self._validate_geojson(geojson)
+
         if sort:
-            gdf = gpd.GeoDataFrame.from_features(geojson["features"])
-            gdf.sort_values(by="startTime", inplace=True)
-            geojson = gdf.to_geo_dict()
+            try:
+                gdf = gpd.GeoDataFrame.from_features(geojson["features"])
+            except Exception:
+                logger.exception(
+                    "Failed to parse GeoJSON features when initializing %s.",
+                    self.__class__.__name__,
+                    stacklevel=2,
+                )
+                raise
+
+            if "startTime" in gdf.columns:
+                gdf.sort_values(by="startTime", inplace=True)
+                geojson = json.loads(gdf.to_json())
+            else:
+                logger.warning(
+                    "Column `startTime` not found for %s. Skip sorting.",
+                    self.__class__.__name__,
+                    stacklevel=2,
+                )
         self._geojson = geojson
+
+    @classmethod
+    def from_asf_search(
+        cls,
+        results: ASFSearchResultsLike,
+        sort: bool = True,
+        **kwargs: Any,
+    ) -> Self:
+        """Initialize ASFScenes from asf_search.ASFSearchResults.
+
+        Parameters
+        ----------
+        results : ASFSearchResultsLike
+            The ASF search results object from asf_search.
+        sort : bool, optional
+            Whether to sort the scenes by datetime. Default is True.
+        **kwargs : Any, optional
+            Additional keyword arguments passed to class constructor.
+
+        Returns
+        -------
+        Self
+            An instance of ASFScenes (or subclass) initialized from the
+            search results.
+
+        Raises
+        ------
+        TypeError
+            If ``results`` does not provide a callable ``geojson`` method.
+
+        Examples
+        --------
+        >>> import asf_search as asf
+        >>> results = asf.search(
+        ...     platform=asf.PLATFORM.SENTINEL1A,
+        ...     processingLevel=asf.PRODUCT_TYPE.SLC,
+        ...     intersectsWith="POINT(-100 40)",
+        ... )
+        >>> scenes = ASFScenes.from_asf_search(results)
+
+        """
+        geojson_func = getattr(results, "geojson", None)
+        if not callable(geojson_func):
+            msg = "The input `results` must provide a callable `geojson()` method."
+            logger.error("%s Got: %s", msg, safe_repr(results), stacklevel=2)
+            raise TypeError(msg)
+
+        try:
+            geojson = geojson_func()
+        except Exception:
+            logger.exception(
+                "Failed to convert ASF search results to GeoJSON. Results: %s",
+                safe_repr(results),
+                stacklevel=2,
+            )
+            raise
+
+        return cls(geojson=geojson, sort=sort, **kwargs)
+
+    @classmethod
+    def from_gdf(
+        cls,
+        gdf: gpd.GeoDataFrame,
+        sort: bool = True,
+        **kwargs: Any,
+    ) -> Self:
+        """Initialize ASFScenes from a geopandas.GeoDataFrame.
+
+        Parameters
+        ----------
+        gdf : gpd.GeoDataFrame
+            The GeoDataFrame containing ASF scene data. Must have a
+            'startTime' column for sorting.
+        sort : bool, optional
+            Whether to sort the scenes by datetime. Default is True.
+        **kwargs : Any, optional
+            Additional keyword arguments passed to class constructor.
+
+        Returns
+        -------
+        Self
+            An instance of ASFScenes (or subclass) initialized from the
+            GeoDataFrame.
+
+        Raises
+        ------
+        TypeError
+            If ``gdf`` is not a ``geopandas.GeoDataFrame``.
+
+        Examples
+        --------
+        >>> import geopandas as gpd
+        >>> gdf = gpd.read_file("scenes.geojson")
+        >>> scenes = ASFScenes.from_gdf(gdf)
+
+        """
+        if not isinstance(gdf, gpd.GeoDataFrame):
+            msg = "The input `gdf` must be a geopandas.GeoDataFrame."
+            logger.error("%s Got type: %s", msg, type(gdf).__name__, stacklevel=2)
+            raise TypeError(msg)
+
+        try:
+            geojson = json.loads(gdf.to_json())
+        except Exception:
+            logger.exception(
+                "Failed to convert GeoDataFrame to GeoJSON. Columns: %s",
+                safe_repr(list(gdf.columns)),
+                stacklevel=2,
+            )
+            raise
+
+        return cls(geojson=geojson, sort=sort, **kwargs)
 
     def __repr__(self) -> str:
         """Return a string representation of the ASFScenes instance."""
@@ -68,7 +262,7 @@ class ASFScenes:
         """String representation of the ASFScenes instance."""
         return repr(self)
 
-    def __scenes_repr__(self) -> str:  # noqa: PLW3201
+    def __scenes_repr__(self) -> str:
         """Return a string representation of the ASFScenes instance."""
         return self.__class__.__name__
 
@@ -97,6 +291,22 @@ class ASFScenes:
     def url(self) -> pd.Series:
         """List of URLs for downloading Scenes."""
         return self.gdf.loc[:, "url"]
+
+    @property
+    def dates(self) -> pd.DatetimeIndex:
+        """Acquisition dates for the Scenes."""
+        # dates format in df_asf are mixed, convert them to standard date format
+        dates_str = (
+            pd.to_datetime(self.gdf.startTime, format="mixed")
+            .map(lambda x: x.strftime("%F"))
+            .values
+        )
+        return pd.to_datetime(dates_str)
+
+    @property
+    def granules(self) -> pd.Series:
+        """List of granules for downloading Scenes."""
+        return pd.Series(self.gdf.fileID.values, index=self.dates)
 
     def to_gdf(self, crs: int | str | None = None) -> gpd.GeoDataFrame:
         """Convert the GeoJSON to a geopandas.GeoDataFrame.
@@ -232,9 +442,10 @@ class ASFTileScenesABC(ASFScenes):
 
     def __init__(
         self,
-        geojson: dict,
+        geojson: dict[str, Any],
         path: int | None = None,
         frame: int | None = None,
+        sort: bool = True,
     ) -> None:
         """Initialize ASFTileScenes with given GeoJSON, frame, and path.
 
@@ -248,12 +459,14 @@ class ASFTileScenesABC(ASFScenes):
         frame : int, optional
             The frame of the scenes. If None, the frame will be inferred from the
             GeoJSON. Default is None.
+        sort : bool, optional
+            Whether to sort the scenes by datetime. Default is True.
         flightDirection : Literal["ASCENDING", "DESCENDING"], optional
             The flight direction of the scenes. If None, the flight direction will
             be inferred from the GeoJSON. Default is None.
 
         """
-        super().__init__(geojson=geojson)
+        super().__init__(geojson=geojson, sort=sort)
         self._parse_scenes_info(path=path, frame=frame)
 
     def _parse_scenes_info(
@@ -324,8 +537,7 @@ class ASFTileScenesTimeseries(ASFTileScenesABC):
     def _parse_datetime(self) -> pd.DatetimeIndex:
         """Add datetime to the scenes."""
         dates_str = (
-            pd
-            .to_datetime(self.gdf.startTime, format="mixed")
+            pd.to_datetime(self.gdf.startTime, format="mixed")
             .map(lambda x: x.strftime("%F"))
             .values
         )
@@ -344,7 +556,7 @@ class ASFTileScenesTimeseries(ASFTileScenesABC):
     @classmethod
     def from_reference_granule(cls, granule: str) -> Self:
         scenes = asf.baseline_search.stack_from_id(granule)
-        return cls(scenes.geojson())
+        return cls.from_asf_search(scenes)
 
 
 class ASFTileScenesPairs(ASFTileScenesABC):

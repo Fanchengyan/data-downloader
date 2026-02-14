@@ -31,4 +31,4 @@ class ALOS2TileScenes(ASFTileScenesTimeseries):
         )
         msg = f"{len(results)} results found for (frame={cls.frame}, path={cls.path})"
         logger.info(msg, stacklevel=2)
-        return cls(geojson=results.geojson())
+        return cls.from_asf_search(results, path=path, frame=frame)
