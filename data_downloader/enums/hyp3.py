@@ -14,6 +14,7 @@ class JobType(BaseConstants):
     RTC_GAMMA = auto()
     INSAR_GAMMA = auto()
     INSAR_ISCE_BURST = auto()
+    INSAR_ISCE_MULTI_BURST = auto()
 
 
 class JobStatus(BaseConstants):

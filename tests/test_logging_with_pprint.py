@@ -126,7 +126,7 @@ class TestLoggingWithPprint:
         mock_requests.Session.return_value = mock_session
 
         # Mock download data function to avoid actual calls
-        with patch("data_downloader.downloader.download_data") as mock_download_data:
+        with patch("data_downloader.downloader.download_file") as mock_download_data:
             download_datas(urls, folder)
 
             # Verify log recording

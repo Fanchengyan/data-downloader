@@ -1,12 +1,17 @@
+"""HyP3 job management module.
+
+This module provides classes and functions for managing HyP3 jobs,
+including job submission, status checking, and downloading results.
+"""
+
 from __future__ import annotations
 
 import warnings
 import zipfile
 from abc import ABC, abstractmethod
-from datetime import datetime
 from pathlib import Path
 from time import sleep
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 import hyp3_sdk as sdk
 import pandas as pd
@@ -20,6 +25,7 @@ from data_downloader.utils import Pairs
 from .jobs import Jobs
 
 if TYPE_CHECKING:
+    from datetime import datetime
     from os import PathLike
 
 
@@ -27,7 +33,7 @@ logger = setup_logger(__name__, handler=[tqdm_handler])
 
 
 class HyP3Service:
-    """Class to manage HyP3 user information and jobs"""
+    """Class to manage HyP3 user information and jobs."""
 
     _my_info: dict
     _jobs: Jobs
@@ -37,9 +43,9 @@ class HyP3Service:
         username: str | None = None,
         password: str | None = None,
         prompt: bool = False,
-        include_expired=False,
-    ):
-        """Initialize the HyP3Service class
+        include_expired: bool = False,
+    ) -> None:
+        """Initialize the HyP3Service class.
 
         Parameters
         ----------
@@ -56,6 +62,7 @@ class HyP3Service:
         self.flush()
 
     def __repr__(self) -> str:
+        """Return a detailed string representation of the HyP3Service."""
         return (
             "HyP3Service("
             f"\n    user_id={self.my_info['user_id']}, "
@@ -68,18 +75,22 @@ class HyP3Service:
         )
 
     def __str__(self) -> str:
-        return f"Hyp3Service({self.my_info['user_id']}, remaining_credits={self.my_info['remaining_credits']})"
+        """Return a concise string representation of the HyP3Service."""
+        return (
+            f"Hyp3Service({self.my_info['user_id']}, "
+            f"remaining_credits={self.my_info['remaining_credits']})"
+        )
 
     def flush_jobs(self) -> None:
-        """Flush the jobs"""
+        """Flush the jobs."""
         self._jobs = self._parse_jobs()
 
     def flush_info(self) -> None:
-        """Flush the user's information"""
+        """Flush the user's information."""
         self._my_info = self.hyp3.my_info()
 
     def flush(self) -> None:
-        """Flush the jobs and the user's information"""
+        """Flush the jobs and the user's information."""
         self.flush_jobs()
         self.flush_info()
 
@@ -89,23 +100,26 @@ class HyP3Service:
         password: str | None = None,
         prompt: bool = False,
     ) -> None:
-        """Login to HyP3. If neither username/password nor prompt is provided,
-        it will attempts to use credentials from a ``.netrc`` file. If prompt is True,
-        the username and password will be prompted in the terminal. Otherwise, the
-        username and password must be provided.
+        """Login to HyP3.
+
+        If neither username/password nor prompt is provided, it will attempt
+        to use credentials from a ``.netrc`` file. If prompt is True, the
+        username and password will be prompted in the terminal. Otherwise,
+        the username and password must be provided.
 
         .. note::
 
-            This method will be called automatically when the class is initialized.
-            However, you can change the user by calling this method again with the new
-            username and password.
+            This method will be called automatically when the class is
+            initialized. However, you can change the user by calling this
+            method again with the new username and password.
 
         Parameters
         ----------
         username, password : str, optional
             Username and password for HyP3
         prompt : bool, optional
-            Prompt for the username and password in the terminal, by default False.
+            Prompt for the username and password in the terminal,
+            by default False.
 
         """
         self.hyp3 = sdk.HyP3(username=username, password=password, prompt=prompt)
@@ -113,24 +127,26 @@ class HyP3Service:
 
     @property
     def my_info(self) -> dict:
-        """User's information"""
+        """User's information."""
         return self._my_info
 
     @property
     def jobs(self) -> Jobs:
-        """All jobs (not expired by default, set ``include_expired=True`` to
-        include expired jobs)
+        """All jobs.
+
+        Not expired by default, set ``include_expired=True`` to
+        include expired jobs.
         """
         return self._jobs
 
     def _parse_jobs(self) -> Jobs:
-        """Parse all jobs"""
+        """Parse all jobs."""
         batch = self.hyp3.find_jobs().filter_jobs(include_expired=self.include_expired)
         return Jobs(batch.jobs)
 
 
 class HyP3JobsDownloader:
-    """Class to download HyP3 jobs"""
+    """Class to download HyP3 jobs."""
 
     def __init__(self, service: HyP3Service, job_type: JobType) -> None:
         """Initialize the HyP3JobsDownloader.
@@ -148,13 +164,12 @@ class HyP3JobsDownloader:
 
     @property
     def jobs_on_service(self) -> Jobs:
-        """Get the jobs on the service"""
+        """Get the jobs on the service."""
         self.service.flush()
-        jobs_on_service = self.service.jobs.sel(job_type=self.job_type)
-        return jobs_on_service
+        return self.service.jobs.sel(job_type=self.job_type)
 
     def _scan_interferograms(self, home_dir: PathLike) -> list[str]:
-        """Scan the local directory for the interferograms"""
+        """Scan the local directory for the interferograms."""
         home_dir = Path(home_dir)
         return [i.stem for i in home_dir.glob("*") if i.is_dir()]
 
@@ -167,7 +182,7 @@ class HyP3JobsDownloader:
         remove_zip: bool = True,
         overwrite: bool = False,
     ) -> None:
-        """Download the jobs from HyP3"""
+        """Download the jobs from HyP3."""
         output_dir = Path(output_dir)
         if not output_dir.exists():
             output_dir.mkdir(parents=True, exist_ok=True)
@@ -175,10 +190,10 @@ class HyP3JobsDownloader:
         logger.info("Downloading jobs from HyP3 service to %s", output_dir)
 
         local_ifgs = self._scan_interferograms(output_dir)
-        logger.info(f"Found {len(local_ifgs)} interferograms in {output_dir}")
+        logger.info("Found %s interferograms in %s", len(local_ifgs), output_dir)
 
         jobs = self.jobs_on_service.sel(name=name, request_time=request_time).succeeded
-        logger.info(f"Found {len(jobs)} succeeded jobs on HyP3 service")
+        logger.info("Found %s succeeded jobs on HyP3 service", len(jobs))
 
         for file_name, url in tqdm(
             zip(jobs.file_names, jobs.file_urls),
@@ -193,9 +208,9 @@ class HyP3JobsDownloader:
                 downloader.download_file(url, output_dir, file_name)
                 if unzip:
                     unzip_file(output_dir, file_name, remove_zip, overwrite)
-            except Exception as e:
-                msg = f"Failed to download file {file_name}. {e}"
-                logger.error(msg)
+            except Exception:
+                msg = f"Failed to download file {file_name}"
+                logger.exception(msg)
 
     def download_jobs(
         self,
@@ -205,9 +220,9 @@ class HyP3JobsDownloader:
         unzip: bool = True,
         remove_zip: bool = True,
         overwrite: bool = False,
-        wait_until_finished=True,
-        wait_minutes=60,
-        retry=30,
+        wait_until_finished: bool = True,
+        wait_minutes: int = 60,
+        retry: int = 30,
     ) -> None:
         """Download jobs from HyP3.
 
@@ -290,46 +305,53 @@ class HyP3JobsDownloader:
 
 
 class HyP3Jobs(HyP3JobsDownloader, ABC):
-    """Abstract class to manage HyP3 jobs"""
+    """Abstract class to manage HyP3 jobs."""
 
     _job_type: JobType
     """The job type. e.g. INSAR_GAMMA, INSAR_ISCE_BURST"""
     date_idx: int
     """The index of the date in the granule name"""
-
-    _job_parameters: dict = {}
-    """Job parameters"""
-    _pairs_succeed: list = []
-    """Pairs that succeeded in the job submission"""
-    _pairs_failed: list = []
-    """Pairs that failed in the job submission"""
+    submit_func: Callable
+    """The function to submit the job"""
 
     def __init__(
         self,
         service: HyP3Service,
-        granules: pd.Series = pd.Series([]),
-        job_parameters: dict = {},
+        granules: pd.Series | None = None,
+        job_parameters: dict | None = None,
     ) -> None:
-        """Initialize the InSARJob class
+        """Initialize the InSARJob class.
 
         Parameters
         ----------
         service : HyP3Service
-            HyP3Service instance to submit the job and check the submitted jobs.
+            HyP3Service instance to submit the job and check the
+            submitted jobs.
         granules : pd.Series, optional
-            A pandas Series containing granule information, where the index represents the granule date and the values are the granule names. If not provided, only job downloading from HyP3 is supported; job submission is unavailable.
+            A pandas Series containing granule information, where the
+            index represents the granule date and the values are the
+            granule names. If not provided, only job downloading from
+            HyP3 is supported; job submission is unavailable.
         job_parameters : dict, optional
             Arguments to be passed to the job, by default {}.
 
             .. hint::
-                - You can still modify job parameters after initialization by
-                resetting the ``job_parameters`` attribute.
-                - You can use the ``show_parameters`` method to view all available submission parameters.
+                - You can still modify job parameters after
+                initialization by resetting the ``job_parameters``
+                attribute.
+                - You can use the ``show_parameters`` method to view
+                all available submission parameters.
 
         """
-        self.granules = granules
+        self.granules = granules if granules is not None else pd.Series([])
         self.service = service
-        self.job_parameters = job_parameters
+        self.job_parameters = job_parameters if job_parameters is not None else {}
+        self._job_parameters: dict = {}
+        """Job parameters."""
+        self._pairs_succeed: list = []
+        """Pairs that succeeded in the job submission."""
+        self._pairs_failed: list = []
+        """Pairs that failed in the job submission."""
 
         # initialize the batch
         self.batch = sdk.Batch()
@@ -337,54 +359,57 @@ class HyP3Jobs(HyP3JobsDownloader, ABC):
         self._init_submit_func()
 
     @abstractmethod
-    def _init_submit_func(self):
-        """Initialize the ``submit_func`` function of ``hyp3_sdk.HyP3``
+    def _init_submit_func(self) -> None:
+        """Initialize the ``submit_func`` function of ``hyp3_sdk.HyP3``.
 
         .. hint::
-            You can use ``self.service.hyp3`` to get the ``hyp3_sdk.HyP3`` instance.
+            You can use ``self.service.hyp3`` to get the
+            ``hyp3_sdk.HyP3`` instance.
         """
 
     @property
     def jobs_on_service(self) -> Jobs:
-        """Get the jobs on the service"""
+        """Get the jobs on the service."""
         self.service.flush()
-        jobs_on_service = self.service.jobs.sel(job_type=self.job_type)
-        return jobs_on_service
+        return self.service.jobs.sel(job_type=self.job_type)
 
     @property
     def job_parameters(self) -> dict:
-        """Job parameters"""
+        """Job parameters."""
         return self._job_parameters
 
     @job_parameters.setter
-    def job_parameters(self, job_parameters: dict):
-        """Set the job parameters"""
+    def job_parameters(self, job_parameters: dict) -> None:
+        """Set the job parameters."""
         if not isinstance(job_parameters, dict):
-            raise ValueError("job_parameters must be a dictionary.")
+            err_msg = "job_parameters must be a dictionary."
+            raise TypeError(err_msg)
         self._job_parameters = job_parameters
 
     @property
     def pairs_succeed(self) -> Pairs:
-        """Pairs that succeeded in the job submission"""
+        """Pairs that succeeded in the job submission."""
         return Pairs(self._pairs_succeed)
 
     @property
     def pairs_failed(self) -> Pairs:
-        """Pairs that failed in the job submission"""
+        """Pairs that failed in the job submission."""
         return Pairs(self._pairs_failed)
 
     def jobs_to_pairs(self, jobs: Jobs) -> Pairs:
-        """Convert jobs to pairs"""
+        """Convert jobs to pairs."""
         pairs = []
         for job in jobs:
             if job.job_type != self.job_type:
                 warnings.warn(
-                    f"Job type {job.job_type} is not {self.job_type}. Skipping."
+                    f"Job type {job.job_type} is not {self.job_type}. Skipping.",
+                    stacklevel=2,
                 )
                 continue
             if len(job.job_parameters["granules"]) != 2:
                 warnings.warn(
-                    f"Invalid number of granules for job {job.job_id}. Skipping."
+                    f"Invalid number of granules for job {job.job_id}. Skipping.",
+                    stacklevel=2,
                 )
                 continue
             pair = (
@@ -395,7 +420,7 @@ class HyP3Jobs(HyP3JobsDownloader, ABC):
         return Pairs(pairs)
 
     def _get_remain_pairs(self, pairs: Pairs, skip_existing: bool = True) -> Pairs:
-        """Get the remaining pairs to submit"""
+        """Get the remaining pairs to submit."""
         if not skip_existing:
             return pairs
 
@@ -405,27 +430,26 @@ class HyP3Jobs(HyP3JobsDownloader, ABC):
 
         msg = f"Skipping {len(pairs_exclude)} existing pairs already submitted."
         logger.info(msg)
-        pairs_remain = pairs - pairs_exclude
-        return pairs_remain
+        return pairs - pairs_exclude
 
     def _submit_job(
         self,
-        reference,
-        secondary,
+        reference: pd.Series | str,
+        secondary: pd.Series | str,
     ) -> None:
-        """Submit the job to HyP3"""
+        """Submit the job to HyP3."""
         self.batch += self.submit_func(reference, secondary, **self.job_parameters)
 
-    def submit_jobs(self, pairs: Pairs, skip_existing: bool = True):
-        """Submit the job to HyP3
+    def submit_jobs(self, pairs: Pairs, skip_existing: bool = True) -> None:
+        """Submit the job to HyP3.
 
         Parameters
         ----------
         pairs : Pairs
             Pairs to be submitted to HyP3
         skip_existing : bool, optional
-            Whether to skip the existing pairs that have succeeded or are running,
-            by default True
+            Whether to skip the existing pairs that have succeeded or are
+            running, by default True
 
         """
         pairs_remain = self._get_remain_pairs(pairs, skip_existing)
@@ -451,7 +475,7 @@ class HyP3Jobs(HyP3JobsDownloader, ABC):
                     f"Failed to submit job for pair {pair}. Job parameters: {params}."
                     f"Error: {e}"
                 )
-                logger.error(msg)
+                logger.exception("Failed to submit job for pair %s", pair)
                 self._pairs_failed.append(pair)
 
 
@@ -465,7 +489,7 @@ class HyP3JobsGAMMA(HyP3Jobs):
     _job_type = JobType.INSAR_GAMMA
     date_idx = 5
 
-    def _init_submit_func(self):
+    def _init_submit_func(self) -> None:
         self.submit_func = self.service.hyp3.submit_insar_job
 
 
@@ -479,17 +503,119 @@ class HyP3JobsBurst(HyP3Jobs):
     _job_type = JobType.INSAR_ISCE_BURST
     date_idx = 3
 
-    def _init_submit_func(self):
+    def _init_submit_func(self) -> None:
         self.submit_func = self.service.hyp3.submit_insar_isce_burst_job
 
 
-def granule_to_date(granule: str, idx_date):
-    """Convert granule to date"""
+class HyP3JobsMultiBurst(HyP3Jobs):
+    """Class to manage ``INSAR_ISCE_MULTI_BURST`` jobs.
+
+    This class provides a pythonic interface to submit and download
+    ``INSAR_ISCE_MULTI_BURST`` jobs from HyP3.
+
+    Unlike ``HyP3JobsBurst``, this class handles granules with duplicated
+    dates (multiple burst IDs per date). Each date pair is submitted as a
+    single multi-burst job containing all bursts for that date.
+    """
+
+    _job_type = JobType.INSAR_ISCE_MULTI_BURST
+    date_idx = 3
+
+    def _init_submit_func(self) -> None:
+        self.submit_func = self.service.hyp3.submit_insar_isce_multi_burst_job
+
+    def jobs_to_pairs(self, jobs: Jobs) -> Pairs:
+        """Convert multi-burst jobs to pairs.
+
+        Multi-burst jobs use ``reference``/``secondary`` lists instead of
+        ``granules``, so the first element of each list is used to extract
+        the date.
+        """
+        pairs = []
+        for job in jobs:
+            if job.job_type != self.job_type:
+                warnings.warn(
+                    f"Job type {job.job_type} is not {self.job_type}. Skipping.",
+                    stacklevel=2,
+                )
+                continue
+            ref_list = job.job_parameters.get("reference", [])
+            sec_list = job.job_parameters.get("secondary", [])
+            if not ref_list or not sec_list:
+                warnings.warn(
+                    f"Missing reference or secondary for job {job.job_id}. Skipping.",
+                    stacklevel=2,
+                )
+                continue
+            pair = (
+                granule_to_date(ref_list[0], self.date_idx),
+                granule_to_date(sec_list[0], self.date_idx),
+            )
+            pairs.append(pair)
+        return Pairs(pairs)
+
+    def _submit_job(
+        self,
+        reference: pd.Series | list[str] | str,
+        secondary: pd.Series | list[str] | str,
+    ) -> None:
+        """Submit a multi-burst job to HyP3.
+
+        Converts ``pd.Series`` to ``list[str]`` for the SDK API.
+        """
+        if isinstance(reference, pd.Series):
+            reference = reference.tolist()
+        if isinstance(secondary, pd.Series):
+            secondary = secondary.tolist()
+        self.batch += self.submit_func(reference, secondary, **self.job_parameters)
+
+    def submit_jobs(self, pairs: Pairs, skip_existing: bool = True) -> None:
+        """Submit multi-burst jobs to HyP3.
+
+        Unlike the base class, this method does not call ``_ensure_granules``
+        because each date maps to multiple granules (one per burst ID).
+
+        Parameters
+        ----------
+        pairs : Pairs
+            Pairs to be submitted to HyP3
+        skip_existing : bool, optional
+            Whether to skip the existing pairs that have succeeded or are
+            running, by default True
+
+        """
+        pairs_remain = self._get_remain_pairs(pairs, skip_existing)
+        for pair in tqdm(pairs_remain, desc="Submitting multi-burst jobs"):
+            ref, sec = str(pair).split("_")
+            reference, secondary = self.granules[ref], self.granules[sec]
+
+            if reference is None or secondary is None:
+                msg = f"Granule not found for pair {pair}. Skipping."
+                logger.warning(msg)
+                self._pairs_failed.append(pair)
+                continue
+
+            try:
+                self._submit_job(reference, secondary)
+                self._pairs_succeed.append(pair)
+            except Exception:
+                msg = f"Failed to submit multi-burst job for pair {pair}"
+                logger.exception(msg)
+                self._pairs_failed.append(pair)
+
+
+def granule_to_date(granule: str, idx_date: int) -> datetime:
+    """Convert granule to date."""
     return pd.to_datetime(granule.split("_")[idx_date])
 
 
-def unzip_file(output_dir, file_name, remove_zip=True, overwrite=False):
-    """Unzip the file"""
+def unzip_file(
+    output_dir: PathLike,
+    file_name: str,
+    remove_zip: bool = True,
+    overwrite: bool = False,
+) -> None:
+    """Unzip the file."""
     zip_file = Path(output_dir) / file_name
     unzip_dir = Path(output_dir) / Path(file_name).stem
     try:
@@ -500,17 +626,17 @@ def unzip_file(output_dir, file_name, remove_zip=True, overwrite=False):
             zip_ref.extractall(output_dir)
         if remove_zip:
             zip_file.unlink()
-    except Exception as e:
-        msg = f"Error in unzipping {zip_file}\n{e}"
-        logger.error(msg)
-        raise Exception(msg)
+    except Exception:
+        msg = f"Error in unzipping {zip_file}"
+        logger.exception(msg)
+        raise RuntimeError(msg) from None
 
 
 def _ensure_granules(granule: pd.Series | str, pair: Pairs) -> str:
-    """Remove the duplicate pairs"""
+    """Remove the duplicate pairs."""
     if isinstance(granule, pd.Series):
         msg = (
-            f"Multiple granules found for pair {pair}: {[i for i in granule]}."
+            f"Multiple granules found for pair {pair}: {list(granule)}."
             "First one will be used."
         )
         logger.warning(msg)

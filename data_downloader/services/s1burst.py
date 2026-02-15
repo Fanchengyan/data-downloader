@@ -5,7 +5,7 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import numpy as np
 import pandas as pd
@@ -14,6 +14,7 @@ from tqdm import tqdm
 from data_downloader import downloader
 from data_downloader.logging import setup_logger
 from data_downloader.services.asf_base import ASFBurstScenes
+from data_downloader.services.hyp3 import HyP3JobsBurst, HyP3JobsMultiBurst, HyP3Service
 
 try:
     from burst2safe.safe import Safe
@@ -29,16 +30,21 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from os import PathLike
 
-    import pandas as pd
     from matplotlib.axes import Axes
     from numpy.typing import NDArray
+
+    from data_downloader.utils import Pairs
 
 
 logger = setup_logger(__name__)
 
 
-class S1Burst2SafeScenes(ASFBurstScenes):
-    """Class to download Sentinel-1 burst scenes and convert to SAFE format."""
+class S1BurstScenes(ASFBurstScenes):
+    """Class for handling Sentinel-1 burst scenes from ASF.
+
+    This class inherits from the ASFBurstScenes class and adds functionality for
+    converting burst scenes to SAFE format and submitting jobs to HyP3.
+    """
 
     def __repr__(self) -> str:
         """Return the string representation of the object."""
@@ -68,6 +74,200 @@ class S1Burst2SafeScenes(ASFBurstScenes):
     def relative_orbit(self) -> NDArray[np.uint32]:
         """Return the relative orbits."""
         return self.gdf.pathNumber.unique().astype(np.uint32)
+
+    def sel(self, full_burst_ids: str | Iterable[str]) -> S1BurstScenes:
+        """Select scenes by fullBurstID, returning a new instance.
+
+        Parameters
+        ----------
+        full_burst_ids : str or Iterable[str]
+            One or more fullBurstID values to keep
+            (e.g. ``"018_038438_IW2"`` or
+            ``["018_038438_IW2", "018_038439_IW1"]``).
+
+        Returns
+        -------
+        Self
+            A new ``S1BurstScenes`` containing only the selected bursts.
+
+        Raises
+        ------
+        ValueError
+            If none of the specified burst IDs exist in the scenes.
+
+        """
+        if isinstance(full_burst_ids, str):
+            full_burst_ids = [full_burst_ids]
+        full_burst_ids = set(full_burst_ids)
+
+        mask = self.gdf.fullBurstID.isin(full_burst_ids)
+        if not mask.any():
+            msg = (
+                f"None of the specified burst IDs found. "
+                f"Available: {list(self.full_burst_ids)}"
+            )
+            raise ValueError(msg)
+
+        return type(self).from_gdf(self.gdf[mask], sort=False)
+
+    def drop_incomplete(self) -> S1BurstScenes:
+        """Drop dates with incomplete burst coverage.
+
+        Groups scenes by acquisition date and counts the number of bursts
+        per date. Dates whose burst count differs from the mode (most
+        common count) are dropped.
+
+        Returns
+        -------
+        Self
+            A new ``S1BurstScenes`` with incomplete dates removed.
+
+        """
+        gdf = self.gdf
+        dates = self.dates
+
+        counts = gdf.groupby(dates).size()
+        expected = counts.mode().iloc[0]
+
+        if (counts == expected).all():
+            return self
+
+        valid_dates = counts[counts == expected].index
+        mask = dates.isin(valid_dates)
+
+        dropped = counts[counts != expected]
+        logger.warning(
+            "Dropped %d date(s) with incomplete bursts "
+            "(expected %d per date): %s",
+            len(dropped),
+            expected,
+            dropped.to_dict(),
+        )
+        return type(self).from_gdf(self.gdf[mask], sort=False)
+
+    def submit_burst_jobs(
+        self,
+        pairs: Pairs,
+        granules: pd.Series | None = None,
+        service: HyP3Service | None = None,
+        skip_existing: bool = True,
+        name: str | None = None,
+        apply_water_mask: bool = False,
+        looks: Literal["20x4", "10x2", "5x1"] = "20x4",
+    ) -> None:
+        """Submit burst jobs to the HyP3 service.
+
+        Parameters
+        ----------
+        pairs : Pairs
+            Date pairs to submit.
+        granules : pd.Series, optional
+            Granules Series (index=date, values=fileID). If None, uses
+            ``self.granules``.
+        service : HyP3Service, optional
+            HyP3 service instance. If None, creates a new one.
+        skip_existing : bool, optional
+            Skip pairs already submitted on the service, by default True.
+        name : str, optional
+            A name for the job.
+        apply_water_mask : bool, optional
+            Sets pixels over coastal waters and large inland waterbodies
+            as invalid for phase unwrapping, by default False.
+        looks : {'20x4', '10x2', '5x1'}, optional
+            Number of looks to take in range and azimuth,
+            by default '20x4'.
+
+        """
+        if service is None:
+            service = HyP3Service()
+        granules = granules if granules is not None else self.granules
+
+        if len(granules.index.unique()) < len(granules.index):
+            msg = "Granules must be unique. Try to use submit_multi_burst_jobs instead."
+            logger.error(msg, stacklevel=2)
+            raise ValueError(msg)
+
+        job_parameters = {
+            "name": name,
+            "apply_water_mask": apply_water_mask,
+            "looks": looks,
+        }
+        hyp3_jobs = HyP3JobsBurst(service, granules=granules)
+        hyp3_jobs.job_parameters = job_parameters
+        hyp3_jobs.submit_jobs(pairs, skip_existing=skip_existing)
+
+    def submit_multi_burst_jobs(
+        self,
+        pairs: Pairs,
+        granules: pd.Series | None = None,
+        service: HyP3Service | None = None,
+        skip_existing: bool = True,
+        name: str | None = None,
+        apply_water_mask: bool = False,
+        looks: Literal["20x4", "10x2", "5x1"] = "20x4",
+    ) -> None:
+        """Submit multi-burst jobs to the HyP3 service.
+
+        Each date pair is submitted as a single ``INSAR_ISCE_MULTI_BURST``
+        job containing all burst granules for that date. Requires that
+        granules have duplicated dates (multiple burst IDs per date) and
+        that each date has the same number of bursts.
+
+        If granule dates are unique (only one burst per date), falls back
+        to ``submit_burst_jobs`` automatically.
+
+        Parameters
+        ----------
+        pairs : Pairs
+            Date pairs to submit.
+        granules : pd.Series, optional
+            Granules Series (index=date, values=fileID). If None, uses
+            ``self.granules``.
+        service : HyP3Service, optional
+            HyP3 service instance. If None, creates a new one.
+        skip_existing : bool, optional
+            Skip pairs already submitted on the service, by default True.
+        name : str, optional
+            A name for the job.
+        apply_water_mask : bool, optional
+            Sets pixels over coastal waters and large inland waterbodies
+            as invalid for phase unwrapping, by default False.
+        looks : {'20x4', '10x2', '5x1'}, optional
+            Number of looks to take in range and azimuth,
+            by default '20x4'.
+
+        """
+        if service is None:
+            service = HyP3Service()
+        granules = granules if granules is not None else self.granules
+
+        if len(granules.index.unique()) == len(granules.index):
+            msg = "Granules are unique. Using submit_burst_jobs instead."
+            logger.warning(msg)
+            self.submit_burst_jobs(
+                pairs, granules, service, skip_existing,
+                name=name, apply_water_mask=apply_water_mask, looks=looks,
+            )
+            return
+
+        # Validate that each date has the same number of bursts
+        counts = granules.groupby(granules.index).count()
+        if counts.nunique() != 1:
+            msg = (
+                "Each date must have the same number of bursts for "
+                "multi-burst submission. "
+                f"Got burst counts per date: {counts.to_dict()}"
+            )
+            raise ValueError(msg)
+
+        job_parameters = {
+            "name": name,
+            "apply_water_mask": apply_water_mask,
+            "looks": looks,
+        }
+        hyp3_jobs = HyP3JobsMultiBurst(service, granules=granules)
+        hyp3_jobs.job_parameters = job_parameters
+        hyp3_jobs.submit_jobs(pairs, skip_existing=skip_existing)
 
     def plot(self, crs: str = "EPSG:4326", ax: Axes | None = None, **kwargs) -> Axes:
         """Plot the burst scenes.
@@ -126,7 +326,7 @@ class S1Burst2SafeScenes(ASFBurstScenes):
 
         return ax
 
-    def download(
+    def download_to_safe(
         self,
         folder: PathLike | str,
         all_anns: bool = False,

@@ -284,8 +284,7 @@ class ASFScenes:
     @property
     def gdf(self) -> gpd.GeoDataFrame:
         """geopandas.GeoDataFrame representation of Scenes."""
-        gdf = gpd.GeoDataFrame.from_features(self.geojson["features"])
-        return gdf
+        return gpd.GeoDataFrame.from_features(self.geojson["features"])
 
     @property
     def url(self) -> pd.Series:
@@ -397,8 +396,8 @@ class ASFBurstScenes(ASFScenes):
 
     def __post_init__(self) -> None:
         """Post-initialization for burst columns."""
-        if "burst" not in self.gdf.columns:
-            msg = "The input geojson does not contain 'burst' column."
+        if "fullBurstID" not in self.gdf.columns:
+            msg = "The input geojson does not contain burst information (missing 'fullBurstID')."
             raise ValueError(msg)
 
     @property
@@ -406,11 +405,6 @@ class ASFBurstScenes(ASFScenes):
         """Return the burst information as a DataFrame."""
         gdf = super().gdf
         return pd.DataFrame(gdf.burst.to_list(), index=gdf.index)
-
-    @property
-    def gdf(self) -> gpd.GeoDataFrame:
-        """Return the GeoDataFrame with burst information."""
-        return super().gdf.join(self.gdf_burst)
 
     def to_gdf(self, crs: int | str | None = None) -> gpd.GeoDataFrame:
         """Convert the GeoJSON to a geopandas.GeoDataFrame.

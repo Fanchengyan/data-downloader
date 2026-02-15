@@ -9,6 +9,6 @@ from .asf_base import (
 )
 from .hyp3 import HyP3JobsBurst, HyP3JobsDownloader, HyP3JobsGAMMA, HyP3Service
 from .licsar import LiCSARService
-from .s1burst import S1Burst2SafeScenes
+from .s1burst import S1BurstScenes
 from .sentinel1 import Sentinel1TileScenes
 from .sentinel_aux import SentinelOrbit
