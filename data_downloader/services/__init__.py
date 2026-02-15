@@ -1,7 +1,6 @@
 from .alos2 import ALOS2TileScenes
 from .aria import ARIAScenesSTD, ARIATileABC, ARIATileCentroidPoint
 from .asf_base import (
-    ASFBurstScenes,
     ASFScenes,
     ASFTileScenesABC,
     ASFTileScenesPairs,

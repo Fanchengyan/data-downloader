@@ -40,11 +40,6 @@ if TYPE_CHECKING:
 logger = setup_logger(__name__, handler=tqdm_handler)
 
 
-# ============================================================================
-# Download Status Types
-# ============================================================================
-
-
 class DownloadAction(Enum):
     """Action to take after HTTP status check.
 
@@ -113,12 +108,6 @@ RETRYABLE_STATUS_CODES = {
     503: "Service Unavailable",
     504: "Gateway Timeout",
 }
-
-
-# ============================================================================
-# Checksum Extraction and Verification
-# ============================================================================
-
 
 def _extract_checksum_from_headers(headers: Any) -> dict[str, Any] | None:
     """Extract checksum information from HTTP response headers.
@@ -305,11 +294,6 @@ async def _download_checksum_file(
     except Exception as e:
         logger.debug("Failed to download checksum file %s: %s", checksum_url, e)
         return None
-
-
-# ============================================================================
-# Helper Functions (imported from modules, keeping here for backward compatibility)
-# ============================================================================
 
 
 def _auto_detect_chunks(file_size: int) -> int:

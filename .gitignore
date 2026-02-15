@@ -10,3 +10,4 @@ docs/build/*
 **/generated/*
 .download_meta/
 *.part*
+.opencode

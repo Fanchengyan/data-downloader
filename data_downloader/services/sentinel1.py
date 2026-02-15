@@ -27,7 +27,7 @@ class Sentinel1TileScenes(ASFTileScenesTimeseries):
         )
         msg = f"{len(results)} results found for (frame={frame}, path={path})"
         logger.info(msg, stacklevel=2)
-        return cls.from_asf_search(results, path=path, frame=frame)
+        return cls.from_search_results(results, path=path, frame=frame)
 
 
 class Sentinel1BurstTileScenes(ASFTileScenesTimeseries):
@@ -48,4 +48,4 @@ class Sentinel1BurstTileScenes(ASFTileScenesTimeseries):
         )
         msg = f"{len(results)} results found for (frame={cls.frame}, path={cls.path})"
         logger.info(msg, stacklevel=2)
-        return cls.from_asf_search(results, path=path, frame=frame)
+        return cls.from_search_results(results, path=path, frame=frame)

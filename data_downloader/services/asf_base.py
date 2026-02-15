@@ -130,7 +130,7 @@ class ASFScenes:
         self._geojson = geojson
 
     @classmethod
-    def from_asf_search(
+    def from_search_results(
         cls,
         results: ASFSearchResultsLike,
         sort: bool = True,
@@ -166,7 +166,7 @@ class ASFScenes:
         ...     processingLevel=asf.PRODUCT_TYPE.SLC,
         ...     intersectsWith="POINT(-100 40)",
         ... )
-        >>> scenes = ASFScenes.from_asf_search(results)
+        >>> scenes = ASFScenes.from_search_results(results)
 
         """
         geojson_func = getattr(results, "geojson", None)
@@ -296,7 +296,8 @@ class ASFScenes:
         """Acquisition dates for the Scenes."""
         # dates format in df_asf are mixed, convert them to standard date format
         dates_str = (
-            pd.to_datetime(self.gdf.startTime, format="mixed")
+            pd
+            .to_datetime(self.gdf.startTime, format="mixed")
             .map(lambda x: x.strftime("%F"))
             .values
         )
@@ -389,42 +390,6 @@ class ASFScenes:
         downloader.download_datas(urls, folder=out_dir)
         msg = f"Successfully downloaded {self.scenes_repr} to {out_dir}"
         logger.success(msg, stacklevel=2)
-
-
-class ASFBurstScenes(ASFScenes):
-    """Abstract Base Class handling ASF burst scenes."""
-
-    def __post_init__(self) -> None:
-        """Post-initialization for burst columns."""
-        if "fullBurstID" not in self.gdf.columns:
-            msg = "The input geojson does not contain burst information (missing 'fullBurstID')."
-            raise ValueError(msg)
-
-    @property
-    def gdf_burst(self) -> pd.DataFrame:
-        """Return the burst information as a DataFrame."""
-        gdf = super().gdf
-        return pd.DataFrame(gdf.burst.to_list(), index=gdf.index)
-
-    def to_gdf(self, crs: int | str | None = None) -> gpd.GeoDataFrame:
-        """Convert the GeoJSON to a geopandas.GeoDataFrame.
-
-        Parameters
-        ----------
-        crs : int, str, or None, optional
-            The CRS to set for the GeoDataFrame. If None, the CRS will not be
-            set. Default is None.
-
-        Returns
-        -------
-        gpd.GeoDataFrame
-            The GeoDataFrame representation of the Scenes.
-
-        """
-        gdf = self.gdf
-        if crs is not None:
-            gdf.set_crs(crs=crs, inplace=True)
-        return gdf
 
 
 class ASFTileScenesABC(ASFScenes):
@@ -531,7 +496,8 @@ class ASFTileScenesTimeseries(ASFTileScenesABC):
     def _parse_datetime(self) -> pd.DatetimeIndex:
         """Add datetime to the scenes."""
         dates_str = (
-            pd.to_datetime(self.gdf.startTime, format="mixed")
+            pd
+            .to_datetime(self.gdf.startTime, format="mixed")
             .map(lambda x: x.strftime("%F"))
             .values
         )
@@ -550,7 +516,7 @@ class ASFTileScenesTimeseries(ASFTileScenesABC):
     @classmethod
     def from_reference_granule(cls, granule: str) -> Self:
         scenes = asf.baseline_search.stack_from_id(granule)
-        return cls.from_asf_search(scenes)
+        return cls.from_search_results(scenes)
 
 
 class ASFTileScenesPairs(ASFTileScenesABC):

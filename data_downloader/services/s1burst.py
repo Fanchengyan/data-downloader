@@ -5,15 +5,16 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
+import asf_search as asf
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
 from data_downloader import downloader
 from data_downloader.logging import setup_logger
-from data_downloader.services.asf_base import ASFBurstScenes
+from data_downloader.services.asf_base import ASFScenes
 from data_downloader.services.hyp3 import HyP3JobsBurst, HyP3JobsMultiBurst, HyP3Service
 
 try:
@@ -30,8 +31,10 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from os import PathLike
 
+    from geopandas import GeoDataFrame
     from matplotlib.axes import Axes
     from numpy.typing import NDArray
+    from shapely.geometry.base import BaseGeometry
 
     from data_downloader.utils import Pairs
 
@@ -39,7 +42,7 @@ if TYPE_CHECKING:
 logger = setup_logger(__name__)
 
 
-class S1BurstScenes(ASFBurstScenes):
+class S1BurstScenes(ASFScenes):
     """Class for handling Sentinel-1 burst scenes from ASF.
 
     This class inherits from the ASFBurstScenes class and adds functionality for
@@ -50,8 +53,8 @@ class S1BurstScenes(ASFBurstScenes):
         """Return the string representation of the object."""
         num_safes = []
         for burst_id in self.full_burst_ids:
-            burst_gdf = self.gdf[self.gdf.fullBurstID == burst_id]
-            num_safes.append(len(burst_gdf))
+            gdf_burst = self.gdf_burst[self.gdf_burst.fullBurstID == burst_id]
+            num_safes.append(len(gdf_burst))
         return (
             f"S1Burst2SafeScenes(\n"
             f"  scenes={len(self.gdf)},\n"
@@ -60,20 +63,145 @@ class S1BurstScenes(ASFBurstScenes):
             ")"
         )
 
+    def __post_init__(self) -> None:
+        """Post-initialization for burst columns."""
+        if "fullBurstID" not in self.gdf_burst.columns:
+            msg = "The input geojson does not contain burst information 'fullBurstID'."
+            raise ValueError(msg)
+
+    @classmethod
+    def _convert_intersects_with(cls, intersectsWith: Any) -> str:
+        """Convert various geometry types to WKT string.
+
+        Parameters
+        ----------
+        intersectsWith : str, BaseGeometry, or GeoDataFrame
+            A WKT string, shapely geometry, or GeoDataFrame to convert.
+
+        Returns
+        -------
+        str
+            WKT string representation of the geometry.
+
+        Raises
+        ------
+        TypeError
+            If the input type is not supported.
+
+        """
+        if isinstance(intersectsWith, str):
+            return intersectsWith
+        if hasattr(intersectsWith, "wkt"):
+            # shapely BaseGeometry
+            return intersectsWith.wkt
+        if hasattr(intersectsWith, "unary_union"):
+            # GeoDataFrame / GeoSeries
+            return intersectsWith.unary_union.wkt
+        msg = (
+            f"Unsupported type for intersectsWith: {type(intersectsWith).__name__}. "
+            "Expected str (WKT), shapely geometry, or GeoDataFrame."
+        )
+        raise TypeError(msg)
+
+    @classmethod
+    def from_search(
+        cls,
+        *,
+        intersectsWith: str | BaseGeometry | GeoDataFrame | None = None,
+        start: str | datetime | None = None,
+        end: str | datetime | None = None,
+        flightDirection: Literal["ASCENDING", "DESCENDING"] | None = None,
+        polarization: Literal["VV", "VV+VH", "HH", "HH+HV"] | None = None,
+        relativeOrbit: int | None = None,
+        fullBurstID: str | None = None,
+        maxResults: int = 10000,
+    ) -> S1BurstScenes:
+        """Create an S1BurstScenes instance by searching ASF.
+
+        Wraps ``asf_search.search()`` with ``platform=SENTINEL1`` and
+        ``processingLevel=BURST`` pre-configured.
+
+        Parameters
+        ----------
+        intersectsWith : str, BaseGeometry, GeoDataFrame, or None, optional
+            Area of interest as a WKT string, shapely geometry, or
+            GeoDataFrame. Automatically converted to WKT. Default is None.
+        start : str, datetime, or None, optional
+            Start date for temporal filtering. Default is None.
+        end : str, datetime, or None, optional
+            End date for temporal filtering. Default is None.
+        flightDirection : {'ASCENDING', 'DESCENDING'}, optional
+            Satellite flight direction. Default is None.
+        polarization : {'VV', 'VV+VH', 'HH', 'HH+HV'}, optional
+            Polarization mode. Default is None.
+        relativeOrbit : int or None, optional
+            Relative orbit number. Default is None.
+        fullBurstID : str or None, optional
+            Full burst ID to search for. Default is None.
+        maxResults : int, optional
+            Maximum number of results. Default is 10000.
+
+        Returns
+        -------
+        S1BurstScenes
+            An instance initialized from the search results.
+
+        Examples
+        --------
+        >>> scenes = S1BurstScenes.from_search(
+        ...     intersectsWith="POINT(-118.2 34.0)",
+        ...     start="2023-01-01",
+        ...     end="2023-06-01",
+        ...     flightDirection="ASCENDING",
+        ... )
+
+        """
+        kwargs: dict[str, Any] = {
+            "platform": asf.PLATFORM.SENTINEL1,
+            "processingLevel": asf.PRODUCT_TYPE.BURST,
+            "maxResults": maxResults,
+        }
+
+        if intersectsWith is not None:
+            kwargs["intersectsWith"] = cls._convert_intersects_with(intersectsWith)
+        if start is not None:
+            kwargs["start"] = start
+        if end is not None:
+            kwargs["end"] = end
+        if flightDirection is not None:
+            kwargs["flightDirection"] = flightDirection
+        if polarization is not None:
+            kwargs["polarization"] = polarization
+        if relativeOrbit is not None:
+            kwargs["relativeOrbit"] = relativeOrbit
+        if fullBurstID is not None:
+            kwargs["fullBurstID"] = fullBurstID
+
+        results = asf.search(**kwargs)
+        logger.info("%d burst results found.", len(results))
+        return cls.from_search_results(results)
+
+    @property
+    def gdf_burst(self) -> pd.DataFrame:
+        """Return DataFrame with burst information in columns."""
+        gdf = super().gdf
+        df_burtst = pd.DataFrame(gdf.burst.to_list(), index=gdf.index)
+        return pd.merge(gdf, df_burtst, left_index=True, right_index=True)
+
     @property
     def full_burst_ids(self) -> NDArray[np.str_]:
         """Return the full burst IDs."""
-        return self.gdf.fullBurstID.unique().astype(str)
+        return self.gdf_burst.fullBurstID.unique().astype(str)
 
     @property
     def absolute_orbit(self) -> NDArray[np.uint32]:
         """Return the absolute orbits."""
-        return self.gdf.orbit.unique().astype(np.uint32)
+        return self.gdf_burst.orbit.unique().astype(np.uint32)
 
     @property
     def relative_orbit(self) -> NDArray[np.uint32]:
         """Return the relative orbits."""
-        return self.gdf.pathNumber.unique().astype(np.uint32)
+        return self.gdf_burst.pathNumber.unique().astype(np.uint32)
 
     def sel(self, full_burst_ids: str | Iterable[str]) -> S1BurstScenes:
         """Select scenes by fullBurstID, returning a new instance.
@@ -100,7 +228,7 @@ class S1BurstScenes(ASFBurstScenes):
             full_burst_ids = [full_burst_ids]
         full_burst_ids = set(full_burst_ids)
 
-        mask = self.gdf.fullBurstID.isin(full_burst_ids)
+        mask = self.gdf_burst.fullBurstID.isin(full_burst_ids)
         if not mask.any():
             msg = (
                 f"None of the specified burst IDs found. "
@@ -137,8 +265,7 @@ class S1BurstScenes(ASFBurstScenes):
 
         dropped = counts[counts != expected]
         logger.warning(
-            "Dropped %d date(s) with incomplete bursts "
-            "(expected %d per date): %s",
+            "Dropped %d date(s) with incomplete bursts (expected %d per date): %s",
             len(dropped),
             expected,
             dropped.to_dict(),
@@ -245,8 +372,13 @@ class S1BurstScenes(ASFBurstScenes):
             msg = "Granules are unique. Using submit_burst_jobs instead."
             logger.warning(msg)
             self.submit_burst_jobs(
-                pairs, granules, service, skip_existing,
-                name=name, apply_water_mask=apply_water_mask, looks=looks,
+                pairs,
+                granules,
+                service,
+                skip_existing,
+                name=name,
+                apply_water_mask=apply_water_mask,
+                looks=looks,
             )
             return
 
@@ -268,6 +400,26 @@ class S1BurstScenes(ASFBurstScenes):
         hyp3_jobs = HyP3JobsMultiBurst(service, granules=granules)
         hyp3_jobs.job_parameters = job_parameters
         hyp3_jobs.submit_jobs(pairs, skip_existing=skip_existing)
+
+    def to_gdf(self, crs: int | str | None = None) -> GeoDataFrame:
+        """Convert the GeoJSON to a geopandas.GeoDataFrame.
+
+        Parameters
+        ----------
+        crs : int, str, or None, optional
+            The CRS to set for the GeoDataFrame. If None, the CRS will not be
+            set. Default is None.
+
+        Returns
+        -------
+        gpd.GeoDataFrame
+            The GeoDataFrame representation of the Scenes.
+
+        """
+        gdf = self.gdf_burst
+        if crs is not None:
+            gdf.set_crs(crs=crs, inplace=True)
+        return gdf
 
     def plot(self, crs: str = "EPSG:4326", ax: Axes | None = None, **kwargs) -> Axes:
         """Plot the burst scenes.
@@ -390,7 +542,7 @@ class S1BurstScenes(ASFBurstScenes):
             full_burst_ids = intersected_ids
 
         # filter the gdf to only the selected burst IDs
-        gdf = self.gdf[self.gdf.fullBurstID.isin(full_burst_ids)]
+        gdf = self.gdf_burst[self.gdf_burst.fullBurstID.isin(full_burst_ids)]
         absolute_orbit = gdf.orbit.unique().astype(np.uint32)
 
         burst_infos = create_burst_info_list(gdf, original_dir)

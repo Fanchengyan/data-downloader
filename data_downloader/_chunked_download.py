@@ -18,11 +18,6 @@ if TYPE_CHECKING:
 logger = setup_logger(__name__, handler=tqdm_handler)
 
 
-# ============================================================================
-# Resume Detection
-# ============================================================================
-
-
 async def _detect_and_resume_download(
     url: str,
     file_path: Path,
@@ -158,11 +153,6 @@ def _cleanup_orphaned_parts(file_path: Path) -> None:
 
         for part_file in orphaned:
             part_file.unlink()
-
-
-# ============================================================================
-# Async Chunked Download (HTTPX)
-# ============================================================================
 
 
 async def _download_range_httpx(
@@ -422,11 +412,6 @@ async def _download_data_chunked_httpx(
     metadata.cleanup()
 
     return True
-
-
-# ============================================================================
-# Async Chunked Download (AIOHTTP)
-# ============================================================================
 
 
 async def _download_range_aiohttp(
