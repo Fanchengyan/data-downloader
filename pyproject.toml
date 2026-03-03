@@ -40,7 +40,7 @@ dependencies = [
 
 [project.optional-dependencies]
 
-services = ["burst2safe", "earthaccess", "hyp3_sdk", "asf_search"]
+services = ["burst2safe", "earthaccess", "hyp3_sdk>=7.7.6", "asf_search"]
 
 tests = [
   "pytest>=6.0.0",
@@ -61,6 +61,7 @@ docs = [
 ]
 
 dev = ["data_downloader[tests, docs]"]
+all = ["data_downloader[services, tests, docs]"]
 
 [tool.setuptools.packages.find]
 where = ["."] # list of folders that contain the packages (["."] by default)

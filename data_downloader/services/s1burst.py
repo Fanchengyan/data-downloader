@@ -264,7 +264,7 @@ class S1BurstScenes(ASFScenes):
         mask = dates.isin(valid_dates)
 
         dropped = counts[counts != expected]
-        logger.warning(
+        logger.debug(
             "Dropped %d date(s) with incomplete bursts (expected %d per date): %s",
             len(dropped),
             expected,

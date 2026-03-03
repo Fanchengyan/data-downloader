@@ -6,7 +6,7 @@ from .asf_base import (
     ASFTileScenesPairs,
     ASFTileScenesTimeseries,
 )
-from .hyp3 import HyP3JobsBurst, HyP3JobsDownloader, HyP3JobsGAMMA, HyP3Service
+from .hyp3 import HyP3JobsBurst, HyP3JobsGAMMA, HyP3Service
 from .licsar import LiCSARService
 from .s1burst import S1BurstScenes
 from .sentinel1 import Sentinel1TileScenes
